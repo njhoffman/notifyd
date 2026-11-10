@@ -1,0 +1,19 @@
+[Unit]
+Description=notifyd desktop notification daemon
+Documentation=https://github.com/njhoffman/notifyd
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+# `just install` symlinks bin/notifyd here. DISPLAY and the session bus come from the user
+# manager's environment (the i3 config starts xsession.target after importing them).
+Type=dbus
+BusName=org.freedesktop.Notifications
+ExecStart=%h/.local/bin/notifyd daemon
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+
+[Install]
+# With the X session, not the user manager: before X there is no display to draw on.
+WantedBy=xsession.target

@@ -1,0 +1,24 @@
+description: the dunstrc in use here - Iosevka Term 13 on #000811, thin frame colored by urgency, rounded 5px
+style:
+  font-family: Iosevka Term
+  font-size: 13pt
+  background: rgba(0, 8, 17, 0.9)
+  foreground: '#7Bbcf7'
+  radius: 5
+  border-width: 1
+  border-color: '#3B9Cd7'
+  padding: [6, 8]
+  title: { weight: bold }
+  appname: { size: 10pt }
+  time: { size: 10pt }
+  low: { border-color: '#0F796E', foreground: '#4Fa9ae' }
+  normal: { border-color: '#3B9Cd7', foreground: '#7Bbcf7' }
+  critical: { border-color: '#B7472A', foreground: '#99676A', background: 'rgba(17, 0, 0, 0.9)' }
+  progress: { color: '#3B9Cd7', height: 8 }
+  classes:
+    accent: { foreground: '#2E90cC', weight: bold }
+    muted: { alpha: 60% }
+    good: { foreground: '#4Fa9ae' }
+    warn: { foreground: '#e0af68' }
+    bad: { foreground: '#B7472A' }
+    tag: { foreground: '#000811', background: '#3B9Cd7' }

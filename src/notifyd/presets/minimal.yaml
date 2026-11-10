@@ -1,0 +1,20 @@
+description: small and quiet - dark gray, no frame, compact text
+style:
+  background: rgba(18, 18, 18, 0.92)
+  foreground: '#d0d0d0'
+  radius: 3
+  padding: [6, 10]
+  spacing: 2
+  font-size: 11px
+  title: { size: 13px, weight: 600 }
+  appname: { size: 10px, color: '#808080' }
+  time: { size: 10px, color: '#808080' }
+  critical: { background: 'rgba(120, 20, 20, 0.92)', foreground: '#ffd0d0' }
+  progress: { color: '#d0d0d0', height: 3 }
+  classes:
+    accent: { weight: bold }
+    muted: { alpha: 55% }
+    good: { foreground: '#a0d0a0' }
+    warn: { foreground: '#e0c080' }
+    bad: { foreground: '#e08080' }
+    tag: { foreground: '#121212', background: '#a0a0a0' }

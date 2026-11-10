@@ -1,0 +1,164 @@
+# TODO
+
+notifyd: one notification daemon for this desktop that combines deadd's look and notification
+center with dunst's rules, stacking and CLI, plus preset styles, a notify-send replacement and
+colorful logging. Research is in `docs/research.md`, the design in `docs/design.md`, the config
+reference in `docs/config.md`. Every item has a priority, `(p1)` high, `(p2)` normal or `(p3)` low,
+and a category: bug, feature, refactor, docs, test, chore or perf. Decisions taken on 2026-11-10
+(Python + GTK3, YAML, Pango plus preset-named styles, rules override sender timeouts, notification
+center after popups + history) are under Completed.
+
+Reviewed: 2026-11-10
+
+## 2. Core daemon
+
+- [x] **D-Bus server.** (p1) [feature] Own `org.freedesktop.Notifications`: `Notify`,
+      `CloseNotification`, `GetCapabilities`, `GetServerInformation` (spec 1.2), signals
+      `NotificationClosed` with correct reasons and `ActionInvoked`. Fail clearly when another
+      daemon owns the name, naming it (as `notify-daemon owner` does).
+- [x] **Replace semantics.** (p1) [feature] `replaces_id` updates in place and returns the same
+      id (deadd returns a new id, so backdrop closes the old one with gdbus). Also replace by
+      tag: `x-dunst-stack-tag`, `x-canonical-private-synchronous`, `synchronous`.
+- [x] **Hints.** (p1) [feature] urgency, category, desktop-entry, `image-path` (path or file://
+      URI), `image-data`, `icon_data`, `value` (progress bar), `resident`, `transient`.
+- [ ] **Sound and dunst color hints.** (p3) [feature] `sound-file`/`sound-name`/`suppress-sound`
+      (play with canberra-gtk-play or paplay, a `sound:` rule key) and dunst's per-notification
+      `fgcolor`/`bgcolor`/`frcolor`/`hlcolor` hints as style overrides (`src/notifyd/render/gtk.py`).
+- [x] **Expiry.** (p2) [feature] Timeouts paused while hovered, resumed with what was left
+      (at least 1 s); critical never expires by default (`timeout-critical`).
+- [ ] **Idle threshold.** (p3) [feature] dunst's `idle_threshold`: no expiry while the user is
+      idle (XScreenSaver idle time via Xlib or `xprintidle`), so nothing is missed at lunch.
+- [x] **History in memory.** (p2) [feature] The last `history.size` (100) with closed reason and
+      matched rules; `notifyd ctl history`.
+- [ ] **History on disk.** (p3) [feature] Keep it across restarts (JSON lines in
+      `$XDG_STATE_HOME/notifyd/`), and a rofi picker that re-shows an entry (dunst `history-pop`).
+- [x] **Pause.** (p2) [feature] `ctl pause/resume/toggle`: everything but critical is held back
+      and replayed on resume.
+- [ ] **Modes.** (p2) [feature] mako-style named modes (`dnd`, `quiet`, `presentation`) that
+      rules can match on (`match: {mode: ...}`), set with `notifyd ctl mode`, shown in `status`.
+- [ ] **Duplicates and grouping.** (p3) [feature] Stack identical notifications with a count
+      (dunst `stack_duplicates`); optional group-by app.
+- [x] **Monitor choice.** (p2) [feature] `position.follow: mouse` (deadd's follow-mouse) or a
+      fixed `position.monitor`, within the monitor's work area.
+- [ ] **Re-place on monitor changes.** (p2) [bug] The stack is laid out when a notification
+      opens or closes; after displayd changes the layout (xrandr) open ones stay where they were
+      until then. Listen to `Gdk.Screen` `monitors-changed` and call `layout()`. Also, with
+      follow: mouse, a new notification on another monitor moves the whole stack there.
+
+## 3. Rules and interception
+
+- [x] **Rule engine.** (p1) [feature] Ordered rules; `match` on app, summary, body, icon,
+      category, urgency, desktop-entry, stack tag and any hint; exact, list or `/regex/i`. A
+      matching rule applies any config key, later rules overriding earlier ones.
+- [x] **Rewrites.** (p2) [feature] summary/body/app templates with named groups, urgency,
+      stack tag, icon (`icon.name`), image (`image.path`), `skip`, `history.keep`.
+- [ ] **Actions from rules.** (p3) [feature] Add buttons with commands to matching notifications
+      (deadd `action-commands`, e.g. playerctl buttons on song notifications).
+- [ ] **Scripts.** (p3) [feature] `run:` on match with the notification as env vars and JSON on
+      stdin (dunst `script`), never blocking the display.
+- [x] **Rule tracing.** (p2) [feature] `notifyd rules --app X --summary Y ...` shows which rules
+      match and the resulting settings and timeout; the log lists matched rules per event.
+
+## 4. Rendering and presets
+
+- [x] **Popup window.** (p1) [feature] Override-redirect GTK3 window, RGBA visual, WM class
+      `Notifyd`, title `notifyd` (picom's `! name~=''` excludes nameless windows from shadows),
+      deadd's layout.
+- [x] **Pango markup.** (p1) [feature] Full Pango in summary and body, per-rule
+      `markup: full|strip|plain`, named styles (`<span class="accent">`), fallbacks for bare `&`
+      and broken markup.
+- [x] **deadd preset.** (p1) [feature] The default, from `~/.config/deadd/deadd.css`.
+- [x] **More presets.** (p2) [feature] dunst, minimal, card, tokyonight, high-contrast, as data
+      files; user presets in `~/.config/notifyd/presets/`.
+- [x] **Live preview.** (p2) [feature] `ctl preview [PRESET]`, `ctl preset NAME`,
+      `notifyd presets --pick` (fzf: moving previews, enter switches).
+- [x] **Progress bars and actions.** (p2) [feature] `value` hint as a bar, action buttons,
+      clicks per `click.left/middle/right`.
+- [x] **Hot reload.** (p2) [feature] On file change, SIGHUP or `ctl reload`; a broken file keeps
+      the old config and says why.
+- [ ] **Check translucency and shadow on the real desktop.** (p1) [test] Under Xvfb picom
+      draws a black root, so the 0.8 opacity and the shadow were not seen. Run
+      `notifyd daemon --replace` on i3 + picom and compare with deadd side by side.
+- [ ] **Slide/fade animations.** (p3) [feature] Fade in/out (window opacity steps on a GLib
+      timer), as picom's fading does for deadd today; check picom `fade-exclude` first.
+- [ ] **Preset gallery.** (p3) [docs] Screenshots of each preset in `docs/presets.md`
+      (`render.sh`-style Xvfb capture once translucency renders there).
+
+## 5. Sender and control CLI
+
+- [x] **notifyd send.** (p1) [feature] notify-send flags plus `--replace-name`
+      (`--replaces-process`), `--tag`, `--image`, `--progress`, `--close`; waits and prints the
+      chosen action.
+- [x] **notifyd ctl.** (p2) [feature] status, history, close, action, close-all, pause, resume,
+      toggle, reload, preset, preview, watch; over the `io.github.njhoffman.Notifyd` interface.
+- [ ] **Shell completion.** (p3) [feature] zsh completion for `send` and `ctl` (preset names,
+      history ids).
+- [x] **Process name.** (p2) [bug] The daemon ran as `python3` in `/proc/PID/comm`, so a second
+      daemon reported "owned by python3" and `pgrep notifyd` found nothing; it now sets its name
+      with `prctl(PR_SET_NAME)`.
+
+## 6. Logging
+
+- [x] **Colored event log.** (p1) [feature] One aligned line per event, colored by urgency and
+      event; `NO_COLOR` and non-terminals plain.
+- [x] **Structured output.** (p2) [feature] `--log-format json`, `notifyd ctl watch [--json]`.
+- [x] **Log levels.** (p3) [feature] `-v/-q`, `log.level`.
+- [ ] **Log file.** (p3) [feature] Optional rotating file next to the journal output.
+
+## 7. Integration with this desktop
+
+- [x] **deadd importer.** (p1) [feature] `notifyd import deadd [-o config]`; style values equal to
+      the deadd preset are left out, unsupported keys are reported.
+- [ ] **dunst importer.** (p3) [feature] `notifyd import dunst`: urgency colors into a preset,
+      `[rule]` sections into rules.
+- [x] **Song and wallpaper timeouts.** (p1) [feature] `examples/config.yaml`: songs (musicman,
+      MPD, Spotify) and backdrop at 12 s; deadd's Spotify 3 s rule dropped.
+- [ ] **Install on this desktop.** (p1) [chore] `just install`, `just import-deadd`, then add
+      the songs/wallpaper rules from `examples/config.yaml`; link `share/systemd/notifyd.service`
+      into `~/.config/systemd/user/`.
+- [ ] **notify-daemon entry.** (p2) [chore] Add `notifyd` to `~/.shell/scripts/notify-daemon`
+      (`ORDER`, `BIN`, `UNIT=notifyd.service`) so `notify-daemon use notifyd|deadd` switches. Its
+      `owner()` reads `/proc/PID/exe` (python3 for notifyd) before `comm`; it needs to try `comm`
+      too, and its `pkill -f` pattern must match `notifyd daemon`.
+- [x] **picom rules.** (p2) [chore] Checked `~/.config/picom/picom.conf`: no rule targets class
+      `Notifyd`, and the window has a name, so it gets the shadow like deadd.
+- [ ] **Notification center toggle.** (p3) [feature] `$mod+grave` sends SIGUSR1 to deadd
+      (`~/.config/i3/conf.d/60-apps.conf:101`); move it to a `notifyd ctl center` once the
+      center exists (section 10).
+- [ ] **Stale deadd config copy.** (p3) [chore] `~/.config/deadd.yml` is an older copy of
+      `~/.config/deadd/deadd.yml` (no backdrop rule); the importer reads the latter, and the old
+      file can go.
+
+## 10. Notification center
+
+- [ ] **Center sidebar.** (p2) [feature] deadd's sidebar: history as cards, clear all, the pause
+      toggle, opened with `notifyd ctl center` (and SIGUSR1 for the current i3 binding).
+
+## 9. Project
+
+- [ ] **Spec compliance check.** (p2) [test] A script sending every hint and action combination
+      used by musicman, backdrop and displayd, compared across notifyd, deadd and dunst.
+- [ ] **Packaging.** (p3) [chore] `pipx install .` works from pyproject; check it pulls no
+      PyGObject wheel build (system gi), or document `--system-site-packages`.
+
+## Completed
+
+### 1. Decisions (completed 2026-11-10)
+
+- [x] **Language and toolkit.** (p1) [chore] Python + GTK3: GTK CSS for presets and live preview,
+      native Pango, same stack as displayd. GTK4 cannot position windows on X11.
+- [x] **Config format.** (p1) [chore] YAML.
+- [x] **Agree on the config schema.** (p1) [docs] As in `docs/config.md`.
+- [x] **Markup syntax for senders.** (p1) [chore] Pango plus preset-named styles
+      (`<span class="accent">`).
+- [x] **Timeout precedence.** (p2) [chore] A rule's timeout wins over the sender's.
+- [x] **Notification center scope.** (p2) [chore] Popups + history first, the center later.
+
+### 8. Project setup (completed 2026-11-10)
+
+- [x] **Scaffold.** (p1) [chore] `src/notifyd`, `bin/notifyd`, pyproject (version in
+      `notifyd/__init__.py`), ruff, Justfile (`test`, `lint`, `run`, `preview`, `install`,
+      `import-deadd`), systemd unit.
+- [x] **Tests.** (p1) [test] 118 pytest cases: config, rules, markup, manager (fake clock),
+      importer, log, CSS, send parsing, and the daemon end to end on a private D-Bus, with the
+      GTK renderer under Xvfb.

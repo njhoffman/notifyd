@@ -1,0 +1,19 @@
+description: deadd-notification-center as configured here - black card at 0.8, no frame (picom draws the shadow), #acf text
+style:
+  background: rgba(0, 0, 0, 0.8)
+  foreground: '#acf'
+  radius: 0
+  padding: [10, 15]
+  spacing: 4
+  title: { size: 16px, weight: bold }
+  appname: { size: 12px }
+  time: { size: 12px }
+  critical: { background: 'rgba(255, 0, 0, 0.5)', foreground: '#faa' }
+  progress: { color: '#acf', background: 'rgba(170, 204, 255, 0.15)', height: 6 }
+  classes:
+    accent: { foreground: '#7aa2f7', weight: bold }
+    muted: { alpha: 60% }
+    good: { foreground: '#9ece6a' }
+    warn: { foreground: '#e0af68' }
+    bad: { foreground: '#f7768e' }
+    tag: { foreground: '#000811', background: '#7aa2f7' }

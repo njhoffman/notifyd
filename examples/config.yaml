@@ -1,0 +1,38 @@
+# Example notifyd config: ~/.config/deadd imported with `notifyd import deadd`, then the song and
+# wallpaper rules given 12s. musicman sends its player (MPD, Spotify) as the app name, so the songs rule
+# matches those too; deadd's Spotify rule (3s) is dropped since it shortened song notifications.
+
+preset: deadd
+width: 350
+position:
+  margin: [30, 5]
+  follow: mouse
+timeout: 8s
+icon: {size: 25}
+image: {size: 75, margin-right: 0}
+
+rules:
+- name: songs
+  match:
+    app: [musicman, MPD, Spotify]
+  timeout: 12s
+  hide: [app-icon, app-name]
+  image: {size: 60}
+
+- name: wallpaper
+  match: {app: backdrop}
+  timeout: 12s
+  image: {size: 110}
+
+- match: {app: Volume}
+  image: {size: 40}
+  hide: [app-icon, app-name]
+
+- match: {app: tmux-session}
+  image: {size: 40}
+  hide: [app-icon, app-name]
+
+- match: {app: mpd-notification}
+  image: {margin-right: 15}
+  hide: [title, app-icon, app-name]
+

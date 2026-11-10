@@ -1,0 +1,49 @@
+# @format
+width: 350
+margin-top: 30
+margin-right: 5
+follow-mouse: true
+notification:
+  popup:
+    default-timeout: 8000
+  app-icon:
+    icon-size: 25
+  image:
+    size: 75
+    margin-right: 0
+  modifications:
+    - match:
+        app-name: Spotify
+      modify:
+        timeout: 3000
+        class-name: Spotify
+        image-size: 80
+    - match:
+        app-name: backdrop
+      modify:
+        image-size: 110
+    - match:
+        app-name: Volume
+      modify:
+        app-icon: ''
+        app-name: ''
+        image-size: 40
+    - match:
+        app-name: tmux-session
+      modify:
+        app-icon: ''
+        app-name: ''
+        image-size: 40
+    - match:
+        app-name: mpd-notification
+      modify:
+        title: ''
+        app-icon: ''
+        app-name: ''
+        margin-right: 15
+    - match:
+        app-name: musicman
+      modify:
+        app-icon: ''
+        app-name: ''
+        image-size: 60

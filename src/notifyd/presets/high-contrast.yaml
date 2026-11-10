@@ -1,0 +1,23 @@
+description: maximum legibility - opaque black, white text and frame
+style:
+  background: '#000000'
+  foreground: '#ffffff'
+  radius: 0
+  border-width: 2
+  border-color: '#ffffff'
+  padding: [10, 14]
+  spacing: 4
+  font-size: 13px
+  title: { size: 17px, weight: bold }
+  appname: { size: 12px, weight: bold }
+  time: { size: 12px }
+  critical: { background: '#a00000', border-color: '#ffff00', foreground: '#ffffff' }
+  progress: { color: '#ffffff', background: '#444444', height: 8 }
+  button: { background: '#333333', hover: '#666666', foreground: '#ffffff' }
+  classes:
+    accent: { foreground: '#ffff00', weight: bold }
+    muted: { foreground: '#bbbbbb' }
+    good: { foreground: '#00ff00' }
+    warn: { foreground: '#ffff00' }
+    bad: { foreground: '#ff6060' }
+    tag: { foreground: '#000000', background: '#ffffff' }

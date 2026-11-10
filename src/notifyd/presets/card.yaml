@@ -1,0 +1,22 @@
+description: rounded card for media - generous padding, soft border, large title
+style:
+  background: rgba(26, 27, 38, 0.92)
+  foreground: '#c0caf5'
+  radius: 12
+  border-width: 1
+  border-color: rgba(255, 255, 255, 0.06)
+  padding: [14, 16]
+  spacing: 6
+  title: { size: 15px, weight: bold, color: '#e0e6ff' }
+  appname: { size: 11px, color: '#7aa2f7', weight: bold }
+  time: { size: 11px, color: '#565f89' }
+  critical: { background: 'rgba(60, 20, 30, 0.95)', border-color: '#f7768e', foreground: '#ffc0cb' }
+  progress: { color: '#7aa2f7', background: 'rgba(122, 162, 247, 0.15)', height: 6 }
+  button: { background: 'rgba(122, 162, 247, 0.15)', hover: 'rgba(122, 162, 247, 0.3)', radius: 6 }
+  classes:
+    accent: { foreground: '#7aa2f7', weight: bold }
+    muted: { alpha: 60% }
+    good: { foreground: '#9ece6a' }
+    warn: { foreground: '#e0af68' }
+    bad: { foreground: '#f7768e' }
+    tag: { foreground: '#1a1b26', background: '#bb9af7' }

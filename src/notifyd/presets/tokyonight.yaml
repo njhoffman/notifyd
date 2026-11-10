@@ -1,0 +1,22 @@
+description: Tokyo Night colors - framed in blue, urgency on the border
+style:
+  background: rgba(26, 27, 38, 0.95)
+  foreground: '#a9b1d6'
+  radius: 6
+  border-width: 1
+  border-color: '#7aa2f7'
+  padding: [10, 12]
+  spacing: 4
+  title: { size: 14px, weight: bold, color: '#c0caf5' }
+  appname: { size: 11px, color: '#7dcfff' }
+  time: { size: 11px, color: '#565f89' }
+  low: { border-color: '#414868' }
+  critical: { border-color: '#f7768e', foreground: '#f7768e' }
+  progress: { color: '#7aa2f7', background: '#24283b', height: 6 }
+  classes:
+    accent: { foreground: '#7aa2f7', weight: bold }
+    muted: { foreground: '#565f89' }
+    good: { foreground: '#9ece6a' }
+    warn: { foreground: '#e0af68' }
+    bad: { foreground: '#f7768e' }
+    tag: { foreground: '#1a1b26', background: '#7aa2f7' }
