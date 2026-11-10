@@ -24,6 +24,8 @@ class Notification:
     requested_timeout: int = -1                      # as sent: -1 server default, 0 never, else ms
     replaces_id: int = 0
     id: int = 0
+    mode: str = 'normal'                             # the daemon's mode when it arrived
+    duplicates: int = 1                              # how many identical ones this stands for
     received: float = field(default_factory=time.time)
     # filled in by the rules
     settings: dict = field(default_factory=dict)
@@ -94,6 +96,8 @@ class Notification:
             'rules': list(self.rules),
             'timeout': self.timeout,
             'received': self.received,
+            'mode': self.mode,
+            'duplicates': self.duplicates,
         }
 
 

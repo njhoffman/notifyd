@@ -4,7 +4,7 @@ Style keys, all optional:
 
     font-family, font-size, background, foreground, radius, border-width, border-color,
     padding: [vertical, horizontal] or one number, spacing (between rows),
-    title / body / appname / time: { size, weight, style, color, family },
+    title / body / appname / time / count: { size, weight, style, color, family },
     low / normal / critical: { background, foreground, border-color },
     progress: { color, background, height },
     button: { background, foreground, hover },
@@ -102,7 +102,8 @@ def build_css(style, scope):
         })
         if part.get('foreground'):
             css += block(f'{card}.{urgency} label', {'color': part['foreground']})
-    for name in ('title', 'body', 'appname', 'time'):
+    css += block(f'{card} .count', {'font-weight': 'bold', 'opacity': '0.8'})
+    for name in ('title', 'body', 'appname', 'time', 'count'):
         css += block(f'{card} .{name}', part_props(style.get(name)))
     progress = style.get('progress') or {}
     height = px(progress.get('height', 6))

@@ -25,7 +25,8 @@ def bus(tmp_path):
                             stdout=subprocess.PIPE, text=True)
     address = proc.stdout.readline().strip()
     env = {**os.environ, 'DBUS_SESSION_BUS_ADDRESS': address, 'GIO_USE_VFS': 'local',
-           'XDG_RUNTIME_DIR': str(tmp_path), 'XDG_CONFIG_HOME': str(tmp_path / 'config'), 'NO_COLOR': '1'}
+           'XDG_RUNTIME_DIR': str(tmp_path), 'XDG_CONFIG_HOME': str(tmp_path / 'config'), 'NO_COLOR': '1',
+           'XDG_STATE_HOME': str(tmp_path / 'state')}
     env.pop('DISPLAY', None)
     yield env
     proc.terminate()
@@ -149,6 +150,28 @@ def test_second_daemon_names_the_owner(bus, daemon, tmp_path):
     assert 'cannot own org.freedesktop.Notifications: owned by notifyd' in other.stderr
 
 
+def test_list_mode_log_file_and_persistent_history(bus, daemon, tmp_path):
+    log_file = tmp_path / 'logs' / 'notifyd.log'
+    config = f'log: {{file: {log_file}}}\nrules:\n  - match: {{mode: dnd, urgency: [low, normal]}}\n    skip: true\n'
+    proc = daemon(config, '--renderer', 'none')
+    shown = run(bus, 'send', '-p', '-a', 'mail', 'New mail').stdout.strip()
+    listing = run(bus, 'ctl', 'list', '--ids').stdout
+    assert listing == f'{shown}\tmail: New mail\n'
+    assert json.loads(run(bus, 'ctl', 'list', '--json').stdout)[0]['state'] == 'shown'
+    assert run(bus, 'ctl', 'mode').stdout.strip() == 'normal'
+    assert run(bus, 'ctl', 'mode', 'dnd').stdout.strip() == 'dnd'
+    run(bus, 'send', '-a', 'chat', 'hidden while dnd')
+    assert [e['event'] for e in events(tmp_path)][-1] == 'suppressed'
+    run(bus, 'ctl', 'close', shown)
+    proc.terminate()
+    proc.wait(5)
+    text = log_file.read_text()
+    assert 'suppressed' in text and 'hidden while dnd' in text and '\033[' not in text
+    daemon('', '--renderer', 'none')
+    summaries = [e['summary'] for e in json.loads(run(bus, 'ctl', 'history', '--json').stdout)]
+    assert summaries[:2] == ['hidden while dnd', 'New mail']
+
+
 def test_ctl_without_notifyd(bus):
     result = run(bus, 'ctl', 'status', check=False)
     assert result.returncode == 1 and 'notifyd is not running' in result.stderr
@@ -176,6 +199,57 @@ def test_gtk_renderer_under_xvfb(bus, daemon, tmp_path):
             tree = subprocess.run(['xwininfo', '-root', '-tree', '-display', display], capture_output=True,
                                   text=True).stdout
             assert '"notifyd": ("notifyd" "Notifyd")' in tree
+    finally:
+        xvfb.terminate()
+        xvfb.wait(5)
+
+
+RENDERER_SCRIPT = r"""
+import io, sys
+sys.path.insert(0, sys.argv[1])
+from notifyd.config import load_config
+from notifyd.log import EventLog
+from notifyd.manager import Manager
+from notifyd.render.gtk import GtkRenderer
+sys.path.insert(0, sys.argv[2])
+from conftest import FakeScheduler
+
+stream = io.StringIO()
+log = EventLog(stream=stream, color='never')
+manager = Manager(load_config(text='position: {follow: none}'), log, FakeScheduler())
+renderer = GtkRenderer(manager, log)
+manager.renderer = renderer
+first = manager.notify('a', summary='one')
+manager.notify('a', summary='same')
+manager.notify('a', summary='same')                      # a duplicate: one window, counted
+assert len(renderer.windows) == 2, renderer.windows
+newest = manager.displayed[0]
+assert manager.active[newest].duplicates == 2
+x1, y1 = renderer.windows[newest].get_position()
+assert renderer.windows[first].get_position()[1] > y1   # older ones go below
+assert renderer.area is not None
+renderer.screen.emit('monitors-changed')
+assert 'monitors changed' in stream.getvalue()
+assert renderer.area is not None                        # laid out again on the new geometry
+manager.close_all()
+assert renderer.area is None and renderer.windows == {}
+print('ok', x1, y1)
+"""
+
+
+@pytest.mark.skipif(not shutil.which('Xvfb'), reason='needs Xvfb')
+def test_renderer_relayout_on_monitor_change_and_duplicate_badge():
+    display = f':{80 + os.getpid() % 9}'
+    xvfb = subprocess.Popen(['Xvfb', display, '-screen', '0', '1280x720x24'], stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL)
+    try:
+        time.sleep(0.7)
+        result = subprocess.run([sys.executable, '-c', RENDERER_SCRIPT, str(ROOT / 'src'), str(ROOT / 'tests')],
+                                env={**os.environ, 'DISPLAY': display, 'GIO_USE_VFS': 'local'},
+                                capture_output=True, text=True, timeout=30, check=False)
+        assert result.returncode == 0, result.stderr
+        _ok, x, y = result.stdout.split()
+        assert (int(x), int(y)) == (1280 - 5 - 350, 30)    # newest at top-right: margin [30, 5], width 350
     finally:
         xvfb.terminate()
         xvfb.wait(5)

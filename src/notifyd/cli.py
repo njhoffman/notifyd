@@ -2,8 +2,8 @@
 
     notifyd daemon [-c CONFIG] [--renderer gtk|none] [--replace] [--log-format pretty|json] [--color ...]
     notifyd send SUMMARY [BODY] [notify-send flags]
-    notifyd ctl status | history [-n N] [--json] | close ID | action ID [KEY] | close-all | pause | resume | toggle
-              | reload | preset NAME | preview [PRESET] | watch [--json]
+    notifyd ctl status | list | history [-n N] [--json] | close ID | action ID [KEY] | close-all
+              | pause | resume | toggle | mode [NAME] | reload | preset NAME | preview [PRESET] | watch [--json]
     notifyd presets [--pick | --names]
     notifyd import deadd [--yml PATH] [--css PATH] [-o OUT] [--force]
     notifyd check [-c CONFIG]
@@ -48,7 +48,7 @@ def control_call(method, params=None, reply='(s)'):
 
 def ctl(args):
     _Gio, GLib = gio()
-    from notifyd.log import format_pretty, use_color
+    from notifyd.log import format_pretty, one_line, use_color
     command = args.command
     if command == 'status':
         status = json.loads(control_call('Status'))
@@ -67,6 +67,19 @@ def ctl(args):
     elif command == 'close':
         if not control_call('Close', GLib.Variant('(u)', (args.id,)), '(b)'):
             raise SystemExit(f'no notification {args.id}')
+    elif command == 'list':
+        entries = json.loads(control_call('List'))
+        if args.json:
+            print(json.dumps(entries, ensure_ascii=False, indent=2))
+        elif args.ids:
+            for entry in entries:
+                print(f'{entry["id"]}\t{entry["app"]}: {one_line(entry["summary"], 60)}')
+        else:
+            color = use_color('auto', sys.stdout)
+            for entry in entries:
+                print(format_pretty({'event': entry['state'], 'time': entry['received'], 'n': entry}, color))
+    elif command == 'mode':
+        print(control_call('SetMode', GLib.Variant('(s)', (args.name or '',))))
     elif command == 'action':
         if not control_call('Invoke', GLib.Variant('(us)', (args.id, args.key or '')), '(b)'):
             raise SystemExit(f'no notification {args.id} with that action')
@@ -271,16 +284,21 @@ def build_parser():
     history = add_command(commands, 'history', 'show closed notifications, oldest first')
     history.add_argument('-n', type=int, default=20, metavar='N', help='the last N (0: all; default: 20)')
     history.add_argument('--json', action='store_true', help='as JSON')
+    listing = add_command(commands, 'list', 'show open notifications: on screen, waiting, held back')
+    listing.add_argument('--json', action='store_true', help='as JSON')
+    listing.add_argument('--ids', action='store_true', help='id, a tab, app and summary (for scripts)')
     close = add_command(commands, 'close', 'close a notification')
-    close.add_argument('id', type=int, help='notification id (notifyd send -p prints it)')
+    close.add_argument('id', type=int, help='notification id (notifyd ctl list shows them)').complete = 'ids'
     action = add_command(commands, 'action', 'invoke an action of a notification')
-    action.add_argument('id', type=int, help='notification id')
+    action.add_argument('id', type=int, help='notification id').complete = 'ids'
     action.add_argument('key', nargs='?', help='action key (default: "default", else the first action)')
     add_command(commands, 'close-all', 'close every notification on screen or waiting')
     add_command(commands, 'pause', 'hold back all but critical notifications')
     add_command(commands, 'resume', 'show what was held back, and new ones again')
     add_command(commands, 'toggle', 'pause or resume')
     add_command(commands, 'reload', 'reload the config file')
+    mode = add_command(commands, 'mode', 'show or set the mode rules can match on (match: {mode: NAME})')
+    mode.add_argument('name', nargs='?', help='e.g. dnd, presentation, normal (the default)')
     preset = add_command(commands, 'preset', 'switch the preset until the next reload')
     preset.add_argument('name', help='preset name (notifyd presets lists them)').complete = 'presets'
     preview = add_command(commands, 'preview', 'show sample notifications in a preset')

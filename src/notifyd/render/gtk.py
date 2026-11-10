@@ -91,6 +91,9 @@ class GtkRenderer:
                                                  Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1)
         self.styles = {}     # scope class -> css
         self.windows = {}    # id -> Gtk.Window
+        self.area = None     # the work area the stack is on; chosen when the first one opens
+        # displayd (xrandr) changing the layout: lay out again on the new geometry
+        self.screen.connect('monitors-changed', self.on_monitors_changed)
 
     # -- styles ---------------------------------------------------------
     def style_for(self, n):
@@ -155,6 +158,13 @@ class GtkRenderer:
         window = self.windows.pop(nid, None)
         if window is not None:
             window.destroy()
+        if not self.windows:
+            self.area = None
+        self.layout()
+
+    def on_monitors_changed(self, _screen):
+        self.area = None
+        self.log.info('monitors changed; placing notifications again')
         self.layout()
 
     def fill(self, window, n):
@@ -223,6 +233,8 @@ class GtkRenderer:
                 header.pack_start(widget, False, False, 0)
         if 'app-name' not in hide and n.app:
             header.pack_start(self.label(GLib.markup_escape_text(n.app), 'appname', wrap=False), True, True, 0)
+        if n.duplicates > 1:
+            header.pack_start(self.label(f'×{n.duplicates}', 'count', wrap=False), False, False, 0)
         if 'time' not in hide:
             header.pack_end(self.label(time.strftime('%H:%M', time.localtime(n.received)), 'time', wrap=False),
                             False, False, 0)
@@ -306,7 +318,10 @@ class GtkRenderer:
         margin = position.get('margin', [30, 5])
         margin_v, margin_h = (margin, margin) if isinstance(margin, (int, float)) else (margin[0], margin[-1])
         gap = int(position.get('gap', 10))
-        area = self.monitor_geometry()
+        # one monitor for the whole stack: the one under the pointer when the first opened
+        if self.area is None:
+            self.area = self.monitor_geometry()
+        area = self.area
         offset = margin_v
         for nid in self.manager.displayed:
             window = self.windows.get(nid)

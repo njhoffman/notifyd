@@ -6,8 +6,8 @@ thing runs in tests with fakes.
 """
 
 import time
-from collections import deque
 
+from notifyd.history import History
 from notifyd.model import CLOSED, DISMISSED, EXPIRED, REASON_NAMES, Notification, actions_from_list
 from notifyd.rules import resolve
 
@@ -48,7 +48,7 @@ class NullRenderer:
 
 
 class Manager:
-    def __init__(self, config, log, scheduler, renderer=None, on_closed=None, on_action=None):
+    def __init__(self, config, log, scheduler, renderer=None, on_closed=None, on_action=None, history_path=None):
         self.config = config
         self.log = log
         self.scheduler = scheduler
@@ -63,14 +63,15 @@ class Manager:
         self.timers = {}        # id -> (handle, deadline)
         self.hovered = {}       # id -> remaining ms
         self.paused = False
-        self.history = deque(maxlen=config.settings['history']['size'])
+        self.mode = 'normal'
+        self.history = History(config.settings['history']['size'], history_path, log)
 
     # -- incoming -------------------------------------------------------
     def notify(self, app='', replaces_id=0, app_icon='', summary='', body='', actions=(), hints=None,
                timeout=-1, extra=None):
         n = Notification(app=app, summary=summary, body=body, app_icon=app_icon,
                          actions=actions_from_list(actions), hints=dict(hints or {}),
-                         requested_timeout=timeout, replaces_id=replaces_id)
+                         requested_timeout=timeout, replaces_id=replaces_id, mode=self.mode)
         resolve(self.config, n, extra)
         target = self._replace_target(n)
         n.id = target or self._new_id()
@@ -83,7 +84,7 @@ class Manager:
             self.scheduler.call_later(0, lambda: self.on_closed(n.id, EXPIRED))
             return n.id
         if target:
-            self._replace(n)
+            self._replace(n, self.active[target])
         elif self.paused and n.urgency < 2:
             self.active[n.id] = n
             self.held_back.append(n.id)
@@ -106,9 +107,15 @@ class Manager:
             for nid, other in self.active.items():
                 if other.app == n.app and other.stack_tag == tag:
                     return nid
+        if n.settings.get('stack-duplicates'):
+            for nid, other in self.active.items():
+                if (other.app, other.summary, other.body, other.urgency) == (n.app, n.summary, n.body, n.urgency):
+                    n.duplicates = other.duplicates + 1
+                    return nid
         return 0
 
-    def _replace(self, n):
+    def _replace(self, n, old):
+        reason = f'duplicate x{n.duplicates}' if n.duplicates > old.duplicates else None
         self.active[n.id] = n
         if n.id in self.displayed:
             self.renderer.update(n)
@@ -117,7 +124,7 @@ class Manager:
                 self.hovered[n.id] = n.timeout
             else:
                 self._start_timer(n)
-        self.log.emit('replaced', n)
+        self.log.emit('replaced', n, **({'reason': reason} if reason else {}))
 
     def _room(self):
         limit = self.config.settings.get('max-visible') or 0
@@ -235,10 +242,15 @@ class Manager:
                     self._place(self.active[nid])
         return self.paused
 
+    def set_mode(self, mode):
+        if mode != self.mode:
+            self.mode = mode
+            self.log.emit('mode', message=mode)
+        return self.mode
+
     def reload(self, config):
         self.config = config
-        if self.history.maxlen != config.settings['history']['size']:
-            self.history = deque(self.history, maxlen=config.settings['history']['size'])
+        self.history.resize(config.settings['history']['size'])
         self.log.emit('reload', message=str(config.path or 'defaults'))
 
     def _remember(self, n, reason=None):
@@ -249,9 +261,18 @@ class Manager:
         entry['closed_at'] = time.time()
         self.history.append(entry)
 
+    def listing(self):
+        """Open notifications: on screen (newest first), waiting, held back."""
+        out = []
+        for state, ids in (('shown', self.displayed), ('waiting', self.waiting), ('held', self.held_back)):
+            for nid in ids:
+                out.append({**self.active[nid].summary_dict(), 'state': state})
+        return out
+
     def status(self):
         return {
             'paused': self.paused,
+            'mode': self.mode,
             'displayed': len(self.displayed),
             'waiting': len(self.waiting),
             'held_back': len(self.held_back),

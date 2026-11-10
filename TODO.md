@@ -21,29 +21,36 @@ Reviewed: 2026-11-10
       tag: `x-dunst-stack-tag`, `x-canonical-private-synchronous`, `synchronous`.
 - [x] **Hints.** (p1) [feature] urgency, category, desktop-entry, `image-path` (path or file://
       URI), `image-data`, `icon_data`, `value` (progress bar), `resident`, `transient`.
-- [ ] **Sound and dunst color hints.** (p3) [feature] `sound-file`/`sound-name`/`suppress-sound`
-      (play with canberra-gtk-play or paplay, a `sound:` rule key) and dunst's per-notification
-      `fgcolor`/`bgcolor`/`frcolor`/`hlcolor` hints as style overrides (`src/notifyd/render/gtk.py`).
+- [x] **dunst color hints.** (p3) [feature] `fgcolor`/`bgcolor`/`frcolor`/`hlcolor` as style
+      overrides that rules can still override (`rules.hint_style`).
+- [ ] **Sound hints.** (p3) [feature] `sound-file`/`sound-name`/`suppress-sound` (play with
+      canberra-gtk-play or paplay), and a `sound:` rule key.
 - [x] **Expiry.** (p2) [feature] Timeouts paused while hovered, resumed with what was left
       (at least 1 s); critical never expires by default (`timeout-critical`).
 - [ ] **Idle threshold.** (p3) [feature] dunst's `idle_threshold`: no expiry while the user is
       idle (XScreenSaver idle time via Xlib or `xprintidle`), so nothing is missed at lunch.
 - [x] **History in memory.** (p2) [feature] The last `history.size` (100) with closed reason and
       matched rules; `notifyd ctl history`.
-- [ ] **History on disk.** (p3) [feature] Keep it across restarts (JSON lines in
-      `$XDG_STATE_HOME/notifyd/`), and a rofi picker that re-shows an entry (dunst `history-pop`).
+- [x] **History on disk.** (p3) [feature] `$XDG_STATE_HOME/notifyd/history.jsonl`, compacted at
+      twice `history.size`; a torn last line is skipped.
+- [ ] **History pop.** (p3) [feature] Re-show a closed notification (dunst `history-pop`), from
+      `ctl history` or a rofi picker.
 - [x] **Pause.** (p2) [feature] `ctl pause/resume/toggle`: everything but critical is held back
       and replayed on resume.
-- [ ] **Modes.** (p2) [feature] mako-style named modes (`dnd`, `quiet`, `presentation`) that
+- [x] **Modes.** (p2) [feature] mako-style named modes (`dnd`, `quiet`, `presentation`) that
       rules can match on (`match: {mode: ...}`), set with `notifyd ctl mode`, shown in `status`.
-- [ ] **Duplicates and grouping.** (p3) [feature] Stack identical notifications with a count
-      (dunst `stack_duplicates`); optional group-by app.
+- [ ] **Remember the mode.** (p3) [feature] The mode resets to normal when the daemon restarts;
+      keep it in the state directory with the history, and show it in a status bar (polybar hook).
+- [x] **Duplicates.** (p3) [feature] Identical notifications stack with a `×N` count
+      (`stack-duplicates`).
+- [ ] **Group by app.** (p3) [feature] mako's `group-by`: one card per app with the latest on top
+      and a count, expanded on hover.
 - [x] **Monitor choice.** (p2) [feature] `position.follow: mouse` (deadd's follow-mouse) or a
       fixed `position.monitor`, within the monitor's work area.
-- [ ] **Re-place on monitor changes.** (p2) [bug] The stack is laid out when a notification
+- [x] **Re-place on monitor changes.** (p2) [bug] The stack is laid out when a notification
       opens or closes; after displayd changes the layout (xrandr) open ones stay where they were
-      until then. Listen to `Gdk.Screen` `monitors-changed` and call `layout()`. Also, with
-      follow: mouse, a new notification on another monitor moves the whole stack there.
+      until then. Now `monitors-changed` lays them out again, and the stack keeps the monitor it
+      opened on until it is empty.
 
 ## 3. Rules and interception
 
@@ -93,8 +100,8 @@ Reviewed: 2026-11-10
       toggle, reload, preset, preview, watch; over the `io.github.njhoffman.Notifyd` interface.
 - [x] **Shell completion.** (p3) [feature] `notifyd completion zsh|bash|fish`, generated from
       the argparse tree; preset names complete live.
-- [ ] **Complete notification ids.** (p3) [feature] `ctl close`/`ctl action` ids could complete
-      from the daemon (a `ctl status --ids` listing the open ones with their summaries).
+- [x] **Complete notification ids.** (p3) [feature] `ctl close`/`ctl action` ids could complete
+      from the daemon: `ctl list --ids`, with the summary as the description in zsh and fish.
 - [ ] **Run the fish completion.** (p3) [test] fish is not installed here, so the fish script is
       only checked for its shape (`tests/test_cli.py`); `fish --no-execute` and `complete -C`
       tests skip. Check it on a machine with fish.
@@ -112,7 +119,7 @@ Reviewed: 2026-11-10
       event; `NO_COLOR` and non-terminals plain.
 - [x] **Structured output.** (p2) [feature] `--log-format json`, `notifyd ctl watch [--json]`.
 - [x] **Log levels.** (p3) [feature] `-v/-q`, `log.level`.
-- [ ] **Log file.** (p3) [feature] Optional rotating file next to the journal output.
+- [x] **Log file.** (p3) [feature] `log.file`, plain lines (rotation is left to logrotate).
 
 ## 7. Integration with this desktop
 

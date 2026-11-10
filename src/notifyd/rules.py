@@ -27,7 +27,11 @@ MATCH_FIELDS = {
     'desktop-entry': lambda n: n.desktop_entry,
     'stack-tag': lambda n: n.stack_tag,
     'urgency': lambda n: n.urgency_name,
+    'mode': lambda n: n.mode,
 }
+# dunst's per-notification color hints, as style keys (rules still override them)
+COLOR_HINTS = {'fgcolor': ('foreground',), 'bgcolor': ('background',), 'frcolor': ('border-color',),
+               'hlcolor': ('progress', 'color')}
 REWRITE_KEYS = {'summary', 'body', 'app', 'urgency', 'stack-tag'}
 SETTING_KEYS = TOP_LEVEL - {'rules', 'log', 'click', 'max-visible', 'position'}
 
@@ -149,10 +153,25 @@ def _apply_rewrite(n, rewrite, captures):
             setattr(n, key, str(template).format_map(fields))
 
 
+def hint_style(hints):
+    style = {}
+    for hint, path in COLOR_HINTS.items():
+        value = hints.get(hint)
+        if isinstance(value, str) and value:
+            if len(path) == 1:
+                style[path[0]] = value
+            else:
+                style.setdefault(path[0], {})[path[1]] = value
+    return style
+
+
 def resolve(config, n, extra=None):
     """Apply CONFIG's rules to notification N in place: its settings, matched rule names and timeout.
     EXTRA (a settings mapping) goes on top of everything, for previews."""
     settings = config.base()
+    hinted = hint_style(n.hints)
+    if hinted:
+        settings = deep_merge(settings, {'style': hinted})
     rule_timeout = None
     n.rules = []
     for rule in config.rules:

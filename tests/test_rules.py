@@ -129,3 +129,13 @@ def test_extra_settings_win_for_previews():
 def test_bad_rules_raise(rule):
     with pytest.raises(ConfigError):
         load_config(text='rules:\n  ' + rule + '\n')
+
+
+def test_dunst_color_hints_become_style_and_rules_override_them():
+    n = resolved('', app='x', hints={'fgcolor': '#ff0000', 'bgcolor': '#000000', 'frcolor': '#00ff00',
+                                    'hlcolor': '#0000ff'})
+    assert n.settings['style'] == {'foreground': '#ff0000', 'background': '#000000', 'border-color': '#00ff00',
+                                   'progress': {'color': '#0000ff'}}
+    ruled = resolved("rules:\n  - match: {app: x}\n    style: {foreground: '#fff'}\n", app='x',
+                     hints={'fgcolor': '#ff0000'})
+    assert ruled.settings['style'] == {'foreground': '#fff'}

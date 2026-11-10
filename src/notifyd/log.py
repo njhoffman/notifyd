@@ -14,7 +14,7 @@ import time
 from notifyd.markup import plain_text
 
 EVENTS = ('shown', 'replaced', 'queued', 'waiting', 'suppressed', 'expired', 'dismissed', 'closed',
-          'action', 'paused', 'resumed', 'reload', 'error', 'info', 'warn')
+          'action', 'paused', 'resumed', 'mode', 'reload', 'error', 'info', 'warn')
 
 RESET = '\033[0m'
 DIM = '\033[2m'
@@ -23,7 +23,7 @@ COLORS = {
     'shown': '\033[38;5;114m', 'replaced': '\033[38;5;80m', 'queued': '\033[38;5;179m',
     'waiting': '\033[38;5;179m', 'suppressed': '\033[38;5;244m', 'expired': '\033[38;5;244m',
     'dismissed': '\033[38;5;110m', 'closed': '\033[38;5;110m', 'action': '\033[38;5;177m',
-    'paused': '\033[38;5;179m', 'resumed': '\033[38;5;114m', 'reload': '\033[38;5;80m',
+    'paused': '\033[38;5;179m', 'resumed': '\033[38;5;114m', 'mode': '\033[38;5;179m', 'reload': '\033[38;5;80m',
     'error': '\033[38;5;203m', 'info': '\033[38;5;110m', 'warn': '\033[38;5;179m',
 }
 URGENCY_COLORS = {'low': '\033[38;5;66m', 'normal': '\033[38;5;153m', 'critical': '\033[1;38;5;203m'}
@@ -67,6 +67,8 @@ def format_pretty(event, color=False, width=None):
         extra = []
         if kind in ('shown', 'replaced') and 'timeout' in n:
             extra.append(paint(DIM, f'{n["timeout"] / 1000:g}s' if n['timeout'] else 'sticky'))
+        if n.get('duplicates', 1) > 1 and kind == 'shown':
+            extra.append(paint(DIM, f'x{n["duplicates"]}'))
         if event.get('action'):
             extra.append(paint(COLORS['action'], f'-> {event["action"]}'))
         if event.get('reason'):
@@ -82,13 +84,28 @@ def format_pretty(event, color=False, width=None):
 class EventLog:
     def __init__(self, fmt='pretty', color='auto', level='info', stream=None):
         self.stream = stream or sys.stderr
+        self.file = None
+        self.file_path = None
         self.configure(fmt, color, level)
         self.listeners = []
 
-    def configure(self, fmt='pretty', color='auto', level='info'):
+    def configure(self, fmt='pretty', color='auto', level='info', file=None):
+        """FILE: a path that gets every logged line too, uncolored (None: none)."""
         self.fmt = fmt
         self.color = use_color(color, self.stream)
         self.level = LEVELS.get(level, 1)
+        path = os.path.expanduser(file) if file else None
+        if path != self.file_path:
+            if self.file:
+                self.file.close()
+            self.file, self.file_path = None, path
+            if path:
+                try:
+                    os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
+                    self.file = open(path, 'a', buffering=1)   # noqa: SIM115 (kept open while configured)
+                except OSError as exc:
+                    self.file_path = None
+                    self.warn(f'log file {path}: {exc.strerror}')
 
     def emit(self, kind, n=None, level='info', **extra):
         event = {'event': kind, 'time': time.time(), **extra}
@@ -98,11 +115,17 @@ class EventLog:
             listener(event)
         if LEVELS.get(level, 1) < self.level:
             return event
-        line = json.dumps(event, ensure_ascii=False) if self.fmt == 'json' else format_pretty(event, self.color)
+        as_json = self.fmt == 'json'
+        line = json.dumps(event, ensure_ascii=False) if as_json else format_pretty(event, self.color)
         try:
             print(line, file=self.stream, flush=True)
         except (BrokenPipeError, ValueError):
             pass
+        if self.file:
+            try:
+                self.file.write((line if as_json or not self.color else format_pretty(event)) + '\n')
+            except (OSError, ValueError):
+                pass
         return event
 
     def info(self, message):

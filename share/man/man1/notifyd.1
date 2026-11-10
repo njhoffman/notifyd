@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-10 "notifyd 0.2.0" "User Commands"
+.TH NOTIFYD 1 2026-11-10 "notifyd 0.3.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -192,6 +192,11 @@ interface.
 .B status
 Paused state, how many are shown, waiting and held back, the preset and the config file.
 .TP
+.BR list " [\fB\-\-json\fR | \fB\-\-ids\fR]"
+Open notifications: on screen (newest first), waiting for room, held back by pause.
+.B \-\-ids
+prints the id, a tab, the app and the summary, for scripts and completion.
+.TP
 .BR history " [\fB\-n\fR \fIn\fR] [\fB\-\-json\fR]"
 The last
 .I n
@@ -208,6 +213,14 @@ Close everything shown or waiting.
 .TP
 .BR pause ", " resume ", " toggle
 Hold back all but critical notifications; resume shows what was held back.
+.TP
+.BR mode " [\fIname\fR]"
+Show the mode, or set it. Rules match on it with
+.BR "match: {mode: \fIname\fB}" ,
+e.g. to suppress all but critical notifications in a
+.B dnd
+mode; the default mode is
+.BR normal .
 .TP
 .B reload
 Reload the config file; exits 1 with the error when it is broken.
@@ -285,6 +298,8 @@ YAML; every key is optional and an empty file gives the deadd look. The main key
 (8000, 8s, 1500ms, 2m or never),
 .BR timeout\-critical ,
 .BR max\-visible ,
+.B stack\-duplicates
+(an identical notification replaces the open one and is counted),
 .BR position.anchor / margin / gap / follow / monitor ,
 .BR icon.size / name ,
 .BR image.size / path / margin\-right ,
@@ -294,8 +309,8 @@ YAML; every key is optional and an empty file gives the deadd look. The main key
 .BR hide ,
 .BR class ,
 .BR skip ,
-.BR history.size / keep ,
-.BR log.format / color / level ,
+.BR history.size / keep / persist ,
+.BR log.format / color / level / file ,
 .B click.left / middle / right
 and
 .BR rules .
@@ -317,7 +332,7 @@ rules:
 .fi
 .RE
 .PP
-Match fields are app, summary, body, icon, category, desktop\-entry, stack\-tag, urgency and
+Match fields are app, summary, body, icon, category, desktop\-entry, stack\-tag, urgency, mode and
 .BI hint: " {name: value}" ;
 a value is an exact string, a
 .BI / regex /
@@ -341,6 +356,11 @@ The config.
 .TP
 .I ~/.config/notifyd/presets/*.yaml
 Your presets; they shadow bundled ones of the same name.
+.TP
+.I $XDG_STATE_HOME/notifyd/history.jsonl
+History kept across restarts (with
+.BR history.persist ,
+the default).
 .TP
 .I $XDG_RUNTIME_DIR/notifyd/send\-ids.json
 Ids for

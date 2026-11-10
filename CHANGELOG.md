@@ -6,6 +6,27 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-10
+
+### Added
+
+- Modes: `notifyd ctl mode dnd` (or any name), matched by rules with `match: {mode: dnd}`, e.g. to
+  suppress all but critical notifications; `ctl status` shows the mode.
+- Identical notifications (same app, summary, body and urgency) stack into one with a `×N` count
+  instead of piling up (`stack-duplicates: false` turns it off).
+- History survives restarts: `$XDG_STATE_HOME/notifyd/history.jsonl` (`history.persist: false`
+  keeps it in memory only).
+- `log.file`: the event log is also appended to a file, without colors.
+- `notifyd ctl list [--json|--ids]` shows open notifications; `ctl close` and `ctl action` complete
+  their ids in zsh, bash and fish.
+- dunst's `fgcolor`, `bgcolor`, `frcolor` and `hlcolor` hints color a notification (rules can
+  still override them).
+
+### Fixed
+
+- Notifications are placed again when the monitor layout changes (displayd, xrandr), and the stack
+  stays on one monitor while it is shown instead of following the pointer with each new one.
+
 ## [0.2.0] - 2026-11-10
 
 ### Added

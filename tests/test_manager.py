@@ -190,7 +190,64 @@ def test_reload_swaps_config_for_new_notifications(make_manager):
 
 def test_close_all_counts(make_manager):
     m, *_ = make_manager('max-visible: 1')
-    for _ in range(3):
-        m.notify('a', summary='x')
+    for index in range(3):
+        m.notify('a', summary=f'x{index}')
     assert m.close_all() == 3
     assert m.active == {}
+
+
+def test_identical_notifications_stack_with_a_count(make_manager):
+    m, _s, _renderer, events, _c, _a = make_manager()
+    first = m.notify('mail', summary='New mail', body='from bob')
+    assert m.notify('mail', summary='New mail', body='from bob') == first
+    assert m.notify('mail', summary='New mail', body='from bob') == first
+    assert m.active[first].duplicates == 3
+    assert events[-1]['event'] == 'replaced' and events[-1]['reason'] == 'duplicate x3'
+    assert m.notify('mail', summary='New mail', body='from alice') != first
+    assert m.notify('mail', summary='New mail', body='from bob', hints={'urgency': 2}) != first
+
+
+def test_duplicate_stacking_can_be_turned_off(make_manager):
+    m, *_ = make_manager('stack-duplicates: false')
+    assert m.notify('a', summary='x') != m.notify('a', summary='x')
+
+
+def test_modes_are_matched_by_rules(make_manager):
+    m, _s, _renderer, events, _c, _a = make_manager(
+        'rules:\n  - match: {mode: dnd, urgency: [low, normal]}\n    skip: true\n')
+    assert m.notify('a', summary='before') in m.active
+    assert m.set_mode('dnd') == 'dnd'
+    hidden = m.notify('a', summary='during')
+    assert hidden not in m.active and events[-1]['event'] == 'suppressed'
+    assert m.notify('a', summary='urgent', hints={'urgency': 2}) in m.active
+    m.set_mode('normal')
+    assert m.notify('a', summary='after') in m.active
+    assert [e['message'] for e in events if e['event'] == 'mode'] == ['dnd', 'normal']
+    assert m.status()['mode'] == 'normal'
+
+
+def test_history_persists_across_managers(make_manager, tmp_path):
+    from notifyd.history import History
+    from notifyd.manager import Manager
+    path = tmp_path / 'state' / 'history.jsonl'
+    m, *_ = make_manager('history: {size: 3}')
+    m.history = History(3, path)
+    for name in 'abcdefgh':
+        m.close(m.notify(name, summary=name), DISMISSED)
+    again = Manager(m.config, m.log, m.scheduler, history_path=path)
+    assert [e['app'] for e in again.history] == ['f', 'g', 'h']
+    assert len(path.read_text().splitlines()) <= 6    # compacted, never more than twice the size
+
+
+def test_history_file_survives_a_torn_line(tmp_path):
+    from notifyd.history import History
+    path = tmp_path / 'h.jsonl'
+    path.write_text('{"app": "a"}\n{"app": "b"\n')
+    assert [e['app'] for e in History(10, path)] == ['a']
+
+
+def test_listing_shows_open_notifications(make_manager):
+    m, *_ = make_manager('max-visible: 1')
+    one = m.notify('a', summary='one')
+    two = m.notify('a', summary='two')
+    assert [(e['id'], e['state']) for e in m.listing()] == [(one, 'shown'), (two, 'waiting')]

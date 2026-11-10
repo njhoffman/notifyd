@@ -6,6 +6,7 @@ from gi.repository import Gio, GLib
 
 from notifyd import __version__
 from notifyd.config import ConfigError, default_path, load_config, load_preset
+from notifyd.history import default_path as history_default_path
 from notifyd.log import EventLog
 from notifyd.manager import GLibScheduler, Manager
 from notifyd.model import CLOSED
@@ -52,7 +53,7 @@ class Daemon:
     def configure_log(self, config):
         settings = {**config.settings['log'], **self.overrides}
         self.log.configure(settings.get('format', 'pretty'), settings.get('color', 'auto'),
-                           settings.get('level', 'info'))
+                           settings.get('level', 'info'), settings.get('file'))
 
     # -- control (called over D-Bus) ---------------------------------------
     def reload(self):
@@ -140,7 +141,8 @@ class Daemon:
         self.configure_log(config)
         for warning in config.warnings:
             self.log.warn(warning)
-        self.manager = Manager(config, self.log, GLibScheduler())
+        history_path = history_default_path() if config.settings['history'].get('persist') else None
+        self.manager = Manager(config, self.log, GLibScheduler(), history_path=history_path)
         try:
             self.renderer = self.make_renderer()
         except RuntimeError as exc:

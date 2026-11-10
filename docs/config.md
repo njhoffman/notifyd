@@ -16,6 +16,7 @@ missing file gives the deadd look. The daemon reloads the file when it changes (
 | `timeout` | `8s` | `8000`, `8s`, `1500ms`, `2m`, `never` |
 | `timeout-critical` | `never` | for critical notifications no rule gives a timeout |
 | `max-visible` | `6` | more wait until one closes (`0`: no limit) |
+| `stack-duplicates` | `true` | an identical notification (app, summary, body, urgency) replaces the open one, shown `×N` |
 | `position.anchor` | `top-right` | `top-`/`bottom-` + `left`/`center`/`right` |
 | `position.margin` | `[30, 5]` | `[vertical, horizontal]` from the anchored edges |
 | `position.gap` | `10` | between notifications |
@@ -27,8 +28,8 @@ missing file gives the deadd look. The daemon reloads the file when it changes (
 | `hide` | `[]` | any of `app-icon app-name time title body image actions progress` |
 | `class` | - | extra CSS class on the card |
 | `skip` | `false` | not shown; still logged and kept in history |
-| `history.size` / `history.keep` | `100` / `true` | `keep: false` in a rule keeps those out |
-| `log.format` / `log.color` / `log.level` | `pretty` / `auto` / `info` | also `--log-format`, `--color`, `-v`/`-q` |
+| `history.size` / `history.keep` / `history.persist` | `100` / `true` / `true` | `keep: false` in a rule keeps those out; `persist` keeps it in `$XDG_STATE_HOME/notifyd/history.jsonl` |
+| `log.format` / `log.color` / `log.level` / `log.file` | `pretty` / `auto` / `info` / - | also `--log-format`, `--color`, `-v`/`-q`; `file` gets plain lines too |
 | `click.left` / `middle` / `right` | `dismiss` / `dismiss-all` / `default-action` | or `none` |
 | `rules` | `[]` | see Rules |
 
@@ -51,13 +52,18 @@ rules:
     urgency: critical
     summary: 'Battery at {pct}%'
 
+  - name: do-not-disturb                  # notifyd ctl mode dnd / notifyd ctl mode normal
+    match: { mode: dnd, urgency: [low, normal] }
+    skip: true
+
   - match: { app: chatty, hint: { x-account: work } }
     preset: card
     style: { background: 'rgba(30, 0, 40, 0.9)' }
 ```
 
 `match` fields: `app`, `summary`, `body`, `icon`, `category`, `desktop-entry`, `stack-tag`,
-`urgency` (`low`/`normal`/`critical`), and `hint: {name: value}`. A value is an exact string,
+`urgency` (`low`/`normal`/`critical`), `mode` (set with `notifyd ctl mode NAME`; `normal` by
+default) and `hint: {name: value}`. A value is an exact string,
 `/regex/` (`/regex/i` ignores case; searched, not anchored), or a list of those (any matches).
 
 Rewrites: `summary`, `body`, `app` are templates with `{summary}`, `{body}`, `{app}`, `{category}`,
@@ -120,6 +126,7 @@ notification daemon.
 
 ## Control
 
-`notifyd ctl status | history [-n N] [--json] | close ID | action ID [KEY] | close-all | pause | resume |
-toggle | reload | preset NAME | preview [PRESET] | watch [--json]`. `watch` streams the daemon's
+`notifyd ctl status | list [--json|--ids] | history [-n N] [--json] | close ID | action ID [KEY] |
+close-all | pause | resume | toggle | mode [NAME] | reload | preset NAME | preview [PRESET] | watch [--json]`.
+dunst's color hints (`fgcolor`, `bgcolor`, `frcolor`, `hlcolor`) color a single notification. `watch` streams the daemon's
 event log, colored, or as JSON lines.
