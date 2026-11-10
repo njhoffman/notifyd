@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from notifyd import __version__
+
 ROOT = Path(__file__).resolve().parent.parent
 NOTIFYD = [sys.executable, str(ROOT / 'bin' / 'notifyd')]
 
@@ -80,7 +82,7 @@ def gdbus(env, method, *args):
 
 def test_server_information_and_capabilities(bus, daemon):
     daemon('', '--renderer', 'none')
-    assert gdbus(bus, 'GetServerInformation').stdout.strip() == "('notifyd', 'njhoffman', '0.1.0', '1.2')"
+    assert gdbus(bus, 'GetServerInformation').stdout.strip() == f"('notifyd', 'njhoffman', '{__version__}', '1.2')"
     caps = gdbus(bus, 'GetCapabilities').stdout
     for cap in ('body-markup', 'actions', 'x-dunst-stack-tag', 'persistence'):
         assert cap in caps

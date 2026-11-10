@@ -17,7 +17,7 @@ Needs Python 3.11+, PyGObject with GTK 3, and PyYAML (all from the distribution 
 `python3-gi`, `gir1.2-gtk-3.0`, `python3-yaml`). A compositor (picom) gives translucency and shadows.
 
 ```sh
-just install                 # symlinks bin/notifyd into ~/.local/bin
+just install                 # links bin/notifyd and the man page into ~/.local, writes completions
 just import-deadd            # writes ~/.config/notifyd/config.yaml from ~/.config/deadd
 notifyd daemon --replace     # take over from the running daemon (Ctrl-C hands nothing back;
                              # restart deadd with `notify-daemon ensure`)
@@ -38,8 +38,9 @@ notifyd presets --pick       # browse presets with a live preview
 notifyd rules --app MPD --summary 'Song'   # which rules match, and the result
 ```
 
-`docs/config.md` describes the config, rules, styles and markup; `examples/config.yaml` is this
-desktop's deadd setup with longer song and wallpaper notifications.
+`notifyd help [COMMAND]` and `man notifyd` cover every command; `notifyd completion zsh|bash|fish`
+prints a completion script. `docs/config.md` describes the config, rules, styles and markup;
+`examples/config.yaml` is this desktop's deadd setup with longer song and wallpaper notifications.
 
 ## Development
 

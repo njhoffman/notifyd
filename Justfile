@@ -20,19 +20,39 @@ preview:
       echo "$preset"; bin/notifyd ctl preview "$preset"; sleep 4
     done
 
-# symlink bin/notifyd into ~/.local/bin (or $XDG_BIN_HOME); refuses to replace anything that is not a symlink
+# symlink bin/notifyd and the man page into ~/.local (never over a real file) and write the completions
 install:
     #!/usr/bin/env bash
     set -euo pipefail
-    src="$(pwd -P)/bin/notifyd"
-    dest="${XDG_BIN_HOME:-$HOME/.local/bin}/notifyd"
-    mkdir -p "${dest%/*}"
-    if [[ -e "$dest" && ! -L "$dest" ]]; then
-      echo "install: $dest exists and is not a symlink; remove it first" >&2
-      exit 1
+    link() {
+      if [[ -e "$2" && ! -L "$2" ]]; then
+        echo "install: $2 exists and is not a symlink; remove it first" >&2
+        exit 1
+      fi
+      mkdir -p "${2%/*}"
+      ln -sfn "$1" "$2"
+      echo "$2 -> $1"
+    }
+    data="${XDG_DATA_HOME:-$HOME/.local/share}"
+    link "$(pwd -P)/bin/notifyd" "${XDG_BIN_HOME:-$HOME/.local/bin}/notifyd"
+    link "$(pwd -P)/share/man/man1/notifyd.1" "$data/man/man1/notifyd.1"
+    just completions
+
+# write the completion scripts where zsh, bash and fish look for them
+completions:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    data="${XDG_DATA_HOME:-$HOME/.local/share}"
+    write() { mkdir -p "${2%/*}"; bin/notifyd completion "$1" > "$2"; echo "$2"; }
+    write zsh "$data/zsh/site-functions/_notifyd"
+    write bash "$data/bash-completion/completions/notifyd"
+    if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/fish" ]]; then
+      write fish "${XDG_CONFIG_HOME:-$HOME/.config}/fish/completions/notifyd.fish"
     fi
-    ln -sfn "$src" "$dest"
-    echo "$dest -> $src"
+
+# render the man page
+man:
+    man -l share/man/man1/notifyd.1
 
 # write ~/.config/notifyd/config.yaml from ~/.config/deadd (refuses to overwrite)
 import-deadd:

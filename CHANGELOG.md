@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-10
+
+### Added
+
+- `-h`/`--help` on every command, with descriptions and examples; `notifyd help [COMMAND...]`.
+  `notifyd send` keeps `-h` for `--hint`, as notify-send does, so its help is `--help`.
+- `notifyd version` and `-V`, besides `--version`.
+- A man page, `notifyd(1)` (`share/man/man1/notifyd.1`; `just man` shows it).
+- `notifyd completion zsh|bash|fish`: completion scripts for commands, options, choices, files
+  and live preset names, generated from the command definitions so they stay current.
+  `just install` now also links the man page and writes the completions.
+- `notifyd presets --names`.
+
 ## [0.1.0] - 2026-11-10
 
 ### Added

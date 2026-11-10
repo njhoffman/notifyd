@@ -1,0 +1,389 @@
+.TH NOTIFYD 1 2026-11-10 "notifyd 0.2.0" "User Commands"
+.SH NAME
+notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
+.SH SYNOPSIS
+.B notifyd daemon
+.RB [ \-c
+.IR path ]
+.RB [ \-\-renderer
+.BR gtk | none ]
+.RB [ \-\-replace ]
+.RB [ \-\-log\-format
+.BR pretty | json ]
+.RB [ \-\-color
+.BR auto | always | never ]
+.RB [ \-v | \-q ]
+.br
+.B notifyd send
+.RI [ options ]
+.I summary
+.RI [ body ]
+.br
+.B notifyd ctl
+.I command
+.RI [ args ]
+.br
+.B notifyd presets
+.RB [ \-\-pick | \-\-names ]
+.br
+.B notifyd import deadd
+.RB [ \-\-yml
+.IR path ]
+.RB [ \-\-css
+.IR path ]
+.RB [ \-o
+.IR path ]
+.RB [ \-\-force ]
+.br
+.B notifyd check
+.RB [ \-c
+.IR path ]
+.br
+.B notifyd rules
+.RB [ \-c
+.IR path ]
+.RI [ fields ]
+.br
+.B notifyd completion
+.BR zsh | bash | fish
+.br
+.B notifyd help
+.RI [ command ...]
+.br
+.B notifyd version
+.RB | " \-V" | " \-\-version"
+.SH DESCRIPTION
+.B notifyd
+is a server for the freedesktop.org Desktop Notifications specification (1.2): it owns
+.B org.freedesktop.Notifications
+on the session bus and draws the notifications applications send as translucent GTK3 popups
+on X11. It combines deadd\-notification\-center's look (the default
+.B deadd
+preset: a black card at 0.8 opacity, no frame, the shadow left to the compositor) with dunst's
+rule engine and command line control.
+.PP
+Replacing a notification by id keeps the id; the
+.B x\-dunst\-stack\-tag
+and
+.B x\-canonical\-private\-synchronous
+hints replace the previous notification with the same app and tag. The
+.B value
+hint draws a progress bar, actions become buttons, and a notification under the pointer does not
+expire. Summary and body take Pango markup.
+.PP
+Every event (shown, replaced, waiting, suppressed, expired, dismissed, closed, action, pause,
+reload) is written to standard error as an aligned line colored by urgency and event, or as JSON
+lines, and broadcast on D\-Bus for
+.BR "notifyd ctl watch" .
+.PP
+Every command takes
+.BR \-h / \-\-help ,
+except
+.BR send ,
+where
+.B \-h
+is
+.B \-\-hint
+as in
+.BR notify\-send (1).
+.SH COMMANDS
+.SS daemon
+Run the daemon in the foreground. It reloads its config when the file changes, on SIGHUP, or on
+.BR "notifyd ctl reload" ;
+a broken file is reported and the previous config kept.
+.TP
+.BR \-c ", " \-\-config " \fIpath\fR"
+Config file (default
+.IR ~/.config/notifyd/config.yaml ).
+.TP
+.BR \-\-renderer " gtk|none"
+.B none
+draws nothing and only logs, for headless use and debugging.
+.TP
+.B \-\-replace
+Take the bus name from the daemon that owns it (if it allows replacement). Without it, notifyd
+exits with status 1 and names the daemon that owns the name.
+.TP
+.BR \-\-log\-format " pretty|json"
+Event log format (default: the config's
+.BR log.format ,
+pretty).
+.TP
+.BR \-\-color " auto|always|never"
+Color the log; auto colors a terminal unless
+.B NO_COLOR
+is set.
+.TP
+.BR \-v ", " \-\-verbose
+Log debug events too.
+.TP
+.BR \-q ", " \-\-quiet
+Log only warnings and errors.
+.SS send
+Send a notification through whichever daemon owns the notification name, with
+.BR notify\-send (1)'s
+flags and some of notify\-send.py's. With actions it waits and prints the key of the action chosen.
+.TP
+.BR \-a ", " \-\-app\-name " \fIname\fR"
+The sending application; rules match on it.
+.TP
+.BR \-u ", " \-\-urgency " low|normal|critical"
+Urgency.
+.TP
+.BR \-t ", " \-\-expire\-time " \fIms\fR"
+How long to show it; 0 until closed. A rule's timeout wins over it.
+.TP
+.BR \-i ", " \-\-icon " \fIicon\fR"
+App icon: an icon name or a path.
+.TP
+.BR \-c ", " \-\-category " \fItype\fR"
+The category hint, e.g. email.arrived.
+.TP
+.BR \-h ", " \-\-hint " \fItype\fB:\fIname\fB:\fIvalue\fR"
+An extra hint; type is int, double, string, byte or boolean. Repeatable.
+.TP
+.BR \-A ", " \-\-action " [\fIname\fB=\fR]\fItext\fR"
+A button (also
+.IB name : text\fR);
+waits and prints the name chosen. Repeatable.
+.TP
+.BR \-r ", " \-\-replace\-id " \fIid\fR"
+Replace notification
+.IR id .
+.TP
+.BR \-\-replace\-name ", " \-\-replaces\-process " \fIname\fR"
+Replace the last notification sent with this
+.IR name ;
+ids are kept in
+.IR $XDG_RUNTIME_DIR/notifyd/send\-ids.json .
+.TP
+.BR \-p ", " \-\-print\-id
+Print the notification id.
+.TP
+.BR \-e ", " \-\-transient
+Keep it out of history.
+.TP
+.BR \-w ", " \-\-wait
+Wait until it is closed.
+.TP
+.BR \-\-tag " \fItag\fR"
+Stack tag: replaces the last notification with this app and tag.
+.TP
+.BR \-\-image " \fIpath\fR"
+A picture shown in the notification (sent as a file:// image\-path hint).
+.TP
+.BR \-\-progress " \fIn\fR"
+A progress bar at
+.I n
+percent.
+.TP
+.BR \-\-close " \fIid\fR"
+Close notification
+.I id
+and exit.
+.TP
+.B \-\-help
+Show help.
+.SS ctl
+Control the running daemon over its
+.B io.github.njhoffman.Notifyd
+interface.
+.TP
+.B status
+Paused state, how many are shown, waiting and held back, the preset and the config file.
+.TP
+.BR history " [\fB\-n\fR \fIn\fR] [\fB\-\-json\fR]"
+The last
+.I n
+closed notifications (default 20, 0 for all), oldest first.
+.TP
+.BI close " id"
+Close a notification.
+.TP
+.BI action " id \fR[\fIkey\fR]"
+Invoke an action: the key given, else the default action, else the first one.
+.TP
+.B close\-all
+Close everything shown or waiting.
+.TP
+.BR pause ", " resume ", " toggle
+Hold back all but critical notifications; resume shows what was held back.
+.TP
+.B reload
+Reload the config file; exits 1 with the error when it is broken.
+.TP
+.BI preset " name"
+Switch the preset until the next reload.
+.TP
+.BR preview " [\fIpreset\fR]"
+Show sample notifications (low, song with tags, volume bar, actions, critical) in a preset.
+.TP
+.BR watch " [\fB\-\-json\fR]"
+Follow the daemon's event log.
+.SS presets
+List the presets with their descriptions.
+.B \-\-pick
+chooses one in
+.BR fzf (1),
+previewing each as the cursor moves and switching to it on enter;
+.B \-\-names
+prints the names only.
+.SS import
+.B notifyd import deadd
+converts
+.I ~/.config/deadd/deadd.yml
+(or
+.BR \-\-yml )
+and the
+.I deadd.css
+next to it (or
+.BR \-\-css )
+and prints the config, or writes it with
+.BR \-o / \-\-output
+.I path
+(\fB\-o config\fR for the default config file;
+.B \-\-force
+overwrites). Style values that equal the deadd preset are left out; notes on what has no
+equivalent go to standard error.
+.SS check
+Validate the config. Exits 1 when there are warnings, 2 on errors.
+.SS rules
+Show which rules match a notification and what it would get:
+.BR \-\-app ,
+.BR \-\-summary ,
+.BR \-\-body ,
+.BR \-\-urgency " low|normal|critical,"
+.BI \-\-timeout " ms"
+(what the sender asks for) and
+.BI \-\-hint " name\fB=\fIvalue"
+(repeatable), plus
+.BR \-c / \-\-config .
+.SS completion
+Print a completion script for
+.BR zsh ,
+.B bash
+or
+.BR fish .
+Preset names complete live from the installed presets.
+.SS help, version
+.B notifyd help
+.RI [ command ...]
+prints the help of notifyd or a command (e.g.
+.BR "notifyd help ctl history" );
+.BR "notifyd version" ,
+.B \-V
+and
+.B \-\-version
+print the version.
+.SH CONFIGURATION
+YAML; every key is optional and an empty file gives the deadd look. The main keys:
+.BR preset ,
+.B style
+(overrides of the preset's keys),
+.BR width ,
+.B timeout
+(8000, 8s, 1500ms, 2m or never),
+.BR timeout\-critical ,
+.BR max\-visible ,
+.BR position.anchor / margin / gap / follow / monitor ,
+.BR icon.size / name ,
+.BR image.size / path / margin\-right ,
+.BR body.max\-lines ,
+.B markup
+(full, strip, plain),
+.BR hide ,
+.BR class ,
+.BR skip ,
+.BR history.size / keep ,
+.BR log.format / color / level ,
+.B click.left / middle / right
+and
+.BR rules .
+.PP
+A rule is a
+.B match
+plus any of those keys, applied in order to the notifications it matches:
+.PP
+.RS
+.nf
+rules:
+  \- name: songs
+    match: { app: [musicman, MPD, Spotify] }
+    timeout: 12s
+    hide: [app\-icon, app\-name]
+  \- match: { summary: \(aq/(?P<pct>\ed+)% battery/i\(aq }
+    urgency: critical
+    summary: \(aqBattery at {pct}%\(aq
+.fi
+.RE
+.PP
+Match fields are app, summary, body, icon, category, desktop\-entry, stack\-tag, urgency and
+.BI hint: " {name: value}" ;
+a value is an exact string, a
+.BI / regex /
+(with
+.B i
+to ignore case) or a list. Rules can also rewrite summary, body and app (templates with the
+regex's named groups), urgency and stack\-tag. A rule's timeout wins over the sender's.
+.PP
+Presets are YAML files with a
+.B style
+mapping: colors, radius, border, padding, fonts per part (title, body, appname, time), urgency
+colors, progress bar, buttons, raw CSS, and named
+.B classes
+that notification text can use as
+.BR "<span class=\(dqaccent\(dq>" .
+Bundled: deadd, dunst, minimal, card, tokyonight, high\-contrast.
+.SH FILES
+.TP
+.I ~/.config/notifyd/config.yaml
+The config.
+.TP
+.I ~/.config/notifyd/presets/*.yaml
+Your presets; they shadow bundled ones of the same name.
+.TP
+.I $XDG_RUNTIME_DIR/notifyd/send\-ids.json
+Ids for
+.BR "notifyd send \-\-replace\-name" .
+.SH ENVIRONMENT
+.TP
+.B XDG_CONFIG_HOME
+Where the config directory is (default
+.IR ~/.config ).
+.TP
+.B NO_COLOR
+No colors in the log or in
+.BR "ctl watch" / history .
+.TP
+.BR DISPLAY ", " DBUS_SESSION_BUS_ADDRESS
+The X display to draw on and the session bus.
+.SH SIGNALS
+.TP
+.B SIGHUP
+Reload the config.
+.TP
+.BR SIGINT ", " SIGTERM
+Close all notifications and exit.
+.SH EXIT STATUS
+0 on success; 1 when the daemon cannot own the bus name or draw, a ctl command fails, or
+.B check
+finds warnings; 2 for usage and config errors.
+.SH EXAMPLES
+.nf
+notifyd daemon \-\-replace
+notifyd send \-a backdrop \-\-image ~/pic.jpg \(aqNew wallpaper\(aq \(aq<i>ocean</i>\(aq
+notifyd send \-\-tag volume \-\-progress 60 \-a Volume \(aqVolume 60%\(aq
+notifyd send \-A \(aqchange=Change layout\(aq \(aqMonitors changed\(aq
+notifyd ctl watch
+notifyd presets \-\-pick
+notifyd import deadd \-o config
+notifyd completion zsh > ~/.local/share/zsh/site-functions/_notifyd
+.fi
+.SH SEE ALSO
+.BR notify\-send (1),
+.BR dunst (1),
+.BR picom (1),
+.BR fzf (1).
+The full config reference is
+.I docs/config.md
+in the source tree.

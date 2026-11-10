@@ -99,26 +99,45 @@ def save_id(name, nid):
         pass
 
 
+EPILOG = """examples:
+  notifyd send 'Build done' 'all 118 tests passed'
+  notifyd send -u critical -a battery 'Battery low' '<b>4%</b> left'
+  notifyd send --tag volume --progress 60 -a Volume 'Volume 60%'
+  notifyd send -A 'change=Change layout' -A keep=Keep 'Monitors changed'   # prints the key chosen
+  notifyd send --replace-name backup 'Backup' 'running...'; notifyd send --replace-name backup 'Backup' 'done'
+
+-h is --hint, as in notify-send; help is --help only.
+"""
+
+
 def build_parser():
-    parser = argparse.ArgumentParser(prog='notifyd send', description='Send a desktop notification.', add_help=False)
-    parser.add_argument('summary', nargs='?', default=None)
-    parser.add_argument('body', nargs='?', default='')
-    parser.add_argument('-a', '--app-name', default='notifyd-send')
-    parser.add_argument('-u', '--urgency', choices=sorted(URGENCIES), default=None)
-    parser.add_argument('-t', '--expire-time', type=int, default=-1, metavar='MS')
-    parser.add_argument('-i', '--icon', default='')
-    parser.add_argument('-c', '--category', default=None)
-    parser.add_argument('-h', '--hint', action='append', default=[], metavar='TYPE:NAME:VALUE')
-    parser.add_argument('-A', '--action', action='append', default=[], metavar='[NAME=]TEXT')
-    parser.add_argument('-r', '--replace-id', type=int, default=0, metavar='ID')
-    parser.add_argument('--replace-name', '--replaces-process', dest='replace_name', default=None, metavar='NAME')
-    parser.add_argument('-p', '--print-id', action='store_true')
-    parser.add_argument('-e', '--transient', action='store_true')
-    parser.add_argument('-w', '--wait', action='store_true')
-    parser.add_argument('--tag', default=None)
-    parser.add_argument('--image', default=None, metavar='PATH')
-    parser.add_argument('--progress', type=int, default=None, metavar='N')
-    parser.add_argument('--close', type=int, default=None, metavar='ID')
+    parser = argparse.ArgumentParser(
+        prog='notifyd send', add_help=False, epilog=EPILOG, formatter_class=argparse.RawDescriptionHelpFormatter,
+        description='Send a desktop notification through any notification daemon (notify-send compatible).')
+    parser.add_argument('summary', nargs='?', default=None, help='the title')
+    parser.add_argument('body', nargs='?', default='', help='the text; Pango markup')
+    parser.add_argument('-a', '--app-name', default='notifyd-send', metavar='NAME',
+                        help='the sending application (rules match on it)')
+    parser.add_argument('-u', '--urgency', choices=sorted(URGENCIES), default=None, help='low, normal or critical')
+    parser.add_argument('-t', '--expire-time', type=int, default=-1, metavar='MS',
+                        help='how long to show it, ms (0: until closed; rules may override)')
+    parser.add_argument('-i', '--icon', default='', metavar='ICON', help='app icon: an icon name or a path')
+    parser.add_argument('-c', '--category', default=None, metavar='TYPE', help='category hint, e.g. email.arrived')
+    parser.add_argument('-h', '--hint', action='append', default=[], metavar='TYPE:NAME:VALUE',
+                        help='extra hint; TYPE is int, double, string, byte or boolean (repeatable)')
+    parser.add_argument('-A', '--action', action='append', default=[], metavar='[NAME=]TEXT',
+                        help='a button (also NAME:TEXT); waits and prints the NAME chosen (repeatable)')
+    parser.add_argument('-r', '--replace-id', type=int, default=0, metavar='ID', help='replace notification ID')
+    parser.add_argument('--replace-name', '--replaces-process', dest='replace_name', default=None, metavar='NAME',
+                        help='replace the last notification sent with this NAME')
+    parser.add_argument('-p', '--print-id', action='store_true', help='print the notification id')
+    parser.add_argument('-e', '--transient', action='store_true', help='keep it out of history')
+    parser.add_argument('-w', '--wait', action='store_true', help='wait until it is closed')
+    parser.add_argument('--tag', default=None, help='stack tag: replaces the last one with this app and tag')
+    image = parser.add_argument('--image', default=None, metavar='PATH', help='picture shown in the notification')
+    image.complete = 'files'
+    parser.add_argument('--progress', type=int, default=None, metavar='N', help='progress bar at N percent')
+    parser.add_argument('--close', type=int, default=None, metavar='ID', help='close notification ID and exit')
     parser.add_argument('--help', action='help', help='show this help and exit')
     return parser
 

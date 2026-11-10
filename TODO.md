@@ -91,8 +91,17 @@ Reviewed: 2026-11-10
       chosen action.
 - [x] **notifyd ctl.** (p2) [feature] status, history, close, action, close-all, pause, resume,
       toggle, reload, preset, preview, watch; over the `io.github.njhoffman.Notifyd` interface.
-- [ ] **Shell completion.** (p3) [feature] zsh completion for `send` and `ctl` (preset names,
-      history ids).
+- [x] **Shell completion.** (p3) [feature] `notifyd completion zsh|bash|fish`, generated from
+      the argparse tree; preset names complete live.
+- [ ] **Complete notification ids.** (p3) [feature] `ctl close`/`ctl action` ids could complete
+      from the daemon (a `ctl status --ids` listing the open ones with their summaries).
+- [ ] **Run the fish completion.** (p3) [test] fish is not installed here, so the fish script is
+      only checked for its shape (`tests/test_cli.py`); `fish --no-execute` and `complete -C`
+      tests skip. Check it on a machine with fish.
+- [x] **Help and version.** (p2) [feature] `-h/--help` on every command with examples,
+      `notifyd help [COMMAND]`, `notifyd version`, `-V`.
+- [x] **Man page.** (p2) [docs] `share/man/man1/notifyd.1`; a test fails when a command or
+      option is missing from it or its version is stale.
 - [x] **Process name.** (p2) [bug] The daemon ran as `python3` in `/proc/PID/comm`, so a second
       daemon reported "owned by python3" and `pgrep notifyd` found nothing; it now sets its name
       with `prctl(PR_SET_NAME)`.

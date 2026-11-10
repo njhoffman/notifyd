@@ -4,10 +4,12 @@
     notifyd send SUMMARY [BODY] [notify-send flags]
     notifyd ctl status | history [-n N] [--json] | close ID | action ID [KEY] | close-all | pause | resume | toggle
               | reload | preset NAME | preview [PRESET] | watch [--json]
-    notifyd presets [--pick]
+    notifyd presets [--pick | --names]
     notifyd import deadd [--yml PATH] [--css PATH] [-o OUT] [--force]
     notifyd check [-c CONFIG]
     notifyd rules [-c CONFIG] [--app A] [--summary S] [--body B] [--urgency U] [--hint NAME=VALUE]
+    notifyd completion zsh|bash|fish
+    notifyd help [COMMAND...] | version
 """
 
 import argparse
@@ -120,6 +122,9 @@ def watch(as_json):
 def presets(args):
     from notifyd.config import load_preset, preset_names
     names = preset_names()
+    if args.names:
+        print('\n'.join(names))
+        return 0
     if not args.pick:
         width = max(map(len, names))
         for name in names:
@@ -209,64 +214,128 @@ def rules_command(args):
 
 # -- entry ----------------------------------------------------------------------
 
+DESCRIPTION = """Desktop notification daemon for X11: deadd's look, dunst's rules, preset styles,
+a notify-send replacement and a colorful event log."""
+
+EPILOG = """examples:
+  notifyd daemon --replace              take over from the running notification daemon
+  notifyd send 'Hello' '<b>world</b>'   send a notification
+  notifyd ctl watch                     follow the daemon's event log
+  notifyd presets --pick                pick a preset with a live preview
+  notifyd help ctl                      help for a command
+
+config: ~/.config/notifyd/config.yaml (notifyd check validates it); see notifyd(1)."""
+
+
+class Formatter(argparse.RawDescriptionHelpFormatter):
+    def __init__(self, prog):
+        super().__init__(prog, max_help_position=32)
+
+
+def add_command(sub, name, help_text, description=None, epilog=None, **kwargs):
+    return sub.add_parser(name, help=help_text, description=description or help_text[0].upper() + help_text[1:] + '.',
+                          epilog=epilog, formatter_class=Formatter, **kwargs)
+
+
+def config_option(parser):
+    option = parser.add_argument('-c', '--config', metavar='PATH',
+                                 help='config file (default: ~/.config/notifyd/config.yaml)')
+    option.complete = 'files'
+
+
 def build_parser():
-    parser = argparse.ArgumentParser(prog='notifyd', description='Desktop notification daemon.')
-    parser.add_argument('--version', action='version', version=f'notifyd {__version__}')
-    sub = parser.add_subparsers(dest='cmd', required=True)
+    from notifyd.send import build_parser as send_parser
+    parser = argparse.ArgumentParser(prog='notifyd', description=DESCRIPTION, epilog=EPILOG, formatter_class=Formatter)
+    parser.add_argument('-V', '--version', action='version', version=f'notifyd {__version__}')
+    sub = parser.add_subparsers(dest='cmd', required=True, metavar='COMMAND', title='commands')
 
-    daemon = sub.add_parser('daemon', help='run the notification daemon')
-    daemon.add_argument('-c', '--config')
+    daemon = add_command(sub, 'daemon', 'run the notification daemon',
+                         epilog='SIGHUP or a change to the config file reloads it; SIGINT/SIGTERM stop the daemon.')
+    config_option(daemon)
     daemon.add_argument('--renderer', choices=('gtk', 'none'), default='gtk',
-                        help='none: log only, show nothing')
+                        help='gtk draws popups; none only logs (default: gtk)')
     daemon.add_argument('--replace', action='store_true', help='take the bus name from the running daemon')
-    daemon.add_argument('--log-format', choices=('pretty', 'json'))
-    daemon.add_argument('--color', choices=('auto', 'always', 'never'))
-    daemon.add_argument('-v', '--verbose', action='store_const', const='debug', dest='level')
-    daemon.add_argument('-q', '--quiet', action='store_const', const='warn', dest='level')
+    daemon.add_argument('--log-format', choices=('pretty', 'json'), help='event log format (default: pretty)')
+    daemon.add_argument('--color', choices=('auto', 'always', 'never'), help='color the log (default: auto)')
+    daemon.add_argument('-v', '--verbose', action='store_const', const='debug', dest='level', help='log debug events')
+    daemon.add_argument('-q', '--quiet', action='store_const', const='warn', dest='level',
+                        help='log only warnings and errors')
 
-    sub.add_parser('send', help='send a notification (notify-send flags; notifyd send --help)', add_help=False)
+    send = send_parser()
+    sub.add_parser('send', help='send a notification (notify-send flags)', description=send.description,
+                   epilog=send.epilog, parents=[send], add_help=False, formatter_class=Formatter)
 
-    control = sub.add_parser('ctl', help='control the running daemon')
-    commands = control.add_subparsers(dest='command', required=True)
-    commands.add_parser('status')
-    history = commands.add_parser('history')
-    history.add_argument('-n', type=int, default=20, help='last N (0: all)')
-    history.add_argument('--json', action='store_true')
-    close = commands.add_parser('close')
-    close.add_argument('id', type=int)
-    action = commands.add_parser('action', help='invoke an action (default: the default or first one)')
-    action.add_argument('id', type=int)
-    action.add_argument('key', nargs='?')
-    for name in ('close-all', 'pause', 'resume', 'toggle', 'reload'):
-        commands.add_parser(name)
-    preset = commands.add_parser('preset')
-    preset.add_argument('name')
-    preview = commands.add_parser('preview')
-    preview.add_argument('preset', nargs='?')
-    watch_parser = commands.add_parser('watch')
-    watch_parser.add_argument('--json', action='store_true')
+    control = add_command(sub, 'ctl', 'control the running daemon')
+    commands = control.add_subparsers(dest='command', required=True, metavar='COMMAND', title='commands')
+    add_command(commands, 'status', 'show paused state, counts, preset and config')
+    history = add_command(commands, 'history', 'show closed notifications, oldest first')
+    history.add_argument('-n', type=int, default=20, metavar='N', help='the last N (0: all; default: 20)')
+    history.add_argument('--json', action='store_true', help='as JSON')
+    close = add_command(commands, 'close', 'close a notification')
+    close.add_argument('id', type=int, help='notification id (notifyd send -p prints it)')
+    action = add_command(commands, 'action', 'invoke an action of a notification')
+    action.add_argument('id', type=int, help='notification id')
+    action.add_argument('key', nargs='?', help='action key (default: "default", else the first action)')
+    add_command(commands, 'close-all', 'close every notification on screen or waiting')
+    add_command(commands, 'pause', 'hold back all but critical notifications')
+    add_command(commands, 'resume', 'show what was held back, and new ones again')
+    add_command(commands, 'toggle', 'pause or resume')
+    add_command(commands, 'reload', 'reload the config file')
+    preset = add_command(commands, 'preset', 'switch the preset until the next reload')
+    preset.add_argument('name', help='preset name (notifyd presets lists them)').complete = 'presets'
+    preview = add_command(commands, 'preview', 'show sample notifications in a preset')
+    preview.add_argument('preset', nargs='?', help='preset name (default: the current one)').complete = 'presets'
+    watch_parser = add_command(commands, 'watch', 'follow the event log of the running daemon')
+    watch_parser.add_argument('--json', action='store_true', help='one JSON object per line')
 
-    presets_parser = sub.add_parser('presets', help='list presets, or pick one with a live preview')
-    presets_parser.add_argument('--pick', action='store_true')
+    presets_parser = add_command(sub, 'presets', 'list presets, or pick one with a live preview')
+    presets_parser.add_argument('--pick', action='store_true', help='choose in fzf; moving previews, enter switches')
+    presets_parser.add_argument('--names', action='store_true', help='names only, one per line')
 
-    importer = sub.add_parser('import', help='convert another daemon\'s config')
-    importer.add_argument('source', choices=('deadd',))
-    importer.add_argument('--yml')
-    importer.add_argument('--css')
-    importer.add_argument('-o', '--output', help='file to write, or "config" for ~/.config/notifyd/config.yaml')
-    importer.add_argument('--force', action='store_true')
+    importer = add_command(sub, 'import', "convert another daemon's config",
+                           epilog='Prints the config unless -o is given; notes on what has no equivalent go to stderr.')
+    importer.add_argument('source', choices=('deadd',), help='the daemon to import from')
+    importer.add_argument('--yml', metavar='PATH',
+                          help='deadd.yml (default: ~/.config/deadd/deadd.yml)').complete = 'files'
+    importer.add_argument('--css', metavar='PATH', help='deadd.css (default: next to the yml)').complete = 'files'
+    importer.add_argument('-o', '--output', metavar='PATH',
+                          help='file to write, or "config" for ~/.config/notifyd/config.yaml').complete = 'files'
+    importer.add_argument('--force', action='store_true', help='overwrite an existing file')
 
-    checker = sub.add_parser('check', help='validate the config')
-    checker.add_argument('-c', '--config')
+    checker = add_command(sub, 'check', 'validate the config', epilog='Exits 1 when there are warnings, 2 on errors.')
+    config_option(checker)
 
-    rules = sub.add_parser('rules', help='show which rules match a notification')
-    rules.add_argument('-c', '--config')
-    rules.add_argument('--app', default='')
-    rules.add_argument('--summary', default='')
-    rules.add_argument('--body', default='')
-    rules.add_argument('--urgency', choices=('low', 'normal', 'critical'), default='normal')
-    rules.add_argument('--timeout', type=int, default=-1, help='the timeout the sender asks for, ms')
-    rules.add_argument('--hint', action='append', default=[], metavar='NAME=VALUE')
+    rules = add_command(sub, 'rules', 'show which rules match a notification, and the result')
+    config_option(rules)
+    rules.add_argument('--app', default='', help='app name')
+    rules.add_argument('--summary', default='', help='summary (title)')
+    rules.add_argument('--body', default='', help='body')
+    rules.add_argument('--urgency', choices=('low', 'normal', 'critical'), default='normal', help='urgency')
+    rules.add_argument('--timeout', type=int, default=-1, metavar='MS', help='the timeout the sender asks for')
+    rules.add_argument('--hint', action='append', default=[], metavar='NAME=VALUE', help='a hint (repeatable)')
+
+    completion = add_command(sub, 'completion', 'print a shell completion script',
+                             epilog='install (or `just completions`):\n'
+                                    '  zsh:  notifyd completion zsh > ~/.local/share/zsh/site-functions/_notifyd\n'
+                                    '        (any directory in $fpath)\n'
+                                    '  bash: notifyd completion bash \\\n'
+                                    '          > ~/.local/share/bash-completion/completions/notifyd\n'
+                                    '  fish: notifyd completion fish > ~/.config/fish/completions/notifyd.fish')
+    completion.add_argument('shell', choices=('zsh', 'bash', 'fish'), help='the shell')
+
+    helper = add_command(sub, 'help', 'show help for notifyd or one of its commands')
+    helper.add_argument('topic', nargs='*', metavar='COMMAND', help='e.g. ctl, or ctl history').complete = 'commands'
+    add_command(sub, 'version', 'print the version')
+    return parser
+
+
+def subparser(parser, path):
+    """The parser for command PATH (['ctl', 'history']), or None."""
+    for name in path:
+        actions = [a for a in parser._actions if isinstance(a, argparse._SubParsersAction)]
+        if not actions or name not in actions[0].choices:
+            return None
+        parser = actions[0].choices[name]
     return parser
 
 
@@ -275,7 +344,8 @@ def main(argv=None):
     if argv[:1] == ['send']:
         from notifyd.send import main as send_main
         return send_main(argv[1:])
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
     if args.cmd == 'daemon':
         from notifyd.daemon import Daemon
         return Daemon(args.config, args.renderer, args.replace, args.log_format, args.color, args.level).run()
@@ -289,4 +359,18 @@ def main(argv=None):
         return check(args)
     if args.cmd == 'rules':
         return rules_command(args)
+    if args.cmd == 'completion':
+        from notifyd.completion import script
+        sys.stdout.write(script(args.shell, parser))
+        return 0
+    if args.cmd == 'version':
+        print(f'notifyd {__version__}')
+        return 0
+    if args.cmd == 'help':
+        target = subparser(parser, args.topic)
+        if target is None:
+            print(f'notifyd help: no command {" ".join(args.topic)!r}', file=sys.stderr)
+            return 2
+        target.print_help()
+        return 0
     return 2
