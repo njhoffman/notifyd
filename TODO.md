@@ -43,12 +43,12 @@ Reviewed: 2026-11-10
       rules can match on (`match: {mode: ...}`), set with `notifyd ctl mode`, shown in `status`.
 - [x] **Remember the mode.** (p3) [feature] The mode resets to normal when the daemon restarts;
       kept in `$XDG_STATE_HOME/notifyd/state.json`.
-- [ ] **Mode in the status bar.** (p3) [feature] A polybar module showing the mode and paused
-      state (`notifyd ctl status` or a watch on the Event signal), clicking toggles dnd.
+- [x] **Mode in the status bar.** (p3) [feature] A polybar module showing the mode and paused
+      state: `notifyd ctl bar --follow`; the module itself is in `~/.config/polybar/TODO.md`.
 - [x] **Duplicates.** (p3) [feature] Identical notifications stack with a `×N` count
       (`stack-duplicates`).
-- [ ] **Group by app.** (p3) [feature] mako's `group-by`: one card per app with the latest on top
-      and a count, expanded on hover.
+- [x] **Group by app.** (p3) [feature] mako's `group-by`: one card per app with the latest on top
+      and a count: `group-by: [app]` (rule-settable). Expanding a group on hover is not done.
 - [x] **Monitor choice.** (p2) [feature] `position.follow: mouse` (deadd's follow-mouse) or a
       fixed `position.monitor`, within the monitor's work area.
 - [x] **Re-place on monitor changes.** (p2) [bug] The stack is laid out when a notification
@@ -93,8 +93,8 @@ Reviewed: 2026-11-10
 - [x] **Slide/fade animations.** (p3) [feature] Fade in/out (window opacity steps on a GLib
       timer). picom fades windows in, but `no-fading-destroyed-argb` skips translucent windows on
       the way out, so notifyd fades out (`fade.out`, 150 ms) and leaves fading in to picom.
-- [ ] **Preset gallery.** (p3) [docs] Screenshots of each preset in `docs/presets.md`
-      (`render.sh`-style Xvfb capture once translucency renders there).
+- [x] **Preset gallery.** (p3) [docs] Screenshots of each preset in `docs/presets.md`
+      (`tools/gallery.sh`, Xvfb without a compositor, so translucency is not shown).
 
 ## 5. Sender and control CLI
 
@@ -147,6 +147,10 @@ Reviewed: 2026-11-10
       (`~/.config/i3/conf.d/60-apps.conf:101`); move it to a `notifyd ctl center` once the
       center exists (section 10). Done: notifyd toggles its center on SIGUSR1 too, so the
       binding needs no change; `notifyd ctl center` also works.
+- [ ] **i3 center binding.** (p2) [chore] `$mod+grave` runs `kill -s USR1 $(pidof
+      deadd-notification-center)` (`~/.config/i3/conf.d/60-apps.conf:101`); with notifyd it needs
+      `notifyd ctl center` (or `pkill -USR1 -x notifyd`: `pidof` matches the executable, which is
+      python3 for notifyd). Belongs to the i3 config when notifyd replaces deadd.
 - [ ] **Stale deadd config copy.** (p3) [chore] `~/.config/deadd.yml` is an older copy of
       `~/.config/deadd/deadd.yml` (no backdrop rule); the importer reads the latter, and the old
       file can go.
@@ -155,16 +159,18 @@ Reviewed: 2026-11-10
 
 - [x] **Center sidebar.** (p2) [feature] deadd's sidebar: history as cards, clear all, the pause
       toggle, opened with `notifyd ctl center` (and SIGUSR1 for the current i3 binding).
-- [ ] **Center widgets.** (p3) [feature] swaync-style extras in the center: MPRIS now playing with
-      buttons, volume slider, mode picker; and keyboard use (it is a popup without focus now).
+- [x] **Center now playing.** (p3) [feature] MPRIS now playing with previous/play-pause/next
+      (`notifyd/mpris.py`), refreshed on the players' PropertiesChanged.
+- [ ] **More center widgets.** (p3) [feature] swaync-style volume slider and mode picker; keyboard
+      use (the center is a popup without focus); remote cover art (http artUrl is skipped now).
 
 ## 9. Project
 
 - [x] **Spec compliance check.** (p2) [test] A script sending every hint and action combination
       used by musicman, backdrop and displayd, compared across notifyd, deadd and dunst:
       `just compliance` (`tools/compare.sh`); results in `docs/research.md` section 6.
-- [ ] **Packaging.** (p3) [chore] `pipx install .` works from pyproject; check it pulls no
-      PyGObject wheel build (system gi), or document `--system-site-packages`.
+- [x] **Packaging.** (p3) [chore] Installs into a venv made with `--system-site-packages`
+      (`pip install --no-build-isolation .` offline), presets included; README says so.
 
 ## Completed
 

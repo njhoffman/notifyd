@@ -4,7 +4,8 @@
     notifyd send SUMMARY [BODY] [notify-send flags]
     notifyd ctl status | list | history [-n N] [--json|--pick] | pop [ID]
               | forget ID|--all | center [toggle|show|hide] | close ID | action ID [KEY] | close-all
-              | pause | resume | toggle | mode [NAME] | reload | preset NAME | preview [PRESET] | watch [--json]
+              | pause | resume | toggle | mode [NAME] | bar [--follow] | reload | preset NAME
+              | preview [PRESET] | watch [--json]
     notifyd presets [--pick | --names]
     notifyd import deadd [--yml PATH] [--css PATH] | dunst [--rc PATH]  [-o OUT] [--force]
     notifyd check [-c CONFIG]
@@ -120,6 +121,8 @@ def ctl(args):
         control_call('Preview', GLib.Variant('(s)', (args.preset or '',)), '(u)')
     elif command == 'watch':
         return watch(args.json)
+    elif command == 'bar':
+        return bar(args)
     return 0
 
 
@@ -139,6 +142,61 @@ def pick_history(entries):
     if result.returncode != 0 or not result.stdout.strip():
         return result.returncode
     return ctl(argparse.Namespace(command='pop', id=int(result.stdout.split('\t', 1)[0])))
+
+
+BAR_EVENTS = {'paused', 'resumed', 'mode', 'queued', 'shown', 'reload'}
+
+
+def bar_line(status, fmt, idle_text):
+    """The status bar text: FMT with {mode} {held} {shown} {paused}, or IDLE_TEXT when nothing is special."""
+    if not status.get('paused') and status.get('mode') == 'normal' and not status.get('held_back'):
+        return idle_text
+    text = fmt.format(mode='' if status.get('mode') == 'normal' else status.get('mode'),
+                      held=status.get('held_back') or '', shown=status.get('displayed', 0),
+                      paused='dnd' if status.get('paused') else '')
+    return ' '.join(text.split())
+
+
+def bar(args):
+    """One line for a status bar; with --follow a new line whenever it changes (polybar tail = true)."""
+    Gio, GLib = gio()
+    from notifyd.server import CONTROL_IFACE, CONTROL_NAME, OBJECT_PATH
+
+    def current():
+        try:
+            return bar_line(json.loads(control_call('Status')), args.format, args.idle)
+        except SystemExit:
+            return args.offline
+    last = current()
+    print(last, flush=True)
+    if not args.follow:
+        return 0
+    connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    loop = GLib.MainLoop()
+
+    def update(*_args):
+        nonlocal last
+        line = current()
+        if line != last:
+            last = line
+            try:
+                print(line, flush=True)
+            except BrokenPipeError:
+                loop.quit()
+
+    def on_event(_conn, _sender, _path, _iface, _member, params):
+        if json.loads(params.unpack()[0]).get('event') in BAR_EVENTS:
+            update()
+    connection.signal_subscribe(CONTROL_NAME, CONTROL_IFACE, 'Event', OBJECT_PATH, None,
+                                Gio.DBusSignalFlags.NONE, on_event)
+    # the daemon starting or stopping
+    connection.signal_subscribe('org.freedesktop.DBus', 'org.freedesktop.DBus', 'NameOwnerChanged',
+                                '/org/freedesktop/DBus', CONTROL_NAME, Gio.DBusSignalFlags.NONE, update)
+    try:
+        loop.run()
+    except KeyboardInterrupt:
+        pass
+    return 0
 
 
 def watch(as_json):
@@ -352,6 +410,20 @@ def build_parser():
     preset.add_argument('name', help='preset name (notifyd presets lists them)').complete = 'presets'
     preview = add_command(commands, 'preview', 'show sample notifications in a preset')
     preview.add_argument('preset', nargs='?', help='preset name (default: the current one)').complete = 'presets'
+    bar_parser = add_command(commands, 'bar', 'a status line for polybar and the like',
+                             epilog='polybar:\n'
+                                    '  [module/notifyd]\n'
+                                    '  type = custom/script\n'
+                                    '  exec = notifyd ctl bar --follow\n'
+                                    '  tail = true\n'
+                                    '  click-left = notifyd ctl toggle\n'
+                                    '  click-right = notifyd ctl center')
+    bar_parser.add_argument('--follow', action='store_true', help='print a new line whenever it changes')
+    bar_parser.add_argument('--format', default='{paused} {mode} {held}', metavar='FMT',
+                            help='with {paused} {mode} {held} {shown} (default: "{paused} {mode} {held}")')
+    bar_parser.add_argument('--idle', default='', metavar='TEXT',
+                            help='shown when not paused, mode normal and nothing held back (default: empty)')
+    bar_parser.add_argument('--offline', default='', metavar='TEXT', help='shown when notifyd is not running')
     watch_parser = add_command(commands, 'watch', 'follow the event log of the running daemon')
     watch_parser.add_argument('--json', action='store_true', help='one JSON object per line')
 

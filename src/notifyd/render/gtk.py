@@ -320,6 +320,10 @@ class GtkRenderer:
         label.get_style_context().add_class(css_class)
         return label
 
+    def load_image(self, source, size):
+        """A pixbuf from a path, file:// URI or icon name (no network), or None."""
+        return load_pixbuf(source, size)
+
     # -- placement ------------------------------------------------------
     def monitor_geometry(self):
         display = Gdk.Display.get_default()

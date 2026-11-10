@@ -25,7 +25,8 @@ class Notification:
     replaces_id: int = 0
     id: int = 0
     mode: str = 'normal'                             # the daemon's mode when it arrived
-    duplicates: int = 1                              # how many identical ones this stands for
+    duplicates: int = 1                              # how many identical (or grouped) ones this stands for
+    grouped: bool = False                            # replaced another of its group (group-by)
     commands: dict = field(default_factory=dict)     # action key -> command, for buttons added by rules
     received: float = field(default_factory=time.time)
     # filled in by the rules

@@ -351,3 +351,21 @@ def test_forget_and_ids_continue_after_kept_history(make_manager, tmp_path):
     assert [e['app'] for e in again.history] == ['a', 'c']
     assert again.notify('d', summary='d') == 4          # after the highest kept id
     assert again.forget() == 2 and path.read_text() == ''
+
+
+def test_group_by_app_counts_and_keeps_the_latest(make_manager):
+    m, _s, _r, events, *_ = make_manager('rules:\n  - match: {app: chat}\n    group-by: [app]\n')
+    first = m.notify('chat', summary='alice', body='hi')
+    assert m.notify('chat', summary='bob', body='yo') == first
+    assert m.active[first].summary == 'bob' and m.active[first].duplicates == 2
+    assert events[-1]['reason'] == 'grouped x2'
+    assert m.notify('mail', summary='x') != m.notify('mail', summary='y')   # not grouped without the rule
+
+
+def test_group_by_validation():
+    import pytest
+
+    from notifyd.config import ConfigError
+    assert load_config(text='group-by: app').settings['group-by'] == ['app']
+    with pytest.raises(ConfigError):
+        load_config(text='group-by: [colour]')

@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-10
+
+### Added
+
+- `group-by` (e.g. in a rule for a chat app): a new notification with the same app (or summary,
+  category, urgency) replaces the open one and is counted, mako-style.
+- `notifyd ctl bar [--follow]`: a status line for polybar showing do not disturb, the mode and
+  how many notifications are held back, updated live (`notifyd help ctl bar` has a module).
+- The notification center shows what an MPRIS media player plays (MPD through mpDris, Spotify,
+  browsers), with previous, play/pause and next (`center.mpris`).
+- `docs/presets.md`: screenshots of every preset (`tools/gallery.sh` makes them).
+- README: how to install it as a package next to the system's PyGObject.
+
+### Fixed
+
+- Critical notifications in the center use the preset's critical text color.
+
 ## [0.5.0] - 2026-11-10
 
 ### Added

@@ -15,6 +15,9 @@ combines the best parts of deadd-notification-center and dunst:
 
 Needs Python 3.11+, PyGObject with GTK 3, and PyYAML (all from the distribution packages:
 `python3-gi`, `gir1.2-gtk-3.0`, `python3-yaml`). A compositor (picom) gives translucency and shadows.
+`just install` runs it from the checkout; as a package, install it next to the system's PyGObject
+(`pipx install --system-site-packages .`, or in a venv made with `--system-site-packages`;
+add `pip install --no-build-isolation` offline), else pip tries to build PyGObject from source.
 
 ```sh
 just install                 # links bin/notifyd and the man page into ~/.local, writes completions
@@ -40,7 +43,7 @@ notifyd rules --app MPD --summary 'Song'   # which rules match, and the result
 
 `notifyd help [COMMAND]` and `man notifyd` cover every command; `notifyd completion zsh|bash|fish`
 prints a completion script. `docs/config.md` describes the config, rules, styles and markup;
-`examples/config.yaml` is this desktop's deadd setup with longer song and wallpaper notifications.
+`docs/presets.md` shows the presets; `examples/config.yaml` is this desktop's deadd setup with longer song and wallpaper notifications.
 
 ## Development
 

@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-10 "notifyd 0.5.0" "User Commands"
+.TH NOTIFYD 1 2026-11-10 "notifyd 0.6.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -214,7 +214,8 @@ Remove a notification from the history, or clear it.
 .TP
 .BR center " [\fBtoggle\fR|\fBshow\fR|\fBhide\fR]"
 The notification center: a full\-height panel with a do\-not\-disturb toggle, the mode, a clear
-button, the open notifications and the history (click one to show it again, \(mu to forget it).
+button, what a media player plays (MPRIS, with previous, play/pause and next), the open
+notifications and the history (click one to show it again, \(mu to forget it).
 SIGUSR1 toggles it too, as it did deadd's.
 .TP
 .BR pop " [\fIid\fR]"
@@ -249,6 +250,22 @@ Switch the preset until the next reload.
 .TP
 .BR preview " [\fIpreset\fR]"
 Show sample notifications (low, song with tags, volume bar, actions, critical) in a preset.
+.TP
+.BR bar " [\fB\-\-follow\fR] [\fB\-\-format\fR \fIfmt\fR] [\fB\-\-idle\fR \fItext\fR] [\fB\-\-offline\fR \fItext\fR]"
+A status line for polybar and the like:
+.I fmt
+(default
+.BR "{paused} {mode} {held}" ;
+also
+.BR {shown} )
+when paused, in a mode other than normal, or holding notifications back, else the
+.B \-\-idle
+text (empty), and the
+.B \-\-offline
+text when notifyd is not running.
+.B \-\-follow
+prints a new line whenever it changes (polybar's
+.BR "tail = true" ).
 .TP
 .BR watch " [\fB\-\-json\fR]"
 Follow the daemon's event log.
@@ -330,6 +347,9 @@ YAML; every key is optional and an empty file gives the deadd look. The main key
 .BR max\-visible ,
 .B stack\-duplicates
 (an identical notification replaces the open one and is counted),
+.B group\-by
+(a list of app, summary, category, urgency: a new notification with the same values replaces the
+open one and is counted),
 .BR position.anchor / margin / gap / follow / monitor ,
 .BR icon.size / name ,
 .BR image.size / path / margin\-right ,
@@ -348,7 +368,7 @@ YAML; every key is optional and an empty file gives the deadd look. The main key
 (a command for each match),
 .B idle\-threshold
 (no expiry while the user is away that long),
-.BR center.width / side / hide\-on\-leave ,
+.BR center.width / side / hide\-on\-leave / mpris ,
 .BR fade.in / out
 (ms; out defaults to 150, since picom does not fade translucent windows out),
 .BR history.size / keep / persist ,

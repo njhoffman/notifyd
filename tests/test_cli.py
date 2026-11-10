@@ -166,3 +166,12 @@ def test_fish_script_shape():
     assert "-l renderer -x -a 'gtk none'" in text
     assert "-n '__notifyd_is \"notifyd ctl preset\"' -x -a '(notifyd presets --names 2>/dev/null)'" in text
     assert "-s c -l config -r -F" in text
+
+
+def test_bar_line():
+    from notifyd.cli import bar_line
+    fmt = '{paused} {mode} {held}'
+    assert bar_line({'paused': False, 'mode': 'normal', 'held_back': 0}, fmt, '') == ''
+    assert bar_line({'paused': True, 'mode': 'normal', 'held_back': 3}, fmt, '') == 'dnd 3'
+    assert bar_line({'paused': False, 'mode': 'presentation', 'held_back': 0}, fmt, 'x') == 'presentation'
+    assert bar_line({'paused': True, 'mode': 'normal', 'held_back': 0}, ' {shown}', '') == '0'

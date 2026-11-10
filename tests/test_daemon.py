@@ -192,6 +192,25 @@ def test_ctl_forget_and_center_without_display(bus, daemon):
     assert run(bus, 'ctl', 'center').stdout.strip() == 'hidden'     # no renderer, no center
 
 
+def test_bar_follows_pause_and_mode(bus, daemon):
+    daemon('', '--renderer', 'none')
+    bar = subprocess.Popen([*NOTIFYD, 'ctl', 'bar', '--follow', '--idle', 'ok'], env=bus, stdout=subprocess.PIPE,
+                           text=True)
+    try:
+        assert bar.stdout.readline().strip() == 'ok'
+        run(bus, 'ctl', 'pause')
+        assert bar.stdout.readline().strip() == 'dnd'
+        run(bus, 'send', 'held back')
+        assert bar.stdout.readline().strip() == 'dnd 1'
+        run(bus, 'ctl', 'resume')
+        assert bar.stdout.readline().strip() == 'ok'
+        run(bus, 'ctl', 'mode', 'presentation')
+        assert bar.stdout.readline().strip() == 'presentation'
+    finally:
+        bar.terminate()
+        bar.wait(5)
+
+
 def test_ctl_without_notifyd(bus):
     result = run(bus, 'ctl', 'status', check=False)
     assert result.returncode == 1 and 'notifyd is not running' in result.stderr
@@ -281,3 +300,29 @@ def test_renderer_relayout_on_monitor_change_and_duplicate_badge():
     finally:
         xvfb.terminate()
         xvfb.wait(5)
+
+
+def test_mpris_now_playing_and_commands(bus):
+    from gi.repository import Gio
+
+    from notifyd import mpris
+    players = []
+    try:
+        for status, title, name in (('Paused', 'Old', 'paused'), ('Playing', 'New', 'playing')):
+            proc = subprocess.Popen([sys.executable, str(ROOT / 'tests' / 'fake_mpris.py'), status, title, name],
+                                    env=bus, stdout=subprocess.PIPE, text=True)
+            players.append(proc)
+            assert proc.stdout.readline().strip() == 'ready'
+        connection = Gio.DBusConnection.new_for_address_sync(
+            bus['DBUS_SESSION_BUS_ADDRESS'],
+            Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION, None, None)
+        assert mpris.players(connection) == ['org.mpris.MediaPlayer2.paused', 'org.mpris.MediaPlayer2.playing']
+        playing = mpris.now_playing(connection)
+        assert playing['title'] == 'New' and playing['artist'] == 'Artist' and playing['player'] == 'playing'
+        mpris.command(connection, playing['name'], 'Next')
+        connection.flush_sync(None)
+        assert players[1].stdout.readline().strip() == 'Next'
+    finally:
+        for proc in players:
+            proc.terminate()
+            proc.wait(5)

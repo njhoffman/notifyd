@@ -28,6 +28,7 @@ DEFAULTS = {
     'timeout-critical': 0,       # critical notifications without a rule timeout
     'max-visible': 6,            # more wait until one closes
     'stack-duplicates': True,    # an identical notification (app, summary, body, urgency) replaces it, counted
+    'group-by': [],              # e.g. [app]: a new one with the same app replaces the open one, counted
     'icon': {'size': 25, 'name': None},
     'image': {'size': 75, 'path': None, 'margin-right': 0},
     'body': {'max-lines': 6},
@@ -42,7 +43,7 @@ DEFAULTS = {
     'history': {'size': 100, 'keep': True, 'persist': True},   # persist: $XDG_STATE_HOME/notifyd/history.jsonl
     'log': {'format': 'pretty', 'color': 'auto', 'level': 'info', 'file': None},
     'click': {'left': 'dismiss', 'middle': 'dismiss-all', 'right': 'default-action'},
-    'center': {'width': 400, 'side': 'right', 'hide-on-leave': True},
+    'center': {'width': 400, 'side': 'right', 'hide-on-leave': True, 'mpris': True},
     'fade': {'in': 0, 'out': 150},   # ms; picom fades windows in, but not translucent ones out
     'style': {},
     'rules': [],
@@ -50,6 +51,7 @@ DEFAULTS = {
 
 TOP_LEVEL = set(DEFAULTS)
 DURATION_KEYS = ('timeout', 'timeout-critical', 'idle-threshold')
+GROUP_FIELDS = ('app', 'summary', 'category', 'urgency')
 HIDE_PARTS = {'app-icon', 'app-name', 'time', 'title', 'body', 'image', 'actions', 'progress'}
 
 
@@ -128,6 +130,13 @@ def normalize(settings, where='config'):
         for key in ('in', 'out'):
             if key in settings['fade']:
                 settings['fade'][key] = parse_duration(settings['fade'][key], f'{where}: fade.{key}')
+    if 'group-by' in settings:
+        group = settings['group-by'] or []
+        group = [group] if isinstance(group, str) else group
+        unknown = [f for f in group if f not in GROUP_FIELDS]
+        if not isinstance(group, list) or unknown:
+            raise ConfigError(f'{where}: group-by: expected a list of {", ".join(GROUP_FIELDS)}')
+        settings['group-by'] = group
     if 'buttons' in settings:
         buttons = settings['buttons'] or []
         if not isinstance(buttons, list) or not all(

@@ -124,6 +124,14 @@ class Manager:
             for nid, other in self.active.items():
                 if other.app == n.app and other.stack_tag == tag:
                     return nid
+        group = n.settings.get('group-by') or []
+        if group:
+            key = [getattr(n, field) for field in group]
+            for nid, other in self.active.items():
+                if [getattr(other, field) for field in group] == key:
+                    n.duplicates = other.duplicates + 1
+                    n.grouped = True
+                    return nid
         if n.settings.get('stack-duplicates'):
             for nid, other in self.active.items():
                 if (other.app, other.summary, other.body, other.urgency) == (n.app, n.summary, n.body, n.urgency):
@@ -132,7 +140,9 @@ class Manager:
         return 0
 
     def _replace(self, n, old):
-        reason = f'duplicate x{n.duplicates}' if n.duplicates > old.duplicates else None
+        reason = None
+        if n.duplicates > old.duplicates:
+            reason = f'{"grouped" if n.grouped else "duplicate"} x{n.duplicates}'
         self.active[n.id] = n
         if n.id in self.displayed:
             self.renderer.update(n)

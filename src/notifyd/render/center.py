@@ -9,8 +9,9 @@ which also opens it (the i3 binding deadd used).
 
 import time
 
-from gi.repository import Gdk, GLib, Gtk, Pango
+from gi.repository import Gdk, Gio, GLib, Gtk, Pango
 
+from notifyd import mpris
 from notifyd.config import ConfigError, load_preset
 from notifyd.markup import prepare
 from notifyd.render.css import build_css, resolve_style, style_class
@@ -26,6 +27,14 @@ class Center:
         self.window = None
         self.pending = False
         renderer.log.listeners.append(self.on_event)
+        self.bus = None
+        try:
+            self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            # a player changing song or state: the now-playing row follows while the center is open
+            self.bus.signal_subscribe(None, 'org.freedesktop.DBus.Properties', 'PropertiesChanged', mpris.PATH,
+                                      mpris.PLAYER, Gio.DBusSignalFlags.NONE, self.on_player)
+        except GLib.Error:
+            self.bus = None
 
     @property
     def visible(self):
@@ -80,6 +89,9 @@ class Center:
             self.pending = True
             GLib.idle_add(self.refresh)
 
+    def on_player(self, *_args):
+        self.on_event({'event': 'shown'})
+
     def refresh(self):
         self.pending = False
         if self.visible:
@@ -132,6 +144,10 @@ class Center:
         status.pack_end(clear, False, False, 0)
         panel.pack_start(status, False, False, 0)
 
+        playing = mpris.now_playing(self.bus) if self.bus and self.settings().get('mpris', True) else None
+        if playing:
+            panel.pack_start(self.player_row(playing), False, False, 0)
+
         rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         open_entries = self.manager.listing()
         closed = list(reversed(list(self.manager.history)))
@@ -148,6 +164,32 @@ class Center:
         scroll.add(rows)
         panel.pack_start(scroll, True, True, 0)
         self.window.add(panel)
+
+    def player_row(self, playing):
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        row.get_style_context().add_class('center-card')
+        row.get_style_context().add_class('center-player')
+        art = self.renderer.load_image(playing['art'], 56) if playing['art'] else None
+        if art is not None:
+            row.pack_start(Gtk.Image.new_from_pixbuf(art), False, False, 0)
+        text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        text.pack_start(self.renderer.label(GLib.markup_escape_text(playing['title']), 'title'), False, False, 0)
+        detail = ' · '.join(p for p in (playing['artist'], playing['album']) if p)
+        if detail:
+            text.pack_start(self.renderer.label(GLib.markup_escape_text(detail), 'body'), False, False, 0)
+        state = f"{playing['player']} · {playing['status'].lower()}"
+        text.pack_start(self.renderer.label(GLib.markup_escape_text(state), 'appname', wrap=False), False, False, 0)
+        row.pack_start(text, True, True, 0)
+        buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+        for label, method in (('⏮', 'Previous'), ('⏸' if playing['status'] == 'Playing' else '▶', 'PlayPause'),
+                              ('⏭', 'Next')):
+            button = Gtk.Button(label=label)
+            button.set_relief(Gtk.ReliefStyle.NONE)
+            button.connect('clicked', lambda _b, m=method: mpris.command(self.bus, playing['name'], m))
+            buttons.pack_start(button, False, False, 0)
+        buttons.set_valign(Gtk.Align.CENTER)
+        row.pack_end(buttons, False, False, 0)
+        return row
 
     def card(self, entry, style, opened):
         classes = style.get('classes') or {}

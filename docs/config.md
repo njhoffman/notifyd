@@ -17,6 +17,7 @@ missing file gives the deadd look. The daemon reloads the file when it changes (
 | `timeout` | `8s` | `8000`, `8s`, `1500ms`, `2m`, `never` |
 | `timeout-critical` | `never` | for critical notifications no rule gives a timeout |
 | `max-visible` | `6` | more wait until one closes (`0`: no limit) |
+| `group-by` | `[]` | e.g. `[app]`: a new notification with the same values replaces the open one, shown `×N` (fields: app, summary, category, urgency; set it in a rule to group one app only) |
 | `stack-duplicates` | `true` | an identical notification (app, summary, body, urgency) replaces the open one, shown `×N` |
 | `position.anchor` | `top-right` | `top-`/`bottom-` + `left`/`center`/`right` |
 | `position.margin` | `[30, 5]` | `[vertical, horizontal]` from the anchored edges |
@@ -35,7 +36,7 @@ missing file gives the deadd look. The daemon reloads the file when it changes (
 | `idle-threshold` | `0` | notifications do not expire while you have been idle this long (`0`: off) |
 | `history.size` / `history.keep` / `history.persist` | `100` / `true` / `true` | `keep: false` in a rule keeps those out; `persist` keeps it in `$XDG_STATE_HOME/notifyd/history.jsonl` |
 | `log.format` / `log.color` / `log.level` / `log.file` | `pretty` / `auto` / `info` / - | also `--log-format`, `--color`, `-v`/`-q`; `file` gets plain lines too |
-| `center.width` / `side` / `hide-on-leave` | `400` / `right` / `true` | the notification center (`notifyd ctl center`, SIGUSR1) |
+| `center.width` / `side` / `hide-on-leave` / `mpris` | `400` / `right` / `true` / `true` | the notification center (`notifyd ctl center`, SIGUSR1); `mpris` shows what a media player plays, with buttons |
 | `fade.in` / `fade.out` | `0` / `150ms` | opacity fades; picom fades windows in but not translucent ones out |
 | `click.left` / `middle` / `right` | `dismiss` / `dismiss-all` / `default-action` | or `none` |
 | `rules` | `[]` | see Rules |
@@ -150,6 +151,7 @@ notification daemon.
 
 `notifyd ctl status | list [--json|--ids] | history [-n N] [--json] | pop [ID] | forget ID|--all | center [toggle|show|hide] | close ID | action ID [KEY] |
 close-all | pause | resume | toggle | mode [NAME] | reload | preset NAME | preview [PRESET] | watch [--json]`.
-`history --pick` picks one in fzf and shows it again. The style key `center-card` sets the
+`ctl bar [--follow]` prints a status-bar line (do not disturb, the mode, how many are held back;
+see `notifyd help ctl bar` for a polybar module). `history --pick` picks one in fzf and shows it again. The style key `center-card` sets the
 background of cards in the center. dunst's color hints (`fgcolor`, `bgcolor`, `frcolor`, `hlcolor`) color a single notification. `watch` streams the daemon's
 event log, colored, or as JSON lines.
