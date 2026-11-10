@@ -60,7 +60,7 @@ class RecordingRenderer:
 @pytest.fixture
 def make_manager(tmp_path):
     """make_manager(config_text) -> (manager, scheduler, renderer, events, closed, actions)."""
-    def make(text=''):
+    def make(text='', state_path=None):
         config = load_config(text=text)
         log = EventLog(stream=io.StringIO(), color='never')
         events = []
@@ -68,8 +68,12 @@ def make_manager(tmp_path):
         scheduler = FakeScheduler()
         renderer = RecordingRenderer()
         closed, actions = [], []
+        ran, sounds, idle = [], [], [0]
         manager = Manager(config, log, scheduler, renderer,
                           on_closed=lambda nid, reason: closed.append((nid, reason)),
-                          on_action=lambda nid, key: actions.append((nid, key)))
+                          on_action=lambda nid, key: actions.append((nid, key)),
+                          runner=lambda command, n, what='run': ran.append((what, command, n.id)),
+                          sound=sounds.append, idle=lambda: idle[0], state_path=state_path)
+        manager.ran, manager.sounds, manager.idle_ms = ran, sounds, idle   # for tests to look at and set
         return manager, scheduler, renderer, events, closed, actions
     return make

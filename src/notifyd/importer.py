@@ -193,17 +193,258 @@ def import_deadd(yml_text, css_text=None):
     return config, report
 
 
-HEADER = '''# notifyd config, imported from deadd-notification-center.
+HEADER = '''# notifyd config, imported from {source}.
 # Everything is optional; see docs/config.md. Rules apply in order, and a rule's timeout wins over
 # the one the sender asked for.
 '''
 
 
-def dump_config(config):
+def dump_config(config, source='deadd-notification-center'):
     rules = config.pop('rules', None)
-    text = HEADER + '\n' + yaml.safe_dump(config, sort_keys=False, default_flow_style=None, allow_unicode=True)
+    text = HEADER.format(source=source) + '\n'
+    text += yaml.safe_dump(config, sort_keys=False, default_flow_style=None, allow_unicode=True)
     if rules:
         text += '\nrules:\n' + '\n'.join(
             yaml.safe_dump([rule], sort_keys=False, default_flow_style=None, allow_unicode=True, width=110)
             for rule in rules)
     return text
+
+
+# -- dunst -----------------------------------------------------------------------
+
+DUNST_MATCH = {'appname': 'app', 'summary': 'summary', 'body': 'body', 'category': 'category',
+               'desktop_entry': 'desktop-entry', 'stack_tag': 'stack-tag', 'icon': 'icon', 'msg_urgency': 'urgency'}
+DUNST_CLICK = {'close_current': 'dismiss', 'close_all': 'dismiss-all', 'do_action': 'default-action',
+               'open_url': 'default-action', 'none': 'none'}
+DUNST_IGNORED_GLOBAL = {'monitor', 'scale', 'progress_bar', 'progress_bar_frame_width',
+                        'progress_bar_min_width',
+                        'progress_bar_max_width', 'separator_height', 'separator_color', 'text_icon_padding',
+                        'line_height', 'sort', 'alignment', 'vertical_alignment', 'ellipsize', 'word_wrap',
+                        'ignore_newline', 'show_indicators', 'icon_position', 'icon_path', 'icon_theme',
+                        'enable_recursive_icon_lookup', 'sticky_history', 'show_age_threshold', 'indicate_hidden',
+                        'dmenu', 'browser', 'always_run_script', 'title', 'class', 'ignore_dbusclose',
+                        'hide_duplicate_count', 'height', 'notification_limit_shown'}
+
+
+def _dunst_value(raw):
+    value = raw.strip()
+    for quote in ('"', "'"):
+        if len(value) >= 2 and value[0] == value[-1] == quote:
+            return value[1:-1]
+    return value
+
+
+def parse_dunstrc(text):
+    """{section: {key: value}} from a dunstrc (ini with quotes, ; and # comments)."""
+    sections, current = {}, None
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line[0] in ';#':
+            continue
+        header = re.fullmatch(r'\[(.+)\]', line)
+        if header:
+            current = sections.setdefault(header.group(1).strip(), {})
+            continue
+        if current is None or '=' not in line:
+            continue
+        key, value = line.split('=', 1)
+        current[key.strip()] = _dunst_value(value)
+    return sections
+
+
+def _bool(value):
+    return str(value).lower() in ('yes', 'true', '1', 'on')
+
+
+def _dunst_duration(value):
+    """dunst durations: plain numbers are seconds; '10s', '500ms', '2m' as written."""
+    value = str(value).strip()
+    if re.fullmatch(r'\d+(\.\d+)?', value):
+        number = float(value)
+        return format_duration(int(number * 1000))
+    return value
+
+
+def _glob(value):
+    """dunst matches with globs (or regex with `matching = regex`): to an exact string or a /regex/."""
+    if not any(ch in value for ch in '*?['):
+        return value
+    pattern = ''.join('.*' if ch == '*' else '.' if ch == '?' else re.escape(ch) for ch in value)
+    return f'/^{pattern}$/'
+
+
+def _with_alpha(color, transparency):
+    """#rrggbb with dunst's transparency (0-100) as rgba()."""
+    found = re.fullmatch(r'#([0-9a-fA-F]{6})', color or '')
+    if not found or not transparency:
+        return color
+    r, g, b = (int(found.group(1)[i:i + 2], 16) for i in (0, 2, 4))
+    return f'rgba({r}, {g}, {b}, {round(1 - transparency / 100, 2)})'
+
+
+def _font(value):
+    parts = value.split()
+    if len(parts) > 1 and re.fullmatch(r'\d+(\.\d+)?', parts[-1]):
+        return {'font-family': ' '.join(parts[:-1]), 'font-size': f'{parts[-1]}pt'}
+    return {'font-family': value}
+
+
+def import_dunst(text):
+    """(config dict, report lines) from a dunstrc."""
+    report = []
+    sections = parse_dunstrc(text)
+    g = sections.get('global', {})
+    out, style, position = {'preset': 'dunst'}, {}, {}
+    transparency = int(g.get('transparency', 0) or 0)
+    if 'width' in g:
+        widths = re.findall(r'\d+', g['width'])
+        if widths:
+            out['width'] = int(widths[-1])
+    if 'origin' in g:
+        position['anchor'] = g['origin'].replace('_', '-')
+    if 'offset' in g:
+        found = re.fullmatch(r'\(?\s*(-?\d+)\s*[x,]\s*(-?\d+)\s*\)?', g['offset'])
+        if found:
+            position['margin'] = [int(found.group(2)), int(found.group(1))]
+    if 'follow' in g:
+        position['follow'] = 'none' if g['follow'] == 'none' else 'mouse'
+        if g['follow'] == 'keyboard':
+            report.append('follow = keyboard: notifyd follows the mouse instead')
+    if position:
+        out['position'] = position
+    if g.get('font'):
+        style.update(_font(g['font']))
+    if 'frame_width' in g:
+        style['border-width'] = int(g['frame_width'])
+    if 'frame_color' in g:
+        style['border-color'] = g['frame_color']
+    if 'corner_radius' in g:
+        style['radius'] = int(g['corner_radius'])
+    if 'padding' in g or 'horizontal_padding' in g:
+        style['padding'] = [int(g.get('padding', 8)), int(g.get('horizontal_padding', g.get('padding', 8)))]
+    if 'markup' in g:
+        out['markup'] = {'full': 'full', 'strip': 'strip', 'no': 'plain'}.get(g['markup'], 'full')
+    if 'notification_limit' in g:
+        out['max-visible'] = int(g['notification_limit'])
+    if 'history_length' in g:
+        out['history'] = {'size': int(g['history_length'])}
+    if 'stack_duplicates' in g:
+        out['stack-duplicates'] = _bool(g['stack_duplicates'])
+    if 'idle_threshold' in g and _dunst_duration(g['idle_threshold']) != 'never':
+        out['idle-threshold'] = _dunst_duration(g['idle_threshold'])
+    click = {button: DUNST_CLICK.get(g[f'mouse_{button}_click'].split(',')[0].strip())
+             for button in ('left', 'middle', 'right') if f'mouse_{button}_click' in g}
+    if click:
+        out['click'] = {k: v for k, v in click.items() if v}
+    for key in g:
+        handled = {'width', 'origin', 'offset', 'follow', 'font', 'frame_width', 'frame_color', 'corner_radius',
+                   'padding', 'horizontal_padding', 'markup', 'notification_limit', 'history_length',
+                   'stack_duplicates', 'idle_threshold', 'transparency', 'format', 'mouse_left_click',
+                   'mouse_middle_click', 'mouse_right_click', 'min_icon_size', 'max_icon_size', 'icon_size',
+                   'progress_bar_height', 'highlight', 'fullscreen'}
+        if key in DUNST_IGNORED_GLOBAL:
+            continue
+        if key not in handled:
+            report.append(f'global.{key}: no notifyd equivalent (ignored)')
+    if 'format' in g:
+        report.append(f'global.format {g["format"]!r}: notifyd always shows summary and body; use hide: and rules')
+    if 'max_icon_size' in g:
+        out['image'] = {'size': int(g['max_icon_size'])}
+    if 'progress_bar_height' in g:
+        style.setdefault('progress', {})['height'] = int(g['progress_bar_height'])
+    if 'highlight' in g:
+        style.setdefault('progress', {})['color'] = g['highlight']
+
+    timeouts = {}
+    for urgency in ('low', 'normal', 'critical'):
+        section = sections.get(f'urgency_{urgency}', {})
+        part = {}
+        if 'background' in section:
+            part['background'] = _with_alpha(section['background'], transparency)
+        if 'foreground' in section:
+            part['foreground'] = section['foreground']
+        if 'frame_color' in section:
+            part['border-color'] = section['frame_color']
+        if part:
+            style[urgency] = part
+        if 'timeout' in section:
+            timeouts[urgency] = _dunst_duration(section['timeout'])
+        for key in section:
+            if key not in ('background', 'foreground', 'frame_color', 'timeout', 'highlight', 'icon',
+                           'default_icon'):
+                report.append(f'urgency_{urgency}.{key}: no notifyd equivalent (ignored)')
+        if section.get('highlight'):
+            style.setdefault(urgency, {})
+            report.append(f'urgency_{urgency}.highlight: progress color is per preset, not per urgency')
+    if 'normal' in timeouts:
+        out['timeout'] = timeouts['normal']
+    if 'critical' in timeouts:
+        out['timeout-critical'] = timeouts['critical']
+    if 'normal' in style:
+        # the normal colors are the base ones
+        normal = style.pop('normal')
+        for key, target in (('background', 'background'), ('foreground', 'foreground'),
+                            ('border-color', 'border-color')):
+            if key in normal:
+                style[target] = normal[key]
+
+    rules = []
+    if 'low' in timeouts and timeouts['low'] != timeouts.get('normal'):
+        rules.append({'name': 'low urgency', 'match': {'urgency': 'low'}, 'timeout': timeouts['low']})
+    for name, section in sections.items():
+        if name in ('global', 'experimental') or name.startswith('urgency_'):
+            continue
+        if section.get('enabled') and not _bool(section['enabled']):
+            continue
+        regex = section.get('match_type', section.get('matching')) == 'regex'
+        rule, match, rule_style = {'name': name}, {}, {}
+        for key, value in section.items():
+            if key in DUNST_MATCH:
+                if key == 'msg_urgency':
+                    match['urgency'] = value.lower()
+                else:
+                    match[DUNST_MATCH[key]] = f'/{value}/' if regex else _glob(value)
+            elif key == 'timeout':
+                rule['timeout'] = _dunst_duration(value)
+            elif key == 'urgency':
+                rule['urgency'] = value.lower()
+            elif key == 'skip_display':
+                if _bool(value):
+                    rule['skip'] = True
+            elif key == 'history_ignore':
+                if _bool(value):
+                    rule['history'] = {'keep': False}
+            elif key in ('background', 'foreground', 'frame_color'):
+                rule_style[{'frame_color': 'border-color'}.get(key, key)] = value
+            elif key == 'new_icon':
+                rule['icon'] = {'name': value}
+            elif key == 'set_stack_tag':
+                rule['stack-tag'] = value
+            elif key == 'script':
+                rule['run'] = value
+            elif key == 'set_transient':
+                if _bool(value):
+                    report.append(f'[{name}] set_transient: not supported (ignored)')
+            elif key in ('enabled', 'match_type', 'matching'):
+                continue
+            else:
+                report.append(f'[{name}] {key}: no notifyd equivalent (ignored)')
+        if rule_style:
+            rule['style'] = rule_style
+        rule['match'] = match
+        rules.append({'name': rule.pop('name'), 'match': rule.pop('match'), **rule})
+    if rules:
+        out['rules'] = rules
+    preset_style = load_preset('dunst')['style']
+    base_background = _normalize(style.get('background', preset_style.get('background')))
+    for urgency in ('low', 'critical'):
+        part = style.get(urgency, {})
+        if _normalize(part.get('background')) == base_background:
+            part.pop('background')
+        if urgency in style and not part:
+            style.pop(urgency)
+    if style:
+        stripped = strip_preset_values(style, preset_style)
+        if stripped:
+            out['style'] = stripped
+    return out, report

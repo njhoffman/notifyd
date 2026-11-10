@@ -26,6 +26,7 @@ class Notification:
     id: int = 0
     mode: str = 'normal'                             # the daemon's mode when it arrived
     duplicates: int = 1                              # how many identical ones this stands for
+    commands: dict = field(default_factory=dict)     # action key -> command, for buttons added by rules
     received: float = field(default_factory=time.time)
     # filled in by the rules
     settings: dict = field(default_factory=dict)

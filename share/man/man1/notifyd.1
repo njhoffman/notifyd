@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-10 "notifyd 0.3.0" "User Commands"
+.TH NOTIFYD 1 2026-11-10 "notifyd 0.4.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -26,10 +26,13 @@ notifyd \- desktop notification daemon for X11 with rules, presets and a colorfu
 .B notifyd presets
 .RB [ \-\-pick | \-\-names ]
 .br
-.B notifyd import deadd
-.RB [ \-\-yml
+.B notifyd import
+.BR deadd " [" \-\-yml
 .IR path ]
 .RB [ \-\-css
+.IR path ]
+|
+.BR dunst " [" \-\-rc
 .IR path ]
 .RB [ \-o
 .IR path ]
@@ -202,6 +205,10 @@ The last
 .I n
 closed notifications (default 20, 0 for all), oldest first.
 .TP
+.BR pop " [\fIid\fR]"
+Show a closed notification again: the last one in the history, or
+.IR id .
+.TP
 .BI close " id"
 Close a notification.
 .TP
@@ -242,6 +249,17 @@ previewing each as the cursor moves and switching to it on enter;
 .B \-\-names
 prints the names only.
 .SS import
+.B notifyd import dunst
+converts
+.I ~/.config/dunst/dunstrc
+(or
+.BR \-\-rc ):
+geometry, font, frame, urgency colors (with its transparency) and timeouts, idle threshold, mouse
+buttons, and its rule sections (globs become regexes; skip_display, history_ignore, script,
+new_icon, set_stack_tag and colors carry over), on top of the
+.B dunst
+preset.
+.PP
 .B notifyd import deadd
 converts
 .I ~/.config/deadd/deadd.yml
@@ -309,6 +327,15 @@ YAML; every key is optional and an empty file gives the deadd look. The main key
 .BR hide ,
 .BR class ,
 .BR skip ,
+.B sound
+(a file or sound name; false silences),
+.B buttons
+(a list of
+.BR "{label: \fItext\fB, run: \fIcommand\fB}" ),
+.B run
+(a command for each match),
+.B idle\-threshold
+(no expiry while the user is away that long),
 .BR history.size / keep / persist ,
 .BR log.format / color / level / file ,
 .B click.left / middle / right
@@ -362,9 +389,31 @@ History kept across restarts (with
 .BR history.persist ,
 the default).
 .TP
+.I $XDG_STATE_HOME/notifyd/state.json
+The mode, kept across restarts.
+.TP
 .I $XDG_RUNTIME_DIR/notifyd/send\-ids.json
 Ids for
 .BR "notifyd send \-\-replace\-name" .
+.PP
+Commands from
+.B run
+and
+.B buttons
+run with
+.BR sh (1)
+in the background, with the notification as
+.BR NOTIFYD_ID ,
+.BR NOTIFYD_APP ,
+.BR NOTIFYD_SUMMARY ,
+.BR NOTIFYD_BODY ,
+.BR NOTIFYD_URGENCY ,
+.BR NOTIFYD_CATEGORY ,
+.BR NOTIFYD_ICON ,
+.B NOTIFYD_STACK_TAG
+and
+.B NOTIFYD_RULES
+in the environment and as JSON on standard input.
 .SH ENVIRONMENT
 .TP
 .B XDG_CONFIG_HOME
@@ -397,6 +446,8 @@ notifyd send \-A \(aqchange=Change layout\(aq \(aqMonitors changed\(aq
 notifyd ctl watch
 notifyd presets \-\-pick
 notifyd import deadd \-o config
+notifyd import dunst > dunst\-converted.yaml
+notifyd ctl pop
 notifyd completion zsh > ~/.local/share/zsh/site-functions/_notifyd
 .fi
 .SH SEE ALSO

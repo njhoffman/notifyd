@@ -4,7 +4,8 @@
 missing file gives the deadd look. The daemon reloads the file when it changes (or on SIGHUP, or
 `notifyd ctl reload`); a broken file is reported and the old config kept. `notifyd check` validates it.
 
-`notifyd import deadd -o config` writes it from `~/.config/deadd/deadd.yml` and `deadd.css`.
+`notifyd import deadd -o config` writes it from `~/.config/deadd/deadd.yml` and `deadd.css`;
+`notifyd import dunst` converts a dunstrc (rule sections included) on top of the dunst preset.
 
 ## Keys
 
@@ -28,6 +29,10 @@ missing file gives the deadd look. The daemon reloads the file when it changes (
 | `hide` | `[]` | any of `app-icon app-name time title body image actions progress` |
 | `class` | - | extra CSS class on the card |
 | `skip` | `false` | not shown; still logged and kept in history |
+| `sound` | - | a sound file or freedesktop sound name played when shown; `false` silences (else the sender's `sound-file`/`sound-name` hints, unless `suppress-sound`) |
+| `buttons` | `[]` | extra buttons that run commands: `[{label: Next, run: mpc next}]` |
+| `run` | - | a shell command run for each matching notification, shown or skipped |
+| `idle-threshold` | `0` | notifications do not expire while you have been idle this long (`0`: off) |
 | `history.size` / `history.keep` / `history.persist` | `100` / `true` / `true` | `keep: false` in a rule keeps those out; `persist` keeps it in `$XDG_STATE_HOME/notifyd/history.jsonl` |
 | `log.format` / `log.color` / `log.level` / `log.file` | `pretty` / `auto` / `info` / - | also `--log-format`, `--color`, `-v`/`-q`; `file` gets plain lines too |
 | `click.left` / `middle` / `right` | `dismiss` / `dismiss-all` / `default-action` | or `none` |
@@ -69,6 +74,21 @@ default) and `hint: {name: value}`. A value is an exact string,
 Rewrites: `summary`, `body`, `app` are templates with `{summary}`, `{body}`, `{app}`, `{category}`,
 `{urgency}` and the regex's named groups; `urgency` sets the urgency; `stack-tag` makes notifications
 replace each other. `notifyd rules --app MPD --summary x` shows what a notification would get.
+
+Commands from `run` and `buttons` run with `sh` in the background, with `NOTIFYD_ID`, `NOTIFYD_APP`,
+`NOTIFYD_SUMMARY`, `NOTIFYD_BODY`, `NOTIFYD_URGENCY`, `NOTIFYD_CATEGORY`, `NOTIFYD_ICON`,
+`NOTIFYD_STACK_TAG` and `NOTIFYD_RULES` set, and the notification as JSON on stdin. A failing
+command is logged with its last line of stderr.
+
+```yaml
+rules:
+  - match: { app: [MPD, Spotify] }
+    buttons:
+      - { label: Next, run: playerctl next }
+      - { label: Pause, run: playerctl play-pause }
+  - match: { app: /chat/i }
+    run: 'jq -c . >> ~/.local/state/chat-notifications.jsonl'
+```
 
 ## Styles
 
@@ -126,7 +146,7 @@ notification daemon.
 
 ## Control
 
-`notifyd ctl status | list [--json|--ids] | history [-n N] [--json] | close ID | action ID [KEY] |
+`notifyd ctl status | list [--json|--ids] | history [-n N] [--json] | pop [ID] | close ID | action ID [KEY] |
 close-all | pause | resume | toggle | mode [NAME] | reload | preset NAME | preview [PRESET] | watch [--json]`.
 dunst's color hints (`fgcolor`, `bgcolor`, `frcolor`, `hlcolor`) color a single notification. `watch` streams the daemon's
 event log, colored, or as JSON lines.

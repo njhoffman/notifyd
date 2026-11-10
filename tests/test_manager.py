@@ -251,3 +251,85 @@ def test_listing_shows_open_notifications(make_manager):
     one = m.notify('a', summary='one')
     two = m.notify('a', summary='two')
     assert [(e['id'], e['state']) for e in m.listing()] == [(one, 'shown'), (two, 'waiting')]
+
+
+def test_rule_buttons_run_commands_instead_of_signalling(make_manager):
+    m, _s, _r, _e, closed, actions = make_manager(
+        'rules:\n  - match: {app: MPD}\n    buttons: [{label: Next, run: mpc next}, {label: Love, run: love}]\n')
+    nid = m.notify('MPD', summary='song', actions=['default', 'Open'])
+    assert m.active[nid].actions == [('default', 'Open'), ('notifyd-button-0', 'Next'), ('notifyd-button-1', 'Love')]
+    m.invoke(nid, 'notifyd-button-0')
+    assert m.ran == [('button', 'mpc next', nid)]
+    assert actions == []                       # the sender never asked for this action
+    assert closed == [(nid, DISMISSED)]
+
+
+def test_run_command_for_every_match_even_skipped(make_manager):
+    m, *_ = make_manager('rules:\n  - match: {app: log-me}\n    run: logger notified\n    skip: true\n')
+    nid = m.notify('log-me', summary='x')
+    m.notify('other', summary='y')
+    assert m.ran == [('run', 'logger notified', nid)]
+
+
+def test_sounds_from_hints_and_rules(make_manager):
+    m, *_ = make_manager('rules:\n  - match: {app: quiet}\n    sound: false\n'
+                         '  - match: {app: loud}\n    sound: bell\n')
+    m.notify('a', summary='1', hints={'sound-name': 'message-new-instant'})
+    m.notify('a', summary='2', hints={'sound-file': '/x/ding.oga', 'sound-name': 'ignored'})
+    m.notify('a', summary='3', hints={'sound-name': 'x', 'suppress-sound': True})
+    m.notify('quiet', summary='4', hints={'sound-name': 'x'})
+    m.notify('loud', summary='5', hints={'suppress-sound': True})
+    m.notify('a', summary='6')
+    assert m.sounds == ['message-new-instant', '/x/ding.oga', 'bell']
+
+
+def test_idle_user_keeps_notifications(make_manager):
+    m, s, _r, _e, closed, _a = make_manager('timeout: 5s\nidle-threshold: 1m')
+    nid = m.notify('a', summary='x')
+    m.idle_ms[0] = 120000                      # away for two minutes
+    s.advance(60000)
+    assert closed == [] and nid in m.displayed
+    m.idle_ms[0] = 500                         # back
+    s.advance(2000)
+    assert closed == [(nid, EXPIRED)]
+
+
+def test_idle_threshold_off_by_default(make_manager):
+    m, s, _r, _e, closed, _a = make_manager('timeout: 5s')
+    nid = m.notify('a', summary='x')
+    m.idle_ms[0] = 10 ** 9
+    s.advance(5000)
+    assert closed == [(nid, EXPIRED)]
+
+
+def test_pop_shows_a_closed_notification_again(make_manager):
+    m, *_ = make_manager()
+    first = m.notify('mail', summary='one', hints={'urgency': 2, 'category': 'email'})
+    m.close(first, DISMISSED)
+    second = m.notify('mail', summary='two')
+    m.close(second, DISMISSED)
+    again = m.pop()
+    assert m.active[again].summary == 'two'
+    older = m.pop(first)
+    assert m.active[older].summary == 'one' and m.active[older].urgency_name == 'critical'
+    assert m.active[older].category == 'email'
+    assert m.pop(999) == 0
+
+
+def test_mode_is_remembered(make_manager, tmp_path):
+    state = tmp_path / 'state.json'
+    m, *_ = make_manager(state_path=state)
+    m.set_mode('dnd')
+    again, *_ = make_manager(state_path=state)
+    assert again.mode == 'dnd'
+    state.write_text('not json')
+    assert make_manager(state_path=state)[0].mode == 'normal'
+
+
+def test_bad_buttons_and_run_are_config_errors():
+    import pytest
+
+    from notifyd.config import ConfigError
+    for text in ('buttons: [Next]', 'buttons: [{label: Next}]', 'run: [a]', 'sound: 3'):
+        with pytest.raises(ConfigError):
+            load_config(text=text)

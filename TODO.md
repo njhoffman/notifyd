@@ -23,24 +23,28 @@ Reviewed: 2026-11-10
       URI), `image-data`, `icon_data`, `value` (progress bar), `resident`, `transient`.
 - [x] **dunst color hints.** (p3) [feature] `fgcolor`/`bgcolor`/`frcolor`/`hlcolor` as style
       overrides that rules can still override (`rules.hint_style`).
-- [ ] **Sound hints.** (p3) [feature] `sound-file`/`sound-name`/`suppress-sound` (play with
+- [x] **Sound hints.** (p3) [feature] `sound-file`/`sound-name`/`suppress-sound` (play with
       canberra-gtk-play or paplay), and a `sound:` rule key.
 - [x] **Expiry.** (p2) [feature] Timeouts paused while hovered, resumed with what was left
       (at least 1 s); critical never expires by default (`timeout-critical`).
-- [ ] **Idle threshold.** (p3) [feature] dunst's `idle_threshold`: no expiry while the user is
+- [x] **Idle threshold.** (p3) [feature] dunst's `idle_threshold`: no expiry while the user is
       idle (XScreenSaver idle time via Xlib or `xprintidle`), so nothing is missed at lunch.
 - [x] **History in memory.** (p2) [feature] The last `history.size` (100) with closed reason and
       matched rules; `notifyd ctl history`.
 - [x] **History on disk.** (p3) [feature] `$XDG_STATE_HOME/notifyd/history.jsonl`, compacted at
       twice `history.size`; a torn last line is skipped.
-- [ ] **History pop.** (p3) [feature] Re-show a closed notification (dunst `history-pop`), from
-      `ctl history` or a rofi picker.
+- [x] **History pop.** (p3) [feature] Re-show a closed notification (dunst `history-pop`), from
+      `ctl history`: `notifyd ctl pop [ID]`.
+- [ ] **History picker.** (p3) [feature] rofi or fzf over `ctl history --json`, popping the one
+      chosen.
 - [x] **Pause.** (p2) [feature] `ctl pause/resume/toggle`: everything but critical is held back
       and replayed on resume.
 - [x] **Modes.** (p2) [feature] mako-style named modes (`dnd`, `quiet`, `presentation`) that
       rules can match on (`match: {mode: ...}`), set with `notifyd ctl mode`, shown in `status`.
-- [ ] **Remember the mode.** (p3) [feature] The mode resets to normal when the daemon restarts;
-      keep it in the state directory with the history, and show it in a status bar (polybar hook).
+- [x] **Remember the mode.** (p3) [feature] The mode resets to normal when the daemon restarts;
+      kept in `$XDG_STATE_HOME/notifyd/state.json`.
+- [ ] **Mode in the status bar.** (p3) [feature] A polybar module showing the mode and paused
+      state (`notifyd ctl status` or a watch on the Event signal), clicking toggles dnd.
 - [x] **Duplicates.** (p3) [feature] Identical notifications stack with a `×N` count
       (`stack-duplicates`).
 - [ ] **Group by app.** (p3) [feature] mako's `group-by`: one card per app with the latest on top
@@ -59,9 +63,9 @@ Reviewed: 2026-11-10
       matching rule applies any config key, later rules overriding earlier ones.
 - [x] **Rewrites.** (p2) [feature] summary/body/app templates with named groups, urgency,
       stack tag, icon (`icon.name`), image (`image.path`), `skip`, `history.keep`.
-- [ ] **Actions from rules.** (p3) [feature] Add buttons with commands to matching notifications
+- [x] **Actions from rules.** (p3) [feature] Add buttons with commands to matching notifications
       (deadd `action-commands`, e.g. playerctl buttons on song notifications).
-- [ ] **Scripts.** (p3) [feature] `run:` on match with the notification as env vars and JSON on
+- [x] **Scripts.** (p3) [feature] `run:` on match with the notification as env vars and JSON on
       stdin (dunst `script`), never blocking the display.
 - [x] **Rule tracing.** (p2) [feature] `notifyd rules --app X --summary Y ...` shows which rules
       match and the resulting settings and timeout; the log lists matched rules per event.
@@ -125,15 +129,15 @@ Reviewed: 2026-11-10
 
 - [x] **deadd importer.** (p1) [feature] `notifyd import deadd [-o config]`; style values equal to
       the deadd preset are left out, unsupported keys are reported.
-- [ ] **dunst importer.** (p3) [feature] `notifyd import dunst`: urgency colors into a preset,
+- [x] **dunst importer.** (p3) [feature] `notifyd import dunst`: urgency colors into a preset,
       `[rule]` sections into rules.
 - [x] **Song and wallpaper timeouts.** (p1) [feature] `examples/config.yaml`: songs (musicman,
       MPD, Spotify) and backdrop at 12 s; deadd's Spotify 3 s rule dropped.
 - [ ] **Install on this desktop.** (p1) [chore] `just install`, `just import-deadd`, then add
       the songs/wallpaper rules from `examples/config.yaml`; link `share/systemd/notifyd.service`
       into `~/.config/systemd/user/`.
-- [ ] **notify-daemon entry.** (p2) [chore] Add `notifyd` to `~/.shell/scripts/notify-daemon`
-      (`ORDER`, `BIN`, `UNIT=notifyd.service`) so `notify-daemon use notifyd|deadd` switches. Its
+- [ ] **notify-daemon entry.** (p2) [chore] Tracked in `~/.shell/TODO.md` section 4 (its repo).
+      Add `notifyd` to `~/.shell/scripts/notify-daemon` (`ORDER`, `BIN`, `UNIT=notifyd.service`) so `notify-daemon use notifyd|deadd` switches. Its
       `owner()` reads `/proc/PID/exe` (python3 for notifyd) before `comm`; it needs to try `comm`
       too, and its `pkill -f` pattern must match `notifyd daemon`.
 - [x] **picom rules.** (p2) [chore] Checked `~/.config/picom/picom.conf`: no rule targets class

@@ -60,6 +60,10 @@ INTROSPECTION = f'''
       <arg direction="in" type="s" name="action_key"/>
       <arg direction="out" type="b" name="invoked"/>
     </method>
+    <method name="Pop">
+      <arg direction="in" type="u" name="id"/>
+      <arg direction="out" type="u" name="new_id"/>
+    </method>
     <method name="List"><arg direction="out" type="s" name="json"/></method>
     <method name="SetMode">
       <arg direction="in" type="s" name="mode"/>
@@ -186,6 +190,8 @@ class Server:
                 if not key:
                     key = 'default' if n.action_label('default') is not None else (n.actions[0][0] if n.actions else '')
                 return GLib.Variant('(b)', (bool(key) and m.invoke(nid, key),))
+            if method == 'Pop':
+                return GLib.Variant('(u)', (m.pop(params.unpack()[0]),))
             if method == 'List':
                 return GLib.Variant('(s)', (json.dumps(m.listing(), ensure_ascii=False),))
             if method == 'SetMode':

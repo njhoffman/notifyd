@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-10
+
+### Added
+
+- `buttons:` in a rule adds buttons that run commands (e.g. `playerctl next` on song
+  notifications), and `run:` runs a command for every matching notification, shown or skipped,
+  with the notification in `NOTIFYD_*` variables and as JSON on stdin.
+- Sounds: the `sound-file`, `sound-name` and `suppress-sound` hints are played (paplay,
+  canberra-gtk-play), and a rule's `sound:` sets or silences them.
+- `idle-threshold`: notifications wait while you are away from the keyboard and mouse.
+- `notifyd ctl pop [ID]` shows a closed notification again.
+- `notifyd import dunst [--rc PATH]` converts a dunstrc, its rule sections included.
+
+### Changed
+
+- The mode set with `notifyd ctl mode` is kept across restarts.
+
 ## [0.3.0] - 2026-11-10
 
 ### Added

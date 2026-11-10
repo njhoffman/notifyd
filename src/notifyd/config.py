@@ -35,6 +35,10 @@ DEFAULTS = {
     'hide': [],                  # parts not shown: app-icon, app-name, time, title, body, image
     'class': None,               # extra CSS class for the notification
     'skip': False,               # true: not shown (still logged, and kept in history)
+    'sound': None,               # a sound file or freedesktop sound name; false: silent (else the sender's hints)
+    'buttons': [],               # extra buttons that run commands: [{label: Next, run: playerctl next}]
+    'run': None,                 # a shell command run for each matching notification (NOTIFYD_* env, JSON on stdin)
+    'idle-threshold': 0,         # no expiry while the user has been idle this long (0: off)
     'history': {'size': 100, 'keep': True, 'persist': True},   # persist: $XDG_STATE_HOME/notifyd/history.jsonl
     'log': {'format': 'pretty', 'color': 'auto', 'level': 'info', 'file': None},
     'click': {'left': 'dismiss', 'middle': 'dismiss-all', 'right': 'default-action'},
@@ -43,7 +47,7 @@ DEFAULTS = {
 }
 
 TOP_LEVEL = set(DEFAULTS)
-DURATION_KEYS = ('timeout', 'timeout-critical')
+DURATION_KEYS = ('timeout', 'timeout-critical', 'idle-threshold')
 HIDE_PARTS = {'app-icon', 'app-name', 'time', 'title', 'body', 'image', 'actions', 'progress'}
 
 
@@ -118,6 +122,17 @@ def normalize(settings, where='config'):
             warnings.append(f'{where}: hide: unknown part(s) {", ".join(map(str, unknown))} '
                             f'(known: {", ".join(sorted(HIDE_PARTS))})')
         settings['hide'] = [part for part in hide if part in HIDE_PARTS]
+    if 'buttons' in settings:
+        buttons = settings['buttons'] or []
+        if not isinstance(buttons, list) or not all(
+                isinstance(b, dict) and isinstance(b.get('label'), str) and isinstance(b.get('run'), str)
+                for b in buttons):
+            raise ConfigError(f'{where}: buttons: expected a list of {{label: TEXT, run: COMMAND}}')
+        settings['buttons'] = buttons
+    if settings.get('run') is not None and not isinstance(settings['run'], str):
+        raise ConfigError(f'{where}: run: expected a shell command')
+    if settings.get('sound') not in (None, False) and not isinstance(settings['sound'], str):
+        raise ConfigError(f'{where}: sound: expected a file, a sound name, or false')
     if 'markup' in settings and settings['markup'] not in ('full', 'strip', 'plain'):
         raise ConfigError(f'{where}: markup: expected full, strip or plain, got {settings["markup"]!r}')
     return warnings

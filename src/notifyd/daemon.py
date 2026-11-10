@@ -6,6 +6,7 @@ from gi.repository import Gio, GLib
 
 from notifyd import __version__
 from notifyd.config import ConfigError, default_path, load_config, load_preset
+from notifyd.effects import Runner, SoundPlayer, XIdle
 from notifyd.history import default_path as history_default_path
 from notifyd.log import EventLog
 from notifyd.manager import GLibScheduler, Manager
@@ -142,7 +143,10 @@ class Daemon:
         for warning in config.warnings:
             self.log.warn(warning)
         history_path = history_default_path() if config.settings['history'].get('persist') else None
-        self.manager = Manager(config, self.log, GLibScheduler(), history_path=history_path)
+        idle = XIdle() if self.renderer_name == 'gtk' else None
+        self.manager = Manager(config, self.log, GLibScheduler(), history_path=history_path,
+                               state_path=history_default_path().with_name('state.json'),
+                               runner=Runner(self.log), sound=SoundPlayer(self.log), idle=idle)
         try:
             self.renderer = self.make_renderer()
         except RuntimeError as exc:

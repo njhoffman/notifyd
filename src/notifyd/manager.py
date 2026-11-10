@@ -5,13 +5,17 @@ told to show and reports clicks and hovers back, and timers come from a schedule
 thing runs in tests with fakes.
 """
 
+import json
 import time
+from pathlib import Path
 
+from notifyd.effects import sound_for
 from notifyd.history import History
 from notifyd.model import CLOSED, DISMISSED, EXPIRED, REASON_NAMES, Notification, actions_from_list
 from notifyd.rules import resolve
 
 MIN_RESUME_MS = 1000   # a notification left by the pointer stays at least this long
+IDLE_RECHECK_MS = 2000  # while the user is idle, expiry is asked again this often
 
 
 class GLibScheduler:
@@ -48,7 +52,8 @@ class NullRenderer:
 
 
 class Manager:
-    def __init__(self, config, log, scheduler, renderer=None, on_closed=None, on_action=None, history_path=None):
+    def __init__(self, config, log, scheduler, renderer=None, on_closed=None, on_action=None, history_path=None,
+                 state_path=None, runner=None, sound=None, idle=None):
         self.config = config
         self.log = log
         self.scheduler = scheduler
@@ -63,8 +68,12 @@ class Manager:
         self.timers = {}        # id -> (handle, deadline)
         self.hovered = {}       # id -> remaining ms
         self.paused = False
-        self.mode = 'normal'
         self.history = History(config.settings['history']['size'], history_path, log)
+        self.runner = runner or (lambda command, n, what='run': None)
+        self.sound = sound or (lambda name: None)
+        self.idle = idle or (lambda: 0)
+        self.state_path = Path(state_path) if state_path else None
+        self.mode = self._load_state().get('mode') or 'normal'
 
     # -- incoming -------------------------------------------------------
     def notify(self, app='', replaces_id=0, app_icon='', summary='', body='', actions=(), hints=None,
@@ -73,8 +82,14 @@ class Manager:
                          actions=actions_from_list(actions), hints=dict(hints or {}),
                          requested_timeout=timeout, replaces_id=replaces_id, mode=self.mode)
         resolve(self.config, n, extra)
+        for index, button in enumerate(n.settings.get('buttons') or []):
+            key = f'notifyd-button-{index}'
+            n.actions.append((key, button['label']))
+            n.commands[key] = button['run']
         target = self._replace_target(n)
         n.id = target or self._new_id()
+        if n.settings.get('run'):
+            self.runner(n.settings['run'], n)
         if n.settings.get('skip'):
             if target:
                 self.close(target, CLOSED, quiet=True)
@@ -142,6 +157,9 @@ class Manager:
         self.renderer.show(n)
         self._start_timer(n)
         self.log.emit('shown', n)
+        sound = sound_for(n)
+        if sound:
+            self.sound(sound)
 
     # -- timers ---------------------------------------------------------
     def _start_timer(self, n, ms=None):
@@ -149,8 +167,20 @@ class Manager:
         if ms <= 0:
             return
         nid = n.id
-        handle = self.scheduler.call_later(ms, lambda: self.close(nid, EXPIRED))
+        handle = self.scheduler.call_later(ms, lambda: self._expire(nid))
         self.timers[nid] = (handle, self.scheduler.now() + ms)
+
+    def _expire(self, nid):
+        """Time is up for NID, unless the user is away (idle-threshold): then it waits for them."""
+        n = self.active.get(nid)
+        if n is None:
+            return
+        threshold = n.settings.get('idle-threshold') or 0
+        if threshold and self.idle() >= threshold:
+            self.timers.pop(nid, None)
+            self._start_timer(n, IDLE_RECHECK_MS)
+            return
+        self.close(nid, EXPIRED)
 
     def _cancel_timer(self, nid):
         timer = self.timers.pop(nid, None)
@@ -206,7 +236,10 @@ class Manager:
         if n is None:
             return False
         self.log.emit('action', n, action=key)
-        self.on_action(nid, key)
+        if key in n.commands:
+            self.runner(n.commands[key], n, 'button')
+        else:
+            self.on_action(nid, key)
         if not n.resident:
             self.close(nid, DISMISSED)
         return True
@@ -246,7 +279,39 @@ class Manager:
         if mode != self.mode:
             self.mode = mode
             self.log.emit('mode', message=mode)
+            self._save_state()
         return self.mode
+
+    def _load_state(self):
+        if not self.state_path:
+            return {}
+        try:
+            state = json.loads(self.state_path.read_text())
+        except (OSError, ValueError):
+            return {}
+        return state if isinstance(state, dict) else {}
+
+    def _save_state(self):
+        if not self.state_path:
+            return
+        try:
+            self.state_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self.state_path.with_suffix('.tmp')
+            tmp.write_text(json.dumps({'mode': self.mode}))
+            tmp.replace(self.state_path)
+        except OSError as exc:
+            self.log.warn(f'state {self.state_path}: {exc.strerror}')
+
+    def pop(self, nid=0):
+        """Show a closed notification again (the last one, or NID); its new id, or 0 when none."""
+        entries = [e for e in self.history if not nid or e['id'] == nid]
+        if not entries:
+            return 0
+        entry = entries[-1]
+        hints = {'urgency': ('low', 'normal', 'critical').index(entry.get('urgency', 'normal'))}
+        if entry.get('category'):
+            hints['category'] = entry['category']
+        return self.notify(entry.get('app', ''), 0, '', entry.get('summary', ''), entry.get('body', ''), [], hints)
 
     def reload(self, config):
         self.config = config

@@ -2,10 +2,10 @@
 
     notifyd daemon [-c CONFIG] [--renderer gtk|none] [--replace] [--log-format pretty|json] [--color ...]
     notifyd send SUMMARY [BODY] [notify-send flags]
-    notifyd ctl status | list | history [-n N] [--json] | close ID | action ID [KEY] | close-all
+    notifyd ctl status | list | history [-n N] [--json] | pop [ID] | close ID | action ID [KEY] | close-all
               | pause | resume | toggle | mode [NAME] | reload | preset NAME | preview [PRESET] | watch [--json]
     notifyd presets [--pick | --names]
-    notifyd import deadd [--yml PATH] [--css PATH] [-o OUT] [--force]
+    notifyd import deadd [--yml PATH] [--css PATH] | dunst [--rc PATH]  [-o OUT] [--force]
     notifyd check [-c CONFIG]
     notifyd rules [-c CONFIG] [--app A] [--summary S] [--body B] [--urgency U] [--hint NAME=VALUE]
     notifyd completion zsh|bash|fish
@@ -78,6 +78,11 @@ def ctl(args):
             color = use_color('auto', sys.stdout)
             for entry in entries:
                 print(format_pretty({'event': entry['state'], 'time': entry['received'], 'n': entry}, color))
+    elif command == 'pop':
+        nid = control_call('Pop', GLib.Variant('(u)', (args.id or 0,)), '(u)')
+        if not nid:
+            raise SystemExit('nothing in history' if not args.id else f'no notification {args.id} in history')
+        print(nid)
     elif command == 'mode':
         print(control_call('SetMode', GLib.Variant('(s)', (args.name or '',))))
     elif command == 'action':
@@ -163,17 +168,22 @@ def presets(args):
 
 def import_command(args):
     from notifyd.config import default_path
-    from notifyd.importer import dump_config, import_deadd
+    from notifyd.importer import dump_config, import_deadd, import_dunst
     home = Path(os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config')
-    yml = Path(args.yml) if args.yml else home / 'deadd' / 'deadd.yml'
-    css = Path(args.css) if args.css else yml.with_suffix('.css')
-    try:
-        yml_text = yml.read_text()
-    except OSError as exc:
-        raise SystemExit(f'notifyd import: {yml}: {exc.strerror}') from exc
-    css_text = css.read_text() if css.is_file() else None
-    config, report = import_deadd(yml_text, css_text)
-    text = dump_config(config)
+
+    def read(path):
+        try:
+            return path.read_text()
+        except OSError as exc:
+            raise SystemExit(f'notifyd import: {path}: {exc.strerror}') from exc
+    if args.source == 'deadd':
+        yml = Path(args.yml) if args.yml else home / 'deadd' / 'deadd.yml'
+        css = Path(args.css) if args.css else yml.with_suffix('.css')
+        config, report = import_deadd(read(yml), css.read_text() if css.is_file() else None)
+        text = dump_config(config, 'deadd-notification-center')
+    else:
+        config, report = import_dunst(read(Path(args.rc) if args.rc else home / 'dunst' / 'dunstrc'))
+        text = dump_config(config, 'dunst')
     for line in report:
         print(f'note: {line}', file=sys.stderr)
     if not args.output:
@@ -287,6 +297,8 @@ def build_parser():
     listing = add_command(commands, 'list', 'show open notifications: on screen, waiting, held back')
     listing.add_argument('--json', action='store_true', help='as JSON')
     listing.add_argument('--ids', action='store_true', help='id, a tab, app and summary (for scripts)')
+    pop = add_command(commands, 'pop', 'show a closed notification again (the last one, or ID)')
+    pop.add_argument('id', type=int, nargs='?', help='its id in notifyd ctl history')
     close = add_command(commands, 'close', 'close a notification')
     close.add_argument('id', type=int, help='notification id (notifyd ctl list shows them)').complete = 'ids'
     action = add_command(commands, 'action', 'invoke an action of a notification')
@@ -312,10 +324,11 @@ def build_parser():
 
     importer = add_command(sub, 'import', "convert another daemon's config",
                            epilog='Prints the config unless -o is given; notes on what has no equivalent go to stderr.')
-    importer.add_argument('source', choices=('deadd',), help='the daemon to import from')
+    importer.add_argument('source', choices=('deadd', 'dunst'), help='the daemon to import from')
     importer.add_argument('--yml', metavar='PATH',
                           help='deadd.yml (default: ~/.config/deadd/deadd.yml)').complete = 'files'
     importer.add_argument('--css', metavar='PATH', help='deadd.css (default: next to the yml)').complete = 'files'
+    importer.add_argument('--rc', metavar='PATH', help='dunstrc (default: ~/.config/dunst/dunstrc)').complete = 'files'
     importer.add_argument('-o', '--output', metavar='PATH',
                           help='file to write, or "config" for ~/.config/notifyd/config.yaml').complete = 'files'
     importer.add_argument('--force', action='store_true', help='overwrite an existing file')
