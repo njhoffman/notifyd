@@ -26,6 +26,7 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango  # noqa: E402
 
 from notifyd.config import ConfigError, load_preset  # noqa: E402
 from notifyd.markup import prepare  # noqa: E402
+from notifyd.render.center import Center  # noqa: E402
 from notifyd.render.css import build_css, resolve_style, style_class  # noqa: E402
 
 BUTTONS = {1: 'left', 2: 'middle', 3: 'right'}
@@ -94,6 +95,7 @@ class GtkRenderer:
         self.area = None     # the work area the stack is on; chosen when the first one opens
         # displayd (xrandr) changing the layout: lay out again on the new geometry
         self.screen.connect('monitors-changed', self.on_monitors_changed)
+        self.center = Center(self)
 
     # -- styles ---------------------------------------------------------
     def style_for(self, n):
@@ -137,8 +139,13 @@ class GtkRenderer:
         window.get_style_context().add_class('notifyd')
         self.windows[n.id] = window
         self.fill(window, n)
+        fade_in = (n.settings.get('fade') or {}).get('in') or 0
+        if fade_in:
+            window.set_opacity(0)
         window.show_all()
         self.layout()
+        if fade_in:
+            self.fade(window, 0.0, 1.0, fade_in)
 
     def update(self, n):
         window = self.windows.get(n.id)
@@ -157,10 +164,29 @@ class GtkRenderer:
     def close(self, nid):
         window = self.windows.pop(nid, None)
         if window is not None:
-            window.destroy()
+            fade_out = (self.manager.config.settings.get('fade') or {}).get('out') or 0
+            if fade_out and window.get_visible():
+                self.fade(window, window.get_opacity(), 0.0, fade_out, then=window.destroy)
+            else:
+                window.destroy()
         if not self.windows:
             self.area = None
         self.layout()
+
+    def fade(self, window, start, end, ms, then=None):
+        """Opacity from START to END over MS (about 60 steps a second), then THEN()."""
+        steps = max(int(ms / 16), 1)
+        state = {'step': 0}
+
+        def tick():
+            state['step'] += 1
+            window.set_opacity(start + (end - start) * state['step'] / steps)
+            if state['step'] >= steps:
+                if then:
+                    then()
+                return False
+            return True
+        GLib.timeout_add(16, tick)
 
     def on_monitors_changed(self, _screen):
         self.area = None

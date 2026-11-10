@@ -35,8 +35,8 @@ Reviewed: 2026-11-10
       twice `history.size`; a torn last line is skipped.
 - [x] **History pop.** (p3) [feature] Re-show a closed notification (dunst `history-pop`), from
       `ctl history`: `notifyd ctl pop [ID]`.
-- [ ] **History picker.** (p3) [feature] rofi or fzf over `ctl history --json`, popping the one
-      chosen.
+- [x] **History picker.** (p3) [feature] rofi or fzf over `ctl history --json`, popping the one
+      chosen: `notifyd ctl history --pick` (fzf).
 - [x] **Pause.** (p2) [feature] `ctl pause/resume/toggle`: everything but critical is held back
       and replayed on resume.
 - [x] **Modes.** (p2) [feature] mako-style named modes (`dnd`, `quiet`, `presentation`) that
@@ -90,8 +90,9 @@ Reviewed: 2026-11-10
 - [ ] **Check translucency and shadow on the real desktop.** (p1) [test] Under Xvfb picom
       draws a black root, so the 0.8 opacity and the shadow were not seen. Run
       `notifyd daemon --replace` on i3 + picom and compare with deadd side by side.
-- [ ] **Slide/fade animations.** (p3) [feature] Fade in/out (window opacity steps on a GLib
-      timer), as picom's fading does for deadd today; check picom `fade-exclude` first.
+- [x] **Slide/fade animations.** (p3) [feature] Fade in/out (window opacity steps on a GLib
+      timer). picom fades windows in, but `no-fading-destroyed-argb` skips translucent windows on
+      the way out, so notifyd fades out (`fade.out`, 150 ms) and leaves fading in to picom.
 - [ ] **Preset gallery.** (p3) [docs] Screenshots of each preset in `docs/presets.md`
       (`render.sh`-style Xvfb capture once translucency renders there).
 
@@ -142,22 +143,26 @@ Reviewed: 2026-11-10
       too, and its `pkill -f` pattern must match `notifyd daemon`.
 - [x] **picom rules.** (p2) [chore] Checked `~/.config/picom/picom.conf`: no rule targets class
       `Notifyd`, and the window has a name, so it gets the shadow like deadd.
-- [ ] **Notification center toggle.** (p3) [feature] `$mod+grave` sends SIGUSR1 to deadd
+- [x] **Notification center toggle.** (p3) [feature] `$mod+grave` sends SIGUSR1 to deadd
       (`~/.config/i3/conf.d/60-apps.conf:101`); move it to a `notifyd ctl center` once the
-      center exists (section 10).
+      center exists (section 10). Done: notifyd toggles its center on SIGUSR1 too, so the
+      binding needs no change; `notifyd ctl center` also works.
 - [ ] **Stale deadd config copy.** (p3) [chore] `~/.config/deadd.yml` is an older copy of
       `~/.config/deadd/deadd.yml` (no backdrop rule); the importer reads the latter, and the old
       file can go.
 
 ## 10. Notification center
 
-- [ ] **Center sidebar.** (p2) [feature] deadd's sidebar: history as cards, clear all, the pause
+- [x] **Center sidebar.** (p2) [feature] deadd's sidebar: history as cards, clear all, the pause
       toggle, opened with `notifyd ctl center` (and SIGUSR1 for the current i3 binding).
+- [ ] **Center widgets.** (p3) [feature] swaync-style extras in the center: MPRIS now playing with
+      buttons, volume slider, mode picker; and keyboard use (it is a popup without focus now).
 
 ## 9. Project
 
-- [ ] **Spec compliance check.** (p2) [test] A script sending every hint and action combination
-      used by musicman, backdrop and displayd, compared across notifyd, deadd and dunst.
+- [x] **Spec compliance check.** (p2) [test] A script sending every hint and action combination
+      used by musicman, backdrop and displayd, compared across notifyd, deadd and dunst:
+      `just compliance` (`tools/compare.sh`); results in `docs/research.md` section 6.
 - [ ] **Packaging.** (p3) [chore] `pipx install .` works from pyproject; check it pulls no
       PyGObject wheel build (system gi), or document `--system-site-packages`.
 

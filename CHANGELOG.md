@@ -6,6 +6,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-10
+
+### Added
+
+- The notification center, as in deadd: a full-height panel with a do-not-disturb toggle, the
+  mode, a clear button, the open notifications and the history. Click a closed one to show it
+  again, × to forget it. `notifyd ctl center [toggle|show|hide]`, and SIGUSR1 toggles it, so the
+  i3 binding that toggled deadd's center keeps working.
+- `notifyd ctl forget ID|--all` and `notifyd ctl history --pick` (fzf; enter shows it again).
+- Notifications fade out when they close (`fade.out`, 150 ms): picom fades windows in but not
+  translucent ones out. `fade.in` is there too, off by default.
+- `tools/compliance.py` and `just compliance`: protocol checks run against notifyd, dunst and
+  deadd side by side.
+
+### Fixed
+
+- Notification ids go on from the kept history after a restart, so `ctl pop` and `ctl forget`
+  never confuse an old notification with a new one.
+
 ## [0.4.0] - 2026-11-10
 
 ### Added

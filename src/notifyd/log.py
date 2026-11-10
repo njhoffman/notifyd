@@ -14,7 +14,7 @@ import time
 from notifyd.markup import plain_text
 
 EVENTS = ('shown', 'replaced', 'queued', 'waiting', 'suppressed', 'expired', 'dismissed', 'closed',
-          'action', 'paused', 'resumed', 'mode', 'reload', 'error', 'info', 'warn')
+          'action', 'paused', 'resumed', 'mode', 'history', 'reload', 'error', 'info', 'warn')
 
 RESET = '\033[0m'
 DIM = '\033[2m'
@@ -23,7 +23,8 @@ COLORS = {
     'shown': '\033[38;5;114m', 'replaced': '\033[38;5;80m', 'queued': '\033[38;5;179m',
     'waiting': '\033[38;5;179m', 'suppressed': '\033[38;5;244m', 'expired': '\033[38;5;244m',
     'dismissed': '\033[38;5;110m', 'closed': '\033[38;5;110m', 'action': '\033[38;5;177m',
-    'paused': '\033[38;5;179m', 'resumed': '\033[38;5;114m', 'mode': '\033[38;5;179m', 'reload': '\033[38;5;80m',
+    'paused': '\033[38;5;179m', 'resumed': '\033[38;5;114m', 'mode': '\033[38;5;179m',
+    'history': '\033[38;5;110m', 'reload': '\033[38;5;80m',
     'error': '\033[38;5;203m', 'info': '\033[38;5;110m', 'warn': '\033[38;5;179m',
 }
 URGENCY_COLORS = {'low': '\033[38;5;66m', 'normal': '\033[38;5;153m', 'critical': '\033[1;38;5;203m'}

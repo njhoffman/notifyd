@@ -138,7 +138,7 @@ def bash_complete(tmp_path, *words):
     (['notifyd', 'send', '--prog'], ['--progress']),
     (['notifyd', 'completion', ''], ['zsh', 'bash', 'fish']),
     (['notifyd', 'help', 'c'], ['ctl', 'check', 'completion']),
-    (['notifyd', 'ctl', 'history', '-n', '5', '--'], ['--help', '--json']),
+    (['notifyd', 'ctl', 'history', '-n', '5', '--'], ['--help', '--json', '--pick']),
 ])
 def test_bash_completion(tmp_path, words, expected):
     assert bash_complete(tmp_path, *words) == expected

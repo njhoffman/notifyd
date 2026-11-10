@@ -7,7 +7,7 @@ test *ARGS:
 
 # lint with ruff
 lint:
-    ruff check src tests bin/notifyd
+    ruff check src tests tools bin/notifyd
 
 # run the daemon from the checkout, log only (no windows): `just run --renderer gtk` to draw
 run *ARGS:
@@ -49,6 +49,10 @@ completions:
     if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/fish" ]]; then
       write fish "${XDG_CONFIG_HOME:-$HOME/.config}/fish/completions/notifyd.fish"
     fi
+
+# protocol checks against notifyd, dunst and deadd side by side (private buses, Xvfb)
+compliance:
+    tools/compare.sh
 
 # render the man page
 man:

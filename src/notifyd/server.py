@@ -60,6 +60,14 @@ INTROSPECTION = f'''
       <arg direction="in" type="s" name="action_key"/>
       <arg direction="out" type="b" name="invoked"/>
     </method>
+    <method name="Center">
+      <arg direction="in" type="s" name="what"/>
+      <arg direction="out" type="b" name="visible"/>
+    </method>
+    <method name="Forget">
+      <arg direction="in" type="u" name="id"/>
+      <arg direction="out" type="u" name="removed"/>
+    </method>
     <method name="Pop">
       <arg direction="in" type="u" name="id"/>
       <arg direction="out" type="u" name="new_id"/>
@@ -190,6 +198,11 @@ class Server:
                 if not key:
                     key = 'default' if n.action_label('default') is not None else (n.actions[0][0] if n.actions else '')
                 return GLib.Variant('(b)', (bool(key) and m.invoke(nid, key),))
+            if method == 'Center':
+                return GLib.Variant('(b)', (bool(self.control.center(params.unpack()[0])),))
+            if method == 'Forget':
+                nid = params.unpack()[0]
+                return GLib.Variant('(u)', (m.forget(nid or None),))
             if method == 'Pop':
                 return GLib.Variant('(u)', (m.pop(params.unpack()[0]),))
             if method == 'List':

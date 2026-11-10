@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-10 "notifyd 0.4.0" "User Commands"
+.TH NOTIFYD 1 2026-11-10 "notifyd 0.5.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -200,10 +200,22 @@ Open notifications: on screen (newest first), waiting for room, held back by pau
 .B \-\-ids
 prints the id, a tab, the app and the summary, for scripts and completion.
 .TP
-.BR history " [\fB\-n\fR \fIn\fR] [\fB\-\-json\fR]"
+.BR history " [\fB\-n\fR \fIn\fR] [\fB\-\-json\fR | \fB\-\-pick\fR]"
 The last
 .I n
-closed notifications (default 20, 0 for all), oldest first.
+closed notifications (default 20, 0 for all), oldest first;
+.B \-\-pick
+chooses one in
+.BR fzf (1)
+and shows it again.
+.TP
+.BR forget " \fIid\fR | \fB\-\-all\fR"
+Remove a notification from the history, or clear it.
+.TP
+.BR center " [\fBtoggle\fR|\fBshow\fR|\fBhide\fR]"
+The notification center: a full\-height panel with a do\-not\-disturb toggle, the mode, a clear
+button, the open notifications and the history (click one to show it again, \(mu to forget it).
+SIGUSR1 toggles it too, as it did deadd's.
 .TP
 .BR pop " [\fIid\fR]"
 Show a closed notification again: the last one in the history, or
@@ -336,6 +348,9 @@ YAML; every key is optional and an empty file gives the deadd look. The main key
 (a command for each match),
 .B idle\-threshold
 (no expiry while the user is away that long),
+.BR center.width / side / hide\-on\-leave ,
+.BR fade.in / out
+(ms; out defaults to 150, since picom does not fade translucent windows out),
 .BR history.size / keep / persist ,
 .BR log.format / color / level / file ,
 .B click.left / middle / right
@@ -431,6 +446,9 @@ The X display to draw on and the session bus.
 .B SIGHUP
 Reload the config.
 .TP
+.B SIGUSR1
+Toggle the notification center.
+.TP
 .BR SIGINT ", " SIGTERM
 Close all notifications and exit.
 .SH EXIT STATUS
@@ -450,6 +468,12 @@ notifyd import dunst > dunst\-converted.yaml
 notifyd ctl pop
 notifyd completion zsh > ~/.local/share/zsh/site-functions/_notifyd
 .fi
+.SH COMPLIANCE
+.B tools/compliance.py
+in the source tree checks the protocol behavior of whichever daemon owns the bus (replace ids,
+stack tags, NotificationClosed reasons, expiry, capabilities);
+.B just compliance
+compares notifyd, dunst and deadd side by side.
 .SH SEE ALSO
 .BR notify\-send (1),
 .BR dunst (1),

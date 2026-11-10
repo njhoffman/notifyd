@@ -333,3 +333,21 @@ def test_bad_buttons_and_run_are_config_errors():
     for text in ('buttons: [Next]', 'buttons: [{label: Next}]', 'run: [a]', 'sound: 3'):
         with pytest.raises(ConfigError):
             load_config(text=text)
+
+
+def test_forget_and_ids_continue_after_kept_history(make_manager, tmp_path):
+    from notifyd.history import History
+    from notifyd.manager import Manager
+    path = tmp_path / 'h.jsonl'
+    m, _s, _r, events, *_ = make_manager()
+    m.history = History(10, path)
+    for name in 'abc':
+        m.close(m.notify(name, summary=name), DISMISSED)
+    assert m.forget(2) == 1
+    assert [e['app'] for e in m.history] == ['a', 'c']
+    assert events[-1]['event'] == 'history'
+    assert m.forget(99) == 0
+    again = Manager(m.config, m.log, m.scheduler, history_path=path)
+    assert [e['app'] for e in again.history] == ['a', 'c']
+    assert again.notify('d', summary='d') == 4          # after the highest kept id
+    assert again.forget() == 2 and path.read_text() == ''

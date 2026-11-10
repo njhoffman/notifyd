@@ -74,6 +74,8 @@ class Manager:
         self.idle = idle or (lambda: 0)
         self.state_path = Path(state_path) if state_path else None
         self.mode = self._load_state().get('mode') or 'normal'
+        # ids go on from the kept history, so pop and forget never mix up an old one with a new one
+        self.next_id = max((e.get('id', 0) for e in self.history), default=0) % 0xFFFFFFFF + 1
 
     # -- incoming -------------------------------------------------------
     def notify(self, app='', replaces_id=0, app_icon='', summary='', body='', actions=(), hints=None,
@@ -301,6 +303,13 @@ class Manager:
             tmp.replace(self.state_path)
         except OSError as exc:
             self.log.warn(f'state {self.state_path}: {exc.strerror}')
+
+    def forget(self, nid=None):
+        """Remove NID from history, or all of it; how many entries went."""
+        removed = self.history.remove(nid)
+        if removed:
+            self.log.emit('history', message=f'forgot {removed}')
+        return removed
 
     def pop(self, nid=0):
         """Show a closed notification again (the last one, or NID); its new id, or 0 when none."""

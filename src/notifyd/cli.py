@@ -2,7 +2,8 @@
 
     notifyd daemon [-c CONFIG] [--renderer gtk|none] [--replace] [--log-format pretty|json] [--color ...]
     notifyd send SUMMARY [BODY] [notify-send flags]
-    notifyd ctl status | list | history [-n N] [--json] | pop [ID] | close ID | action ID [KEY] | close-all
+    notifyd ctl status | list | history [-n N] [--json|--pick] | pop [ID]
+              | forget ID|--all | center [toggle|show|hide] | close ID | action ID [KEY] | close-all
               | pause | resume | toggle | mode [NAME] | reload | preset NAME | preview [PRESET] | watch [--json]
     notifyd presets [--pick | --names]
     notifyd import deadd [--yml PATH] [--css PATH] | dunst [--rc PATH]  [-o OUT] [--force]
@@ -19,6 +20,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from notifyd import __version__
@@ -57,6 +59,8 @@ def ctl(args):
             print(f'{key:<{width}}  {value}')
     elif command == 'history':
         entries = json.loads(control_call('History', GLib.Variant('(u)', (args.n,))))
+        if args.pick:
+            return pick_history(entries)
         if args.json:
             print(json.dumps(entries, ensure_ascii=False, indent=2))
         else:
@@ -78,6 +82,14 @@ def ctl(args):
             color = use_color('auto', sys.stdout)
             for entry in entries:
                 print(format_pretty({'event': entry['state'], 'time': entry['received'], 'n': entry}, color))
+    elif command == 'center':
+        visible = control_call('Center', GLib.Variant('(s)', (args.what,)), '(b)')
+        print('shown' if visible else 'hidden')
+    elif command == 'forget':
+        if args.id is None and not args.all:
+            raise SystemExit('notifyd ctl forget: give an ID or --all')
+        removed = control_call('Forget', GLib.Variant('(u)', (0 if args.all else args.id,)), '(u)')
+        print(f'forgot {removed}')
     elif command == 'pop':
         nid = control_call('Pop', GLib.Variant('(u)', (args.id or 0,)), '(u)')
         if not nid:
@@ -109,6 +121,24 @@ def ctl(args):
     elif command == 'watch':
         return watch(args.json)
     return 0
+
+
+def pick_history(entries):
+    """fzf over the history, newest first; enter shows the chosen one again."""
+    from notifyd.log import one_line
+    if not shutil.which('fzf'):
+        raise SystemExit('notifyd ctl history --pick needs fzf')
+    lines = []
+    for entry in reversed(entries):
+        stamp = time.strftime('%H:%M', time.localtime(entry.get('received', 0)))
+        text = one_line(entry.get('summary', '') + (' | ' + entry['body'] if entry.get('body') else ''), 90)
+        lines.append(f'{entry["id"]}\t{stamp}  {entry.get("app", ""):<14.14}  {text}')
+    result = subprocess.run(['fzf', '--delimiter', '\t', '--with-nth', '2', '--prompt', 'history> ',
+                             '--header', 'enter shows it again'], input='\n'.join(lines), text=True,
+                            stdout=subprocess.PIPE, check=False)
+    if result.returncode != 0 or not result.stdout.strip():
+        return result.returncode
+    return ctl(argparse.Namespace(command='pop', id=int(result.stdout.split('\t', 1)[0])))
 
 
 def watch(as_json):
@@ -294,9 +324,16 @@ def build_parser():
     history = add_command(commands, 'history', 'show closed notifications, oldest first')
     history.add_argument('-n', type=int, default=20, metavar='N', help='the last N (0: all; default: 20)')
     history.add_argument('--json', action='store_true', help='as JSON')
+    history.add_argument('--pick', action='store_true', help='choose one in fzf and show it again')
     listing = add_command(commands, 'list', 'show open notifications: on screen, waiting, held back')
     listing.add_argument('--json', action='store_true', help='as JSON')
     listing.add_argument('--ids', action='store_true', help='id, a tab, app and summary (for scripts)')
+    forget = add_command(commands, 'forget', 'remove a notification from history, or all of it')
+    forget.add_argument('id', type=int, nargs='?', help='its id in notifyd ctl history')
+    forget.add_argument('--all', action='store_true', help='clear the whole history')
+    center = add_command(commands, 'center', 'show or hide the notification center (SIGUSR1 toggles it too)')
+    center.add_argument('what', nargs='?', choices=('toggle', 'show', 'hide'), default='toggle',
+                        help='default: toggle')
     pop = add_command(commands, 'pop', 'show a closed notification again (the last one, or ID)')
     pop.add_argument('id', type=int, nargs='?', help='its id in notifyd ctl history')
     close = add_command(commands, 'close', 'close a notification')

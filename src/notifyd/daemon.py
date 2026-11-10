@@ -82,6 +82,11 @@ class Daemon:
         self.log.info(f'preset {name} (until the next reload)')
         return f'preset {name}'
 
+    def center(self, what):
+        if self.renderer is None:
+            return False
+        return self.renderer.center.toggle(what or 'toggle')
+
     def preview(self, preset):
         preset = preset or self.manager.config.settings['preset']
         load_preset(preset)
@@ -161,6 +166,8 @@ class Daemon:
         GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, self.stop)
         GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, self.stop)
         GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGHUP, lambda: self.reload() and True)
+        # deadd's i3 binding: kill -USR1 toggles the notification center
+        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, lambda: self.center('toggle') or True)
         self._monitor = self.watch_config()
         try:
             self.loop.run()

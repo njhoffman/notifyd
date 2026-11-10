@@ -172,6 +172,26 @@ def test_list_mode_log_file_and_persistent_history(bus, daemon, tmp_path):
     assert summaries[:2] == ['hidden while dnd', 'New mail']
 
 
+def test_protocol_compliance(bus, daemon):
+    daemon('', '--renderer', 'none')
+    result = subprocess.run([sys.executable, str(ROOT / 'tools' / 'compliance.py'), '--json'], env=bus,
+                            capture_output=True, text=True, timeout=30, check=False)
+    checks = json.loads(result.stdout)
+    failed = [key for key, value in checks.items() if value is False]
+    assert failed == []
+
+
+def test_ctl_forget_and_center_without_display(bus, daemon):
+    daemon('', '--renderer', 'none')
+    for name in ('a', 'b'):
+        run(bus, 'ctl', 'close', run(bus, 'send', '-p', name).stdout.strip())
+    assert run(bus, 'ctl', 'forget', '1').stdout.strip() == 'forgot 1'
+    assert [e['summary'] for e in json.loads(run(bus, 'ctl', 'history', '--json').stdout)] == ['b']
+    assert run(bus, 'ctl', 'forget', '--all').stdout.strip() == 'forgot 1'
+    assert run(bus, 'ctl', 'forget', check=False).returncode == 1
+    assert run(bus, 'ctl', 'center').stdout.strip() == 'hidden'     # no renderer, no center
+
+
 def test_ctl_without_notifyd(bus):
     result = run(bus, 'ctl', 'status', check=False)
     assert result.returncode == 1 and 'notifyd is not running' in result.stderr
@@ -229,6 +249,14 @@ x1, y1 = renderer.windows[newest].get_position()
 assert renderer.windows[first].get_position()[1] > y1   # older ones go below
 assert renderer.area is not None
 renderer.screen.emit('monitors-changed')
+renderer.center.toggle('show')
+assert renderer.center.visible
+manager.close(first)
+assert len(manager.history) == 1
+manager.forget()
+assert len(manager.history) == 0
+renderer.center.refresh()
+assert renderer.center.toggle() is False
 assert 'monitors changed' in stream.getvalue()
 assert renderer.area is not None                        # laid out again on the new geometry
 manager.close_all()

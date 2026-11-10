@@ -42,6 +42,8 @@ DEFAULTS = {
     'history': {'size': 100, 'keep': True, 'persist': True},   # persist: $XDG_STATE_HOME/notifyd/history.jsonl
     'log': {'format': 'pretty', 'color': 'auto', 'level': 'info', 'file': None},
     'click': {'left': 'dismiss', 'middle': 'dismiss-all', 'right': 'default-action'},
+    'center': {'width': 400, 'side': 'right', 'hide-on-leave': True},
+    'fade': {'in': 0, 'out': 150},   # ms; picom fades windows in, but not translucent ones out
     'style': {},
     'rules': [],
 }
@@ -122,6 +124,10 @@ def normalize(settings, where='config'):
             warnings.append(f'{where}: hide: unknown part(s) {", ".join(map(str, unknown))} '
                             f'(known: {", ".join(sorted(HIDE_PARTS))})')
         settings['hide'] = [part for part in hide if part in HIDE_PARTS]
+    if isinstance(settings.get('fade'), dict):
+        for key in ('in', 'out'):
+            if key in settings['fade']:
+                settings['fade'][key] = parse_duration(settings['fade'][key], f'{where}: fade.{key}')
     if 'buttons' in settings:
         buttons = settings['buttons'] or []
         if not isinstance(buttons, list) or not all(

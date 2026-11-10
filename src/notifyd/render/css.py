@@ -8,6 +8,7 @@ Style keys, all optional:
     low / normal / critical: { background, foreground, border-color },
     progress: { color, background, height },
     button: { background, foreground, hover },
+    center-card: background of a card in the notification center,
     classes: { name: { Pango span attributes } }   (used by markup, not CSS)
     css: extra raw CSS, appended; `&` in it stands for the style's scope class
 
@@ -103,6 +104,16 @@ def build_css(style, scope):
         if part.get('foreground'):
             css += block(f'{card}.{urgency} label', {'color': part['foreground']})
     css += block(f'{card} .count', {'font-weight': 'bold', 'opacity': '0.8'})
+    # the notification center: cards inside the panel
+    center_card = f'{card}.center .center-card'
+    css += block(center_card, {'padding': '8px 10px', 'border-radius': px(style.get('radius', 4) or 4),
+                               'background-color': style.get('center-card', 'rgba(255, 255, 255, 0.06)')})
+    for urgency in ('low', 'critical'):
+        part = style.get(urgency) or {}
+        css += block(f'{center_card}.{urgency}', {'background-color': part.get('background')})
+        if part.get('foreground'):
+            css += block(f'{center_card}.{urgency} label', {'color': part['foreground']})
+    css += block(f'{card}.center .center-time', {'font-size': '28px', 'font-weight': 'bold'})
     for name in ('title', 'body', 'appname', 'time', 'count'):
         css += block(f'{card} .{name}', part_props(style.get(name)))
     progress = style.get('progress') or {}

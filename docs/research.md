@@ -117,3 +117,21 @@ What is worth taking from each:
    explicitly) and must match on more than app-name (category, desktop-entry, hints,
    summary/body regex), since app-name alone is not stable across senders.
 4. Keep deadd's look as the default preset, with the shadow left to picom.
+
+## 6. Measured: `just compliance` (2026-11-10)
+
+`tools/compare.sh` runs `tools/compliance.py` against each daemon on a private bus and Xvfb display
+(dunst with an empty config, deadd with its defaults):
+
+| Check | notifyd 0.4 | dunst 1.13 | deadd |
+|---|---|---|---|
+| replace id keeps the id | yes | yes | NO |
+| stack tag: same id | yes | NO (closes the old one, new id) | NO |
+| stack tag / synchronous hint replaces at all | yes | yes | NO |
+| CloseNotification -> NotificationClosed reason 3 | yes | yes | NO (no signal) |
+| expire_timeout -> reason 1 | yes | yes | NO (no signal) |
+| capabilities: persistence, x-dunst-stack-tag | yes | stack tag only | persistence only |
+
+deadd sends no NotificationClosed at all by default (`dbus.send-noti-closed: false`), which is why
+`notify-send -w` and notify-send.py's `--action` wait forever under it unless the notification is
+dismissed with an action, and why backdrop has to close old ids itself.

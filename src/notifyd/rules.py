@@ -33,7 +33,7 @@ MATCH_FIELDS = {
 COLOR_HINTS = {'fgcolor': ('foreground',), 'bgcolor': ('background',), 'frcolor': ('border-color',),
                'hlcolor': ('progress', 'color')}
 REWRITE_KEYS = {'summary', 'body', 'app', 'urgency', 'stack-tag'}
-SETTING_KEYS = TOP_LEVEL - {'rules', 'log', 'click', 'max-visible', 'position'}
+SETTING_KEYS = TOP_LEVEL - {'rules', 'log', 'click', 'max-visible', 'position', 'center'}
 
 
 class _Fields(dict):
