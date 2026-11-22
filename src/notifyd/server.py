@@ -148,6 +148,25 @@ class Server:
     def emit_closed(self, nid, reason):
         self._signal(IFACE, 'NotificationClosed', GLib.Variant('(uu)', (nid, reason)))
 
+    def sender_info(self, name):
+        """{pid, process, parent} of the client behind bus name NAME, or {} (no bus, gone, not Linux).
+        Read while it waits for the reply to Notify, so it is still there."""
+        if not name or self.connection is None:
+            return {}
+        try:
+            pid = self.connection.call_sync('org.freedesktop.DBus', '/org/freedesktop/DBus', 'org.freedesktop.DBus',
+                                            'GetConnectionUnixProcessID', GLib.Variant('(s)', (name,)),
+                                            GLib.VariantType('(u)'), Gio.DBusCallFlags.NONE, 500, None).unpack()[0]
+        except GLib.Error:
+            return {}
+        info = {'pid': pid}
+        process, parent = process_name(pid), parent_pid(pid)
+        if process:
+            info['process'] = process
+        if parent and process_name(parent):
+            info['parent'] = process_name(parent)
+        return info
+
     def emit_action(self, nid, key):
         self._signal(IFACE, 'ActionInvoked', GLib.Variant('(us)', (nid, key)))
 
@@ -157,14 +176,14 @@ class Server:
     # -- calls ----------------------------------------------------------
     def on_call(self, connection, sender, path, iface, method, params, invocation):
         try:
-            result = self.dispatch(iface, method, params)
+            result = self.dispatch(iface, method, params, sender)
         except Exception as exc:  # a bad call must not take the daemon down
             self.log.error(f'{method} from {sender}: {exc}')
             invocation.return_dbus_error(f'{CONTROL_IFACE}.Error', str(exc))
             return
         invocation.return_value(result)
 
-    def dispatch(self, iface, method, params):
+    def dispatch(self, iface, method, params, sender=None):
         m = self.manager
         if iface == IFACE:
             if method == 'Notify':
@@ -172,7 +191,8 @@ class Server:
                 actions = params.get_child_value(5).unpack()
                 hints = unpack_hints(params.get_child_value(6))
                 timeout = params.get_child_value(7).unpack()
-                nid = m.notify(app, replaces, icon, summary, body, actions, hints, timeout)
+                nid = m.notify(app, replaces, icon, summary, body, actions, hints, timeout,
+                               sender=self.sender_info(sender))
                 return GLib.Variant('(u)', (nid,))
             if method == 'CloseNotification':
                 m.close(params.unpack()[0], CLOSED)
@@ -221,6 +241,25 @@ class Server:
             if method == 'Preview':
                 return GLib.Variant('(u)', (self.control.preview(params.unpack()[0]),))
         raise ValueError(f'unknown method {iface}.{method}')
+
+
+def process_name(pid):
+    try:
+        with open(f'/proc/{pid}/comm') as comm:
+            return comm.read().strip()
+    except OSError:
+        return ''
+
+
+def parent_pid(pid):
+    try:
+        with open(f'/proc/{pid}/status') as status:
+            for line in status:
+                if line.startswith('PPid:'):
+                    return int(line.split()[1])
+    except (OSError, ValueError):
+        pass
+    return 0
 
 
 def owner_description(connection, name):

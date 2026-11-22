@@ -26,6 +26,17 @@ def test_pretty_line_without_color():
     assert '\033[' not in line
 
 
+def test_pretty_line_names_the_sender_when_shown():
+    n = sample()
+    assert 'sender' not in n.summary_dict()                    # unknown: left out
+    n.sender = {'pid': 42, 'process': 'notify-send', 'parent': 'musicman'}
+    shown = format_pretty({'event': 'shown', 'time': 0, 'n': n.summary_dict()})
+    assert shown.rstrip().endswith('[backdrop]  via notify-send (musicman)')
+    assert 'via' not in format_pretty({'event': 'expired', 'time': 0, 'n': n.summary_dict()})
+    n.sender = {'pid': 42, 'process': 'backdrop'}
+    assert format_pretty({'event': 'shown', 'time': 0, 'n': n.summary_dict()}).rstrip().endswith('via backdrop')
+
+
 def test_pretty_line_with_color_has_ansi():
     assert '\033[' in format_pretty({'event': 'shown', 'time': 0, 'n': sample().summary_dict()}, color=True)
 

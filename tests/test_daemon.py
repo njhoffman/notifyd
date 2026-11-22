@@ -110,6 +110,13 @@ def test_close_history_pause_and_reload(bus, daemon, tmp_path):
     run(bus, 'ctl', 'close', nid)
     history = json.loads(run(bus, 'ctl', 'history', '--json').stdout)
     assert history[-1]['summary'] == 'hello' and history[-1]['closed'] == 'closed'
+    # who sent it: the sending process (python3 here, running bin/notifyd) and its parent (this test)
+    sender = history[-1]['sender']
+    assert sender['pid'] > 0 and sender['process'] == os.path.basename(sys.executable)[:15]
+    assert sender['parent']
+    run(bus, 'send', '-a', 'app', '-h', 'string:desktop-entry:musicman', 'from an app')
+    shown = [e for e in events(tmp_path) if e['event'] == 'shown'][-1]
+    assert shown['n']['sender']['desktop_entry'] == 'musicman'
     assert 'hello' in run(bus, 'ctl', 'history').stdout
     assert run(bus, 'ctl', 'pause').stdout.strip() == 'paused'
     run(bus, 'send', '-a', 'app', 'held')

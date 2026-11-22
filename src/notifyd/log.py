@@ -76,6 +76,10 @@ def format_pretty(event, color=False, width=None):
             extra.append(paint(DIM, event['reason']))
         if n.get('rules'):
             extra.append(paint(RULE_COLOR, '[' + ', '.join(n['rules']) + ']'))
+        sender = n.get('sender') or {}
+        if sender.get('process') and kind in ('shown', 'replaced', 'suppressed', 'queued', 'waiting'):
+            parent = f" ({sender['parent']})" if sender.get('parent') else ''
+            extra.append(paint(DIM, f"via {sender['process']}{parent}"))
         parts += extra
     if event.get('message'):
         parts.append(event['message'])

@@ -65,10 +65,13 @@ Reviewed: 2026-11-22
       (shell 0.126.0) does the switch, and `notify-daemon use deadd` goes back.
 - [x] **`just install` links the systemd unit.** (p3) [chore] It links the binary, man page and
       completions but not `share/systemd/notifyd.service`, which had to be linked by hand.
-- [ ] **History keeps the sender.** (p3) [feature] Entries have no sender pid, process name or
+- [x] **History keeps the sender.** (p3) [feature] Entries have no sender pid, process name or
       `desktop-entry` hint, so two senders using one app name (the Spotify client and musicman, both
       "Spotify") could not be told apart from `ctl history --json`. Record them on receipt and show
       them in `--json` and `ctl watch`.
+- [ ] **Rules match on the sender.** (p3) [feature] `match: {process: musicman}` (and `parent`,
+      `desktop-entry`) on the sender recorded since 0.10.0, so a rule can drop one of two senders
+      that share an app name (the Spotify client and musicman both send "Spotify").
 - [x] **Center has no tests of its own.** (p3) [test] `render/center.py` is only exercised through
       the daemon tests; the widget work (section 10) adds `tests/test_center.py` for its rows.
 

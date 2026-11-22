@@ -369,3 +369,14 @@ def test_group_by_validation():
     assert load_config(text='group-by: app').settings['group-by'] == ['app']
     with pytest.raises(ConfigError):
         load_config(text='group-by: [colour]')
+
+
+def test_sender_is_kept_in_the_history(make_manager):
+    manager, scheduler, *_ = make_manager('timeout: 1s')
+    nid = manager.notify('Spotify', summary='song', sender={'pid': 7, 'process': 'spotify'},
+                         hints={'desktop-entry': 'spotify'})
+    plain = manager.notify('x', summary='no sender')
+    scheduler.advance(1000)
+    entries = {e['id']: e for e in manager.history}
+    assert entries[nid]['sender'] == {'pid': 7, 'process': 'spotify', 'desktop_entry': 'spotify'}
+    assert 'sender' not in entries[plain]

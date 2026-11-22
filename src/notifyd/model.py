@@ -29,6 +29,7 @@ class Notification:
     grouped: bool = False                            # replaced another of its group (group-by)
     commands: dict = field(default_factory=dict)     # action key -> command, for buttons added by rules
     received: float = field(default_factory=time.time)
+    sender: dict = field(default_factory=dict)       # {pid, process, parent, desktop_entry}: who sent it
     # filled in by the rules
     settings: dict = field(default_factory=dict)
     rules: list = field(default_factory=list)        # names of the rules that matched
@@ -100,6 +101,7 @@ class Notification:
             'received': self.received,
             'mode': self.mode,
             'duplicates': self.duplicates,
+            **({'sender': dict(self.sender)} if self.sender else {}),
         }
 
 

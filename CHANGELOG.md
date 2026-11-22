@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-22
+
+### Added
+
+- Each notification records who sent it: the sending process's pid and name, its parent's name,
+  and the `desktop-entry` hint, as `sender` in `ctl history --json`, `list --json` and
+  `watch --json`, and as `via notify-send (musicman)` on `ctl watch` lines. Two senders using one
+  app name (the Spotify client and musicman) can now be told apart.
+
 ## [0.9.0] - 2026-11-22
 
 ### Added

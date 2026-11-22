@@ -79,10 +79,13 @@ class Manager:
 
     # -- incoming -------------------------------------------------------
     def notify(self, app='', replaces_id=0, app_icon='', summary='', body='', actions=(), hints=None,
-               timeout=-1, extra=None):
+               timeout=-1, extra=None, sender=None):
         n = Notification(app=app, summary=summary, body=body, app_icon=app_icon,
                          actions=actions_from_list(actions), hints=dict(hints or {}),
                          requested_timeout=timeout, replaces_id=replaces_id, mode=self.mode)
+        n.sender = dict(sender or {})
+        if n.hints.get('desktop-entry'):
+            n.sender['desktop_entry'] = str(n.hints['desktop-entry'])
         resolve(self.config, n, extra)
         for index, button in enumerate(n.settings.get('buttons') or []):
             key = f'notifyd-button-{index}'
