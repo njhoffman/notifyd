@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-22
+
+### Changed
+
+- `examples/config.yaml`: images default to 60 px; the songs and wallpaper rules no longer set
+  their own size (wallpaper thumbnails were 110 px).
+
 ## [0.6.0] - 2026-11-10
 
 ### Added

@@ -9,7 +9,7 @@ position:
   follow: mouse
 timeout: 8s
 icon: {size: 25}
-image: {size: 75, margin-right: 0}
+image: {size: 60, margin-right: 0}
 
 rules:
 - name: songs
@@ -17,12 +17,10 @@ rules:
     app: [musicman, MPD, Spotify]
   timeout: 12s
   hide: [app-icon, app-name]
-  image: {size: 60}
 
 - name: wallpaper
   match: {app: backdrop}
   timeout: 12s
-  image: {size: 110}
 
 - match: {app: Volume}
   image: {size: 40}
