@@ -134,7 +134,7 @@ Reviewed: 2026-11-10
       `[rule]` sections into rules.
 - [x] **Song and wallpaper timeouts.** (p1) [feature] `examples/config.yaml`: songs (musicman,
       MPD, Spotify) and backdrop at 12 s; deadd's Spotify 3 s rule dropped.
-- [ ] **Install on this desktop.** (p1) [chore] `just install`, `just import-deadd`, then add
+- [x] **Install on this desktop.** (p1) [chore] `just install`, `just import-deadd`, then add
       the songs/wallpaper rules from `examples/config.yaml`; link `share/systemd/notifyd.service`
       into `~/.config/systemd/user/`.
 - [ ] **notify-daemon entry.** (p2) [chore] Tracked in `~/.shell/TODO.md` section 4 (its repo).
