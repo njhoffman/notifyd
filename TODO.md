@@ -45,7 +45,7 @@ Reviewed: 2026-11-22
       briefly when i3 still holds it. Keys: Esc/q close, j/k and arrows move between cards, Enter
       shows one again, d/Delete forgets or closes it, C clears, p do not disturb, m next mode,
       space/n/N play-pause/next/previous, +/- volume. Done in 0.8.0.
-- [ ] **Center remote cover art.** (p3) [feature] Spotify's `mpris:artUrl` is `https://i.scdn.co/...`,
+- [x] **Center remote cover art.** (p3) [feature] Spotify's `mpris:artUrl` is `https://i.scdn.co/...`,
       skipped now. Fetch http(s) art for the now-playing row only (not notification images, which
       keep the no-network rule) in a thread: 3 s timeout, 2 MB cap, cached under
       `~/.cache/notifyd/art/`; draw without it, then fill it in. `center.remote-art`.

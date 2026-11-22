@@ -217,6 +217,40 @@ labels = widgets(row, Gtk.Label)
 assert [l.get_ellipsize() for l in labels[:3]] == [Pango.EllipsizeMode.END] * 3
 assert not any(l.get_line_wrap() for l in labels[:3])
 
+# remote cover art: drawn without it, filled in place once fetched (cached after)
+import http.server, threading
+from gi.repository import GdkPixbuf
+pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, 8, 8)
+PNG = pixbuf.save_to_bufferv('png', [], [])[1]
+hits = []
+class Art(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        hits.append(self.path)
+        self.send_response(200); self.send_header('Content-Length', str(len(PNG))); self.end_headers()
+        self.wfile.write(PNG)
+    def log_message(self, *a): pass
+httpd = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Art)
+threading.Thread(target=httpd.serve_forever, daemon=True).start()
+url = f'http://127.0.0.1:{httpd.server_address[1]}/cover.png'
+playing = {'name': 'x', 'player': 'spotify', 'status': 'Playing', 'art': url, 'title': 't', 'artist': '', 'album': ''}
+row = center.player_row(playing)
+center.window.get_child().pack_start(row, False, False, 0)   # attached, as in a real panel
+slot = row.get_children()[0]
+assert not slot.get_children()
+end = time.monotonic() + 5
+while not slot.get_children() and time.monotonic() < end:
+    spin(20)
+assert isinstance(slot.get_children()[0], Gtk.Image) and hits == ['/cover.png']
+row2 = center.player_row(playing)                # from the cache, right away
+slot2 = row2.get_children()[0]
+assert slot2.get_children() and hits == ['/cover.png']
+manager.config.settings['center']['remote-art'] = False
+row3 = center.player_row({**playing, 'art': url + '?other'})
+slot3 = row3.get_children()[0]
+spin(300)
+assert not slot3.get_children() and hits == ['/cover.png']
+httpd.shutdown()
+
 manager.config.settings['center']['volume'] = False
 manager.config.settings['center']['modes'] = False
 log.emit('reload')                               # a config change rebuilds it
@@ -237,7 +271,7 @@ def test_center_mode_picker_volume_row_and_grab_leave(pactl):
         result = subprocess.run([sys.executable, '-c', CENTER_SCRIPT, str(ROOT / 'src'), str(ROOT / 'tests'),
                                  str(pactl)],
                                 env={**os.environ, 'DISPLAY': display, 'GIO_USE_VFS': 'local',
-                                     'DBUS_SESSION_BUS_ADDRESS': 'disabled:'},
+                                     'DBUS_SESSION_BUS_ADDRESS': 'disabled:', 'XDG_CACHE_HOME': str(pactl / 'cache')},
                                 capture_output=True, text=True, timeout=30, check=False)
         assert result.returncode == 0, result.stderr
         assert result.stdout.strip() == 'ok'

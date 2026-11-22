@@ -21,7 +21,7 @@ import time
 
 from gi.repository import Gdk, Gio, GLib, Gtk, Pango
 
-from notifyd import mpris, volume
+from notifyd import art, mpris, volume
 from notifyd.config import ConfigError, load_preset
 from notifyd.markup import prepare
 from notifyd.render.css import build_css, resolve_style, style_class
@@ -360,9 +360,9 @@ class Center:
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         row.get_style_context().add_class('center-card')
         row.get_style_context().add_class('center-player')
-        art = self.renderer.load_image(playing['art'], 56) if playing['art'] else None
-        if art is not None:
-            row.pack_start(Gtk.Image.new_from_pixbuf(art), False, False, 0)
+        slot = Gtk.Box()                          # the art, now or once it is downloaded
+        row.pack_start(slot, False, False, 0)
+        self.fill_art(slot, playing['art'])
         text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         text.set_valign(Gtk.Align.CENTER)
         detail = ' · '.join(p for p in (playing['artist'], playing['album']) if p)
@@ -385,6 +385,31 @@ class Center:
         buttons.set_valign(Gtk.Align.CENTER)
         row.pack_end(buttons, False, False, 0)
         return row
+
+    ART_SIZE = 56
+
+    def fill_art(self, slot, url):
+        """Put the cover in SLOT: a local file or icon now, an http(s) one from the cache, else once
+        it is fetched (center.remote-art) - in place, so the panel is not rebuilt for it."""
+        if not url:
+            return
+        source = url
+        if art.remote(url):
+            if not self.settings().get('remote-art', True):
+                return
+            source = art.fetch(url, lambda path: path and self.place_art(slot, str(path)))
+            if source is None:
+                return
+        self.place_art(slot, str(source))
+
+    def place_art(self, slot, source):
+        pixbuf = self.renderer.load_image(source, self.ART_SIZE)
+        if pixbuf is None or slot.get_parent() is None:   # unreadable, or the row was rebuilt meanwhile
+            return
+        for child in slot.get_children():
+            slot.remove(child)
+        slot.pack_start(Gtk.Image.new_from_pixbuf(pixbuf), False, False, 0)
+        slot.show_all()
 
     def card(self, entry, style, opened):
         classes = style.get('classes') or {}

@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-22
+
+### Added
+
+- The center's now-playing row shows cover art from http(s) URLs, such as Spotify's: downloaded
+  in the background (3 s timeout, 2 MB at most), cached in `~/.cache/notifyd/art/` (the newest
+  200), filled in without redrawing the center. `center.remote-art: false` keeps it local only.
+  Notification images still never come from the network.
+
 ## [0.8.1] - 2026-11-22
 
 ### Changed
