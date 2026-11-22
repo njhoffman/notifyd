@@ -139,3 +139,21 @@ def test_dunst_color_hints_become_style_and_rules_override_them():
     ruled = resolved("rules:\n  - match: {app: x}\n    style: {foreground: '#fff'}\n", app='x',
                      hints={'fgcolor': '#ff0000'})
     assert ruled.settings['style'] == {'foreground': '#fff'}
+
+
+def test_match_on_the_sending_process_and_its_parent():
+    config = """
+rules:
+  - name: client
+    match: {app: Spotify, process: spotify}
+    skip: true
+  - name: via-musicman
+    match: {parent: /^musicman/}
+    timeout: 12s
+"""
+    client = resolved(config, app='Spotify', sender={'pid': 1, 'process': 'spotify'})
+    assert client.rules == ['client'] and client.settings['skip']
+    songs = resolved(config, app='Spotify', sender={'pid': 2, 'process': 'notify-send', 'parent': 'musicman'})
+    assert songs.rules == ['via-musicman'] and not songs.settings.get('skip') and songs.timeout == 12000
+    unknown = resolved(config, app='Spotify')                 # no sender: matches no process rule
+    assert unknown.rules == []

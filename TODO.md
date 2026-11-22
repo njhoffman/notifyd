@@ -69,7 +69,7 @@ Reviewed: 2026-11-22
       `desktop-entry` hint, so two senders using one app name (the Spotify client and musicman, both
       "Spotify") could not be told apart from `ctl history --json`. Record them on receipt and show
       them in `--json` and `ctl watch`.
-- [ ] **Rules match on the sender.** (p3) [feature] `match: {process: musicman}` (and `parent`,
+- [x] **Rules match on the sender.** (p3) [feature] `match: {process: musicman}` (and `parent`,
       `desktop-entry`) on the sender recorded since 0.10.0, so a rule can drop one of two senders
       that share an app name (the Spotify client and musicman both send "Spotify").
 - [x] **Center has no tests of its own.** (p3) [test] `render/center.py` is only exercised through

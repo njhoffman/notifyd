@@ -71,7 +71,8 @@ rules:
 
 `match` fields: `app`, `summary`, `body`, `icon`, `category`, `desktop-entry`, `stack-tag`,
 `urgency` (`low`/`normal`/`critical`), `mode` (set with `notifyd ctl mode NAME`; `normal` by
-default) and `hint: {name: value}`. A value is an exact string,
+default), `process` and `parent` (the sending process and its parent, as `ctl watch` shows them
+after `via`; process names are cut to 15 characters) and `hint: {name: value}`. A value is an exact string,
 `/regex/` (`/regex/i` ignores case; searched, not anchored), or a list of those (any matches).
 
 Rewrites: `summary`, `body`, `app` are templates with `{summary}`, `{body}`, `{app}`, `{category}`,

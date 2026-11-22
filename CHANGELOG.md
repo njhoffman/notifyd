@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-22
+
+### Added
+
+- Rules match on who sent a notification: `match: {process: NAME}` and `match: {parent: NAME}`
+  (exact, `/regex/` or a list, like the other fields), e.g. `{app: Spotify, process: spotify}`
+  with `skip: true` drops the Spotify client's own song notifications and keeps musicman's.
+
 ## [0.10.0] - 2026-11-22
 
 ### Added

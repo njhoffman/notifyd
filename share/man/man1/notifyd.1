@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-22 "notifyd 0.10.0" "User Commands"
+.TH NOTIFYD 1 2026-11-22 "notifyd 0.11.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -416,7 +416,10 @@ rules:
 .fi
 .RE
 .PP
-Match fields are app, summary, body, icon, category, desktop\-entry, stack\-tag, urgency, mode and
+Match fields are app, summary, body, icon, category, desktop\-entry, stack\-tag, urgency, mode,
+process and parent (the sending process and its parent, as
+.B ctl watch
+shows them after "via") and
 .BI hint: " {name: value}" ;
 a value is an exact string, a
 .BI / regex /
