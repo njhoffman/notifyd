@@ -137,7 +137,7 @@ Reviewed: 2026-11-10
 - [x] **Install on this desktop.** (p1) [chore] `just install`, `just import-deadd`, then add
       the songs/wallpaper rules from `examples/config.yaml`; link `share/systemd/notifyd.service`
       into `~/.config/systemd/user/`.
-- [ ] **notify-daemon entry.** (p2) [chore] Tracked in `~/.shell/TODO.md` section 4 (its repo).
+- [x] **notify-daemon entry.** (p2) [chore] Tracked in `~/.shell/TODO.md` section 4 (its repo).
       Add `notifyd` to `~/.shell/scripts/notify-daemon` (`ORDER`, `BIN`, `UNIT=notifyd.service`) so `notify-daemon use notifyd|deadd` switches. Its
       `owner()` reads `/proc/PID/exe` (python3 for notifyd) before `comm`; it needs to try `comm`
       too, and its `pkill -f` pattern must match `notifyd daemon`.
@@ -147,7 +147,7 @@ Reviewed: 2026-11-10
       (`~/.config/i3/conf.d/60-apps.conf:101`); move it to a `notifyd ctl center` once the
       center exists (section 10). Done: notifyd toggles its center on SIGUSR1 too, so the
       binding needs no change; `notifyd ctl center` also works.
-- [ ] **i3 center binding.** (p2) [chore] `$mod+grave` runs `kill -s USR1 $(pidof
+- [x] **i3 center binding.** (p2) [chore] `$mod+grave` runs `kill -s USR1 $(pidof
       deadd-notification-center)` (`~/.config/i3/conf.d/60-apps.conf:101`); with notifyd it needs
       `notifyd ctl center` (or `pkill -USR1 -x notifyd`: `pidof` matches the executable, which is
       python3 for notifyd). Belongs to the i3 config when notifyd replaces deadd.
