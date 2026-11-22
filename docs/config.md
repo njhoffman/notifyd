@@ -36,7 +36,7 @@ missing file gives the deadd look. The daemon reloads the file when it changes (
 | `idle-threshold` | `0` | notifications do not expire while you have been idle this long (`0`: off) |
 | `history.size` / `history.keep` / `history.persist` | `100` / `true` / `true` | `keep: false` in a rule keeps those out; `persist` keeps it in `$XDG_STATE_HOME/notifyd/history.jsonl` |
 | `log.format` / `log.color` / `log.level` / `log.file` | `pretty` / `auto` / `info` / - | also `--log-format`, `--color`, `-v`/`-q`; `file` gets plain lines too |
-| `center.width` / `side` / `hide-on-leave` / `mpris` / `volume` / `modes` | `400` / `right` / `true` / `true` / `true` / `true` | the notification center (`notifyd ctl center`, SIGUSR1); `mpris` shows what a media player plays, with buttons; `volume` a slider and mute for the default output (needs `pactl`, PulseAudio or PipeWire); `modes` a picker of `normal` and the modes rules match on by name |
+| `center.width` / `side` / `hide-on-leave` / `mpris` / `volume` / `modes` / `cards` | `400` / `right` / `true` / `true` / `true` / `true` / `20` | the notification center (`notifyd ctl center`, SIGUSR1); `mpris` shows what a media player plays, with buttons; `volume` a slider and mute for the default output (needs `pactl`, PulseAudio or PipeWire); `modes` a picker of `normal` and the modes rules match on by name; `cards` how many history entries it shows before a "show more" button |
 | `fade.in` / `fade.out` | `0` / `150ms` | opacity fades; picom fades windows in but not translucent ones out |
 | `click.left` / `middle` / `right` | `dismiss` / `dismiss-all` / `default-action` | or `none` |
 | `rules` | `[]` | see Rules |

@@ -97,7 +97,7 @@ from notifyd.config import load_config
 from notifyd.log import EventLog
 from notifyd.manager import Manager
 from notifyd.render.gtk import GtkRenderer       # pins GTK 3 before Gtk is imported here
-from gi.repository import Gdk, GLib, Gtk
+from gi.repository import Gdk, GLib, Gtk, Pango
 sys.path.insert(0, sys.argv[2])
 from conftest import FakeScheduler
 
@@ -171,8 +171,55 @@ assert center.visible
 center.on_leave(None, leave(Gdk.CrossingMode.NORMAL))
 assert not center.visible
 
+# kept between openings: nothing changed, nothing rebuilt; the volume follows in place
+builds = []
+original_rebuild = center.rebuild
+center.rebuild = lambda *a: builds.append(1) or original_rebuild(*a)
+center.toggle('show')
+spin(50)
+assert builds == [], builds
+scale, = widgets(center.window, Gtk.Scale)
+assert scale.get_value() == 65
+center.hide()
+open(sys.argv[3] + '/volume', 'w').write('20')
+center.toggle('show')
+assert builds == [] and scale.get_value() == 20
+center.hide()
+first = manager.notify('a', summary='new')       # a change while hidden: rebuilt on opening
+spin(50)
+assert builds == []
+center.toggle('show')
+assert builds == [1]
+center.hide()
+
+# history: the newest center.cards, then a button for more, back to the cap once hidden
+manager.config.settings['center']['cards'] = 5
+for i in range(12):
+    manager.close(manager.notify('h', summary=f'h{i}'))
+center.toggle('show')
+def history_cards():
+    return [w for w in widgets(center.window, Gtk.EventBox) if w.get_child()
+            and 'center-card' in w.get_child().get_style_context().list_classes()]
+assert len(history_cards()) == 5 + len(manager.listing())
+more, = [b for b in widgets(center.window, Gtk.Button) if b.get_label() and b.get_label().startswith('Show ')]
+assert more.get_label() == f'Show 5 more of {len(manager.history) - 5}', more.get_label()
+more.clicked()
+assert len(history_cards()) == 10 + len(manager.listing())
+center.hide()
+center.toggle('show')
+assert len(history_cards()) == 5 + len(manager.listing())
+center.hide()
+
+# the now-playing text: one line each, cut with an ellipsis instead of wrapped
+row = center.player_row({'name': 'x', 'player': 'spotify', 'status': 'Playing', 'art': '',
+                         'title': 'Resistance ' * 6, 'artist': 'Muse', 'album': 'The Resistance'})
+labels = widgets(row, Gtk.Label)
+assert [l.get_ellipsize() for l in labels[:3]] == [Pango.EllipsizeMode.END] * 3
+assert not any(l.get_line_wrap() for l in labels[:3])
+
 manager.config.settings['center']['volume'] = False
 manager.config.settings['center']['modes'] = False
+log.emit('reload')                               # a config change rebuilds it
 center.toggle('show')
 assert not widgets(center.window, Gtk.Scale)
 assert not widgets(center.window, Gtk.ComboBoxText)
@@ -187,7 +234,8 @@ def test_center_mode_picker_volume_row_and_grab_leave(pactl):
                             stderr=subprocess.DEVNULL)
     try:
         time.sleep(0.7)
-        result = subprocess.run([sys.executable, '-c', CENTER_SCRIPT, str(ROOT / 'src'), str(ROOT / 'tests')],
+        result = subprocess.run([sys.executable, '-c', CENTER_SCRIPT, str(ROOT / 'src'), str(ROOT / 'tests'),
+                                 str(pactl)],
                                 env={**os.environ, 'DISPLAY': display, 'GIO_USE_VFS': 'local',
                                      'DBUS_SESSION_BUS_ADDRESS': 'disabled:'},
                                 capture_output=True, text=True, timeout=30, check=False)

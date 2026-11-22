@@ -6,6 +6,11 @@ player plays and the volume of the default output; below are the open notificati
 history, newest first. Clicking a closed one shows it again, x forgets it.
 It hides when the pointer leaves (center.hide-on-leave), on `notifyd ctl center`, or on SIGUSR1,
 which also opens it (the i3 binding deadd used).
+
+Laying out the cards is what costs (GTK measures every wrapped label), so the panel is kept
+between openings and rebuilt only after something changed: a notification, the mode, a player, the
+preset. What changes silently (the clock, the volume) is updated in place on each opening. The
+history shows the newest center.cards entries, with a button for more.
 """
 
 import time
@@ -21,7 +26,8 @@ from notifyd.rules import known_modes
 VOLUME_DELAY = 50   # ms after the slider stops moving before pactl is run
 
 REFRESH_EVENTS = {'shown', 'replaced', 'expired', 'dismissed', 'closed', 'suppressed', 'paused', 'resumed', 'mode',
-                  'reload', 'history'}
+                  'reload', 'history', 'queued', 'waiting'}
+CARDS = 20          # history cards shown at first, and how many more each "show more" adds
 
 
 class Center:
@@ -32,6 +38,11 @@ class Center:
         self.pending = False
         self.volume_timer = None
         self.dragging = False      # a slider held down: rebuilding would pull it from under the pointer
+        self.dirty = True          # something changed since the panel was built
+        self.built = None          # (style scope, now playing) the panel was built for
+        self.limit = None          # history cards shown; None: center.cards
+        self.clock = None
+        self.volume_widgets = None # (mute button, scale) to update in place
         renderer.log.listeners.append(self.on_event)
         self.bus = None
         try:
@@ -69,7 +80,11 @@ class Center:
             self.window.get_style_context().add_class('notifyd')
             self.window.add_events(Gdk.EventMask.LEAVE_NOTIFY_MASK)
             self.window.connect('leave-notify-event', self.on_leave)
-        self.rebuild()
+        playing = self.now_playing()
+        if self.dirty or self.built != (self.scope()[0], playing):
+            self.rebuild(playing)
+        else:
+            self.update_live()
         self.place()
         self.window.show_all()
         self.renderer.log.emit('info', message='center shown')
@@ -77,6 +92,9 @@ class Center:
     def hide(self):
         if self.window is not None:
             self.window.hide()
+        if self.limit is not None:   # "show more" lasts while it is open
+            self.limit = None
+            self.dirty = True
 
     def place(self):
         area = self.renderer.monitor_geometry()
@@ -94,7 +112,10 @@ class Center:
             self.hide()
 
     def on_event(self, event):
-        if event['event'] in REFRESH_EVENTS and self.visible and not self.pending:
+        if event['event'] not in REFRESH_EVENTS:
+            return
+        self.dirty = True
+        if self.visible and not self.pending:
             self.pending = True
             GLib.idle_add(self.refresh)
 
@@ -124,8 +145,30 @@ class Center:
             self.renderer.load_css()
         return scope, style
 
-    def rebuild(self):
+    def now_playing(self):
+        return mpris.now_playing(self.bus) if self.bus and self.settings().get('mpris', True) else None
+
+    def update_live(self):
+        """What changes without an event, in place: the clock and the volume."""
+        self.clock.set_text(time.strftime('%H:%M'))
+        if self.volume_widgets:
+            level = volume.get()
+            if level is not None:
+                mute, scale = self.volume_widgets
+                for widget, handler, set_value in ((mute, self.on_mute, lambda: mute.set_active(level['muted'])),
+                                                   (scale, self.on_volume,
+                                                    lambda: scale.set_value(min(100, level['volume'])))):
+                    widget.handler_block_by_func(handler)
+                    set_value()
+                    widget.handler_unblock_by_func(handler)
+                self.set_mute_icon(mute)
+
+    def rebuild(self, playing=False):
+        if playing is False:
+            playing = self.now_playing()
         scope, style = self.scope()
+        self.dirty = False
+        self.built = (scope, playing)
         context = self.window.get_style_context()
         for name in [c for c in context.list_classes() if c.startswith('nd-')]:
             context.remove_class(name)
@@ -139,8 +182,8 @@ class Center:
         panel.get_style_context().add_class('center')
 
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        clock = self.renderer.label(time.strftime('%H:%M'), 'center-time', wrap=False)
-        header.pack_start(clock, True, True, 0)
+        self.clock = self.renderer.label(time.strftime('%H:%M'), 'center-time', wrap=False)
+        header.pack_start(self.clock, True, True, 0)
         pause = Gtk.ToggleButton(label='Do not disturb')
         pause.set_active(self.manager.paused)
         pause.connect('toggled', lambda b: self.manager.pause(b.get_active()))
@@ -160,22 +203,30 @@ class Center:
         status.pack_end(clear, False, False, 0)
         panel.pack_start(status, False, False, 0)
 
-        playing = mpris.now_playing(self.bus) if self.bus and self.settings().get('mpris', True) else None
         if playing:
             panel.pack_start(self.player_row(playing), False, False, 0)
         level = volume.get() if self.settings().get('volume', True) and volume.available() else None
+        self.volume_widgets = None
         if level is not None:
             panel.pack_start(self.volume_row(level), False, False, 0)
 
         rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         open_entries = self.manager.listing()
         closed = list(reversed(list(self.manager.history)))
+        limit = self.limit or int(self.settings().get('cards') or CARDS)
         for entry in open_entries:
             rows.pack_start(self.card(entry, style, opened=True), False, False, 0)
         if open_entries and closed:
             rows.pack_start(Gtk.Separator(), False, False, 4)
-        for entry in closed:
+        for entry in closed[:limit]:
             rows.pack_start(self.card(entry, style, opened=False), False, False, 0)
+        if len(closed) > limit:
+            step = int(self.settings().get('cards') or CARDS)
+            more = Gtk.Button(label=f'Show {min(step, len(closed) - limit)} more of {len(closed) - limit}')
+            more.set_relief(Gtk.ReliefStyle.NONE)
+            more.get_style_context().add_class('center-more')
+            more.connect('clicked', lambda _b: self.show_more(limit + step))
+            rows.pack_start(more, False, False, 4)
         if not open_entries and not closed:
             rows.pack_start(self.renderer.label('<i>No notifications</i>', 'body'), False, False, 12)
         scroll = Gtk.ScrolledWindow()
@@ -202,8 +253,7 @@ class Center:
         mute = Gtk.ToggleButton()
         mute.set_relief(Gtk.ReliefStyle.NONE)
         mute.set_active(level['muted'])
-        mute.set_image(Gtk.Image.new_from_icon_name(
-            'audio-volume-muted-symbolic' if level['muted'] else 'audio-volume-high-symbolic', Gtk.IconSize.BUTTON))
+        self.set_mute_icon(mute)
         mute.set_tooltip_text('mute')
         mute.connect('toggled', self.on_mute)
         row.pack_start(mute, False, False, 0)
@@ -216,7 +266,17 @@ class Center:
         scale.connect('button-press-event', self.on_drag, True)
         scale.connect('button-release-event', self.on_drag, False)
         row.pack_start(scale, True, True, 0)
+        self.volume_widgets = (mute, scale)
         return row
+
+    def set_mute_icon(self, mute):
+        mute.set_image(Gtk.Image.new_from_icon_name(
+            'audio-volume-muted-symbolic' if mute.get_active() else 'audio-volume-high-symbolic', Gtk.IconSize.BUTTON))
+
+    def show_more(self, limit):
+        self.limit = limit
+        self.rebuild()
+        self.window.show_all()
 
     def on_drag(self, _scale, _event, held):
         self.dragging = held
@@ -226,9 +286,7 @@ class Center:
 
     def on_mute(self, button):
         volume.toggle_mute()
-        button.set_image(Gtk.Image.new_from_icon_name(
-            'audio-volume-muted-symbolic' if button.get_active() else 'audio-volume-high-symbolic',
-            Gtk.IconSize.BUTTON))
+        self.set_mute_icon(button)
 
     def on_volume(self, scale):
         # debounced: a drag runs pactl once it pauses, not for every pixel
@@ -249,12 +307,16 @@ class Center:
         if art is not None:
             row.pack_start(Gtk.Image.new_from_pixbuf(art), False, False, 0)
         text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        text.pack_start(self.renderer.label(GLib.markup_escape_text(playing['title']), 'title'), False, False, 0)
+        text.set_valign(Gtk.Align.CENTER)
         detail = ' · '.join(p for p in (playing['artist'], playing['album']) if p)
-        if detail:
-            text.pack_start(self.renderer.label(GLib.markup_escape_text(detail), 'body'), False, False, 0)
         state = f"{playing['player']} · {playing['status'].lower()}"
-        text.pack_start(self.renderer.label(GLib.markup_escape_text(state), 'appname', wrap=False), False, False, 0)
+        for value, part in ((playing['title'], 'title'), (detail, 'body'), (state, 'appname')):
+            if value:
+                # one line each, cut with ... (wrapping a narrow column broke words mid-way)
+                label = self.renderer.label(GLib.markup_escape_text(value), part, wrap=False)
+                label.set_ellipsize(Pango.EllipsizeMode.END)
+                label.set_tooltip_text(value)
+                text.pack_start(label, False, False, 0)
         row.pack_start(text, True, True, 0)
         buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
         for label, method in (('⏮', 'Previous'), ('⏸' if playing['status'] == 'Playing' else '▶', 'PlayPause'),

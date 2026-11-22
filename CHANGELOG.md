@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-22
+
+### Changed
+
+- The notification center opens faster: the panel is kept between openings and rebuilt only after
+  something changed (a notification, the mode, a player, the preset), and the history shows the
+  newest `center.cards` (20) entries with a button for more. With 60 in the history, opening went
+  from about 450 ms to 75 ms, or about 280 ms after a change.
+
+### Fixed
+
+- The now-playing title, artist and player lines stay on one line, cut with an ellipsis (full text
+  in the tooltip), instead of wrapping mid-word in the narrow column.
+
 ## [0.7.0] - 2026-11-22
 
 ### Added

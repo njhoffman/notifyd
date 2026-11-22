@@ -43,7 +43,8 @@ DEFAULTS = {
     'history': {'size': 100, 'keep': True, 'persist': True},   # persist: $XDG_STATE_HOME/notifyd/history.jsonl
     'log': {'format': 'pretty', 'color': 'auto', 'level': 'info', 'file': None},
     'click': {'left': 'dismiss', 'middle': 'dismiss-all', 'right': 'default-action'},
-    'center': {'width': 400, 'side': 'right', 'hide-on-leave': True, 'mpris': True, 'volume': True, 'modes': True},
+    'center': {'width': 400, 'side': 'right', 'hide-on-leave': True, 'mpris': True, 'volume': True, 'modes': True,
+               'cards': 20},
     'fade': {'in': 0, 'out': 150},   # ms; picom fades windows in, but not translucent ones out
     'style': {},
     'rules': [],
