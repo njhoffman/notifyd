@@ -175,3 +175,8 @@ def test_bar_line():
     assert bar_line({'paused': True, 'mode': 'normal', 'held_back': 3}, fmt, '') == 'dnd 3'
     assert bar_line({'paused': False, 'mode': 'presentation', 'held_back': 0}, fmt, 'x') == 'presentation'
     assert bar_line({'paused': True, 'mode': 'normal', 'held_back': 0}, ' {shown}', '') == '0'
+
+
+def test_man_page_names_the_current_version():
+    th = next(line for line in MAN.read_text().splitlines() if line.startswith('.TH '))
+    assert f'"notifyd {__version__}"' in th, f'{th} (bump the man page with the version)'

@@ -1,0 +1,200 @@
+"""The notification center's rows: the mode picker, the volume of the default output (pactl).
+
+pactl is a stub on PATH that answers from files and logs what it was asked; the GTK part runs in a
+child process under Xvfb, like the renderer test in test_daemon.py.
+"""
+
+import os
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import pytest
+
+from notifyd.config import load_config
+from notifyd.rules import known_modes
+
+ROOT = Path(__file__).resolve().parent.parent
+
+PACTL = r"""#!/bin/sh
+echo "$*" >> "$PACTL_DIR/log"
+[ -e "$PACTL_DIR/fail" ] && exit 1
+case $1 in
+  get-sink-volume) v=$(cat "$PACTL_DIR/volume")
+                   echo "Volume: front-left: 42598 /  $v% / -11.23 dB,   front-right: 42598 /  $v% / -11.23 dB"
+                   echo "        balance 0.00" ;;
+  get-sink-mute) echo "Mute: $(cat "$PACTL_DIR/mute")" ;;
+esac
+"""
+
+
+@pytest.fixture
+def pactl(tmp_path, monkeypatch):
+    """A stub pactl first on PATH; its dir (volume, mute, log, fail) in PACTL_DIR."""
+    bin_dir = tmp_path / 'bin'
+    bin_dir.mkdir()
+    (bin_dir / 'pactl').write_text(PACTL)
+    (bin_dir / 'pactl').chmod(0o755)
+    (tmp_path / 'volume').write_text('65')
+    (tmp_path / 'mute').write_text('no')
+    monkeypatch.setenv('PATH', f'{bin_dir}:{os.environ["PATH"]}')
+    monkeypatch.setenv('PACTL_DIR', str(tmp_path))
+    return tmp_path
+
+
+def log_lines(path):
+    return (path / 'log').read_text().splitlines() if (path / 'log').exists() else []
+
+
+def test_known_modes_from_rules_in_order_once_with_the_current_one():
+    config = load_config(text="""
+rules:
+- match: {mode: dnd, urgency: low}
+  timeout: 1s
+- match: {mode: [focus, dnd]}
+  timeout: 2s
+- match: {mode: /^meet/}
+  timeout: 1s
+- match: {app: x}
+  timeout: 1s
+""")
+    assert known_modes(config.rules) == ['normal', 'dnd', 'focus']          # regex modes have no name to pick
+    assert known_modes(config.rules, 'presenting') == ['normal', 'dnd', 'focus', 'presenting']
+    assert known_modes(load_config(text='').rules) == ['normal']
+
+
+def test_volume_reads_and_changes_the_default_output(pactl):
+    from notifyd import volume
+    assert volume.available()
+    assert volume.get() == {'volume': 65, 'muted': False}
+    (pactl / 'mute').write_text('yes')
+    (pactl / 'volume').write_text('120')
+    assert volume.get() == {'volume': 120, 'muted': True}
+    volume.set_volume(30.4).wait_check(None)
+    volume.set_volume(-5).wait_check(None)
+    volume.set_volume(400).wait_check(None)
+    volume.toggle_mute().wait_check(None)
+    assert log_lines(pactl)[-4:] == ['set-sink-volume @DEFAULT_SINK@ 30%', 'set-sink-volume @DEFAULT_SINK@ 0%',
+                                     'set-sink-volume @DEFAULT_SINK@ 150%', 'set-sink-mute @DEFAULT_SINK@ toggle']
+    (pactl / 'fail').touch()                     # no sound server: no row
+    assert volume.get() is None
+
+
+def test_volume_without_pactl(monkeypatch, tmp_path):
+    from notifyd import volume
+    monkeypatch.setenv('PATH', str(tmp_path))
+    assert not volume.available()
+    assert volume.get() is None
+    assert volume.set_volume(50) is None
+
+
+CENTER_SCRIPT = r"""
+import io, sys, time
+sys.path.insert(0, sys.argv[1])
+from notifyd.config import load_config
+from notifyd.log import EventLog
+from notifyd.manager import Manager
+from notifyd.render.gtk import GtkRenderer       # pins GTK 3 before Gtk is imported here
+from gi.repository import Gdk, GLib, Gtk
+sys.path.insert(0, sys.argv[2])
+from conftest import FakeScheduler
+
+def widgets(root, kind):
+    found = [root] if isinstance(root, kind) else []
+    if isinstance(root, Gtk.Container):
+        for child in root.get_children():
+            found += widgets(child, kind)
+    return found
+
+def spin(ms):
+    end = time.monotonic() + ms / 1000
+    while time.monotonic() < end:
+        GLib.MainContext.default().iteration(False)
+        time.sleep(0.005)
+
+def rebuilt(old, kind):
+    # the center rebuilds at idle priority, behind GTK's own drawing: wait for new widgets
+    end = time.monotonic() + 3
+    while time.monotonic() < end:
+        GLib.MainContext.default().iteration(False)
+        found = widgets(center.window, kind)
+        if found and found[0] is not old:
+            return found[0]
+        time.sleep(0.005)
+    raise AssertionError(f'center not rebuilt ({kind.__name__})')
+
+def leave(mode, detail=Gdk.NotifyType.NONLINEAR):
+    event = Gdk.Event.new(Gdk.EventType.LEAVE_NOTIFY)
+    event.crossing.mode, event.crossing.detail = mode, detail
+    return event.crossing
+
+config = load_config(text='position: {follow: none}\nrules:\n- match: {mode: dnd}\n  timeout: 1s\n'
+                          '- match: {mode: focus}\n  timeout: 2s\n')
+log = EventLog(stream=io.StringIO(), color='never')
+manager = Manager(config, log, FakeScheduler())
+renderer = GtkRenderer(manager, log)
+manager.renderer = renderer
+center = renderer.center
+center.toggle('show')
+
+picker, = widgets(center.window, Gtk.ComboBoxText)
+ids = [row[1] for row in picker.get_model()]
+assert ids == ['normal', 'dnd', 'focus'], ids
+assert picker.get_active_id() == 'normal'
+picker.set_active_id('focus')
+assert manager.mode == 'focus'
+picker = rebuilt(picker, Gtk.ComboBoxText)       # the center follows the mode event
+assert picker.get_active_id() == 'focus'
+
+scale, = widgets(center.window, Gtk.Scale)
+assert scale.get_value() == 65
+scale.emit('button-press-event', Gdk.Event.new(Gdk.EventType.BUTTON_PRESS))
+for value in (40, 35, 30):                       # a drag: one pactl call once it pauses
+    scale.set_value(value)
+    spin(10)
+manager.notify('a', summary='during the drag')   # no rebuild under the pointer while dragging
+spin(150)
+assert widgets(center.window, Gtk.Scale)[0] is scale
+scale.emit('button-release-event', Gdk.Event.new(Gdk.EventType.BUTTON_RELEASE))
+scale = rebuilt(scale, Gtk.Scale)                # the postponed rebuild, once released
+mute, = [w for w in widgets(center.window, Gtk.ToggleButton) if w.get_tooltip_text() == 'mute']
+assert not mute.get_active()
+mute.set_active(True)
+spin(150)
+
+center.on_leave(None, leave(Gdk.CrossingMode.GRAB))         # the picker's menu taking the pointer
+assert center.visible
+center.on_leave(None, leave(Gdk.CrossingMode.NORMAL, Gdk.NotifyType.INFERIOR))   # into a child
+assert center.visible
+center.on_leave(None, leave(Gdk.CrossingMode.NORMAL))
+assert not center.visible
+
+manager.config.settings['center']['volume'] = False
+manager.config.settings['center']['modes'] = False
+center.toggle('show')
+assert not widgets(center.window, Gtk.Scale)
+assert not widgets(center.window, Gtk.ComboBoxText)
+print('ok')
+"""
+
+
+@pytest.mark.skipif(not shutil.which('Xvfb'), reason='needs Xvfb')
+def test_center_mode_picker_volume_row_and_grab_leave(pactl):
+    display = f':{90 + os.getpid() % 9}'
+    xvfb = subprocess.Popen(['Xvfb', display, '-screen', '0', '1280x720x24'], stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL)
+    try:
+        time.sleep(0.7)
+        result = subprocess.run([sys.executable, '-c', CENTER_SCRIPT, str(ROOT / 'src'), str(ROOT / 'tests')],
+                                env={**os.environ, 'DISPLAY': display, 'GIO_USE_VFS': 'local',
+                                     'DBUS_SESSION_BUS_ADDRESS': 'disabled:'},
+                                capture_output=True, text=True, timeout=30, check=False)
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == 'ok'
+        changes = [line for line in log_lines(pactl) if line.startswith('set-')]
+        assert changes == ['set-sink-volume @DEFAULT_SINK@ 30%', 'set-sink-mute @DEFAULT_SINK@ toggle'], changes
+    finally:
+        xvfb.terminate()
+        xvfb.wait(5)

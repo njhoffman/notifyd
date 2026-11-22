@@ -38,8 +38,17 @@ Reviewed: 2026-11-22
       toggle, opened with `notifyd ctl center` (and SIGUSR1 for the current i3 binding).
 - [x] **Center now playing.** (p3) [feature] MPRIS now playing with previous/play-pause/next
       (`notifyd/mpris.py`), refreshed on the players' PropertiesChanged.
-- [ ] **More center widgets.** (p3) [feature] swaync-style volume slider and mode picker; keyboard
-      use (the center is a popup without focus); remote cover art (http artUrl is skipped now).
+- [x] **Center volume and mode picker.** (p3) [feature] swaync-style volume slider and mute for the
+      default output (`notifyd/volume.py`, pactl), and a picker of the modes rules match on (0.7.0).
+- [ ] **Center keyboard use.** (p3) [feature] The center is an override-redirect popup without
+      focus: grab the keyboard while it is open (as rofi does), release it on hide; retry the grab
+      briefly when i3 still holds it. Keys: Esc/q close, j/k and arrows move between cards, Enter
+      shows one again, d/Delete forgets or closes it, C clears, p do not disturb, m next mode,
+      space/n/N play-pause/next/previous, +/- volume. Planned as 0.8.0.
+- [ ] **Center remote cover art.** (p3) [feature] Spotify's `mpris:artUrl` is `https://i.scdn.co/...`,
+      skipped now. Fetch http(s) art for the now-playing row only (not notification images, which
+      keep the no-network rule) in a thread: 3 s timeout, 2 MB cap, cached under
+      `~/.cache/notifyd/art/`; draw without it, then fill it in. `center.remote-art`.
 
 ## 11. Maintenance
 
@@ -48,7 +57,7 @@ Reviewed: 2026-11-22
       comments: `notifyd presets` prints "...on" for dunst and "...shadow)," for deadd, and
       `docs/presets.md` carries the cut text. Quote them, and add a test that every preset's
       description matches its file's first line.
-- [ ] **Man page version is stale.** (p3) [docs] `share/man/man1/notifyd.1` says `notifyd 0.6.0`
+- [x] **Man page version is stale.** (p3) [docs] `share/man/man1/notifyd.1` says `notifyd 0.6.0`
       while `__version__` is 0.6.1; nothing keeps them together. Test that `.TH` names the current
       version (or stamp it in `just install`).
 - [ ] **README install section predates the switch.** (p3) [docs] It still says to restart deadd
@@ -60,7 +69,7 @@ Reviewed: 2026-11-22
       `desktop-entry` hint, so two senders using one app name (the Spotify client and musicman, both
       "Spotify") could not be told apart from `ctl history --json`. Record them on receipt and show
       them in `--json` and `ctl watch`.
-- [ ] **Center has no tests of its own.** (p3) [test] `render/center.py` is only exercised through
+- [x] **Center has no tests of its own.** (p3) [test] `render/center.py` is only exercised through
       the daemon tests; the widget work (section 10) adds `tests/test_center.py` for its rows.
 
 ## Completed

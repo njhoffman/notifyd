@@ -82,6 +82,7 @@ class Rule:
     matchers: list = field(default_factory=list)    # [(getter, matcher)]
     modify: dict = field(default_factory=dict)
     rewrite: dict = field(default_factory=dict)
+    modes: tuple = ()                               # literal names in match.mode, for the center's picker
 
     def match(self, n):
         """Captured groups when the rule matches N, else None."""
@@ -126,7 +127,16 @@ def compile_rule(raw, index):
     if not name:
         apps = match.get('app')
         name = (apps if isinstance(apps, str) else ','.join(map(str, apps))) if apps else f'rule{index + 1}'
-    return Rule(name=name, matchers=matchers, modify=raw, rewrite=rewrite), warnings
+    mode = match.get('mode')
+    modes = tuple(str(m) for m in (mode if isinstance(mode, list) else [mode] if mode is not None else [])
+                  if not re.fullmatch(r'/.*/i*', str(m), re.S))
+    return Rule(name=name, matchers=matchers, modify=raw, rewrite=rewrite, modes=modes), warnings
+
+
+def known_modes(rules, current='normal'):
+    """'normal', then every mode a rule matches on by name, then CURRENT: each once, in that order."""
+    names = ['normal', *(m for rule in rules for m in rule.modes), current]
+    return list(dict.fromkeys(names))
 
 
 def compile_rules(raw_rules):

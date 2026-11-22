@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-10 "notifyd 0.6.0" "User Commands"
+.TH NOTIFYD 1 2026-11-22 "notifyd 0.7.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -213,8 +213,9 @@ and shows it again.
 Remove a notification from the history, or clear it.
 .TP
 .BR center " [\fBtoggle\fR|\fBshow\fR|\fBhide\fR]"
-The notification center: a full\-height panel with a do\-not\-disturb toggle, the mode, a clear
-button, what a media player plays (MPRIS, with previous, play/pause and next), the open
+The notification center: a full\-height panel with a do\-not\-disturb toggle, a mode picker
+(normal and the modes rules match on), a clear button, what a media player plays (MPRIS, with
+previous, play/pause and next), the volume and mute of the default output (pactl), the open
 notifications and the history (click one to show it again, \(mu to forget it).
 SIGUSR1 toggles it too, as it did deadd's.
 .TP
@@ -368,7 +369,7 @@ open one and is counted),
 (a command for each match),
 .B idle\-threshold
 (no expiry while the user is away that long),
-.BR center.width / side / hide\-on\-leave / mpris ,
+.BR center.width / side / hide\-on\-leave / mpris / volume / modes ,
 .BR fade.in / out
 (ms; out defaults to 150, since picom does not fade translucent windows out),
 .BR history.size / keep / persist ,

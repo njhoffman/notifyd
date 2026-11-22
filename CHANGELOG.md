@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-22
+
+### Added
+
+- The notification center has a volume row for the default output: a slider and a mute button,
+  through `pactl` (PulseAudio or PipeWire); left out without it. `center.volume: false` hides it.
+- The center's mode is a picker: `normal` and every mode a rule matches on by name
+  (`match: {mode: NAME}`), plus the current one. `center.modes: false` shows it as text again.
+
+### Fixed
+
+- Opening a menu in the center (the mode picker) no longer hides it under `hide-on-leave`.
+- A notification arriving while the volume slider is held waits to redraw the center until it
+  is let go, instead of pulling the slider from under the pointer.
+- The man page names the current version (it said 0.6.0 in 0.6.1); a test keeps them together.
+
 ## [0.6.1] - 2026-11-22
 
 ### Changed

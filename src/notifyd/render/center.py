@@ -1,8 +1,9 @@
 """The notification center: deadd's sidebar with what is open and what was closed.
 
 A full-height panel on one side of the monitor under the pointer, styled by the current preset.
-Its header has the pause (do not disturb) toggle, the mode, and clear; below are the open
-notifications, then the history, newest first. Clicking a closed one shows it again, x forgets it.
+Its header has the pause (do not disturb) toggle, the mode picker, and clear; then what a media
+player plays and the volume of the default output; below are the open notifications, then the
+history, newest first. Clicking a closed one shows it again, x forgets it.
 It hides when the pointer leaves (center.hide-on-leave), on `notifyd ctl center`, or on SIGUSR1,
 which also opens it (the i3 binding deadd used).
 """
@@ -11,10 +12,13 @@ import time
 
 from gi.repository import Gdk, Gio, GLib, Gtk, Pango
 
-from notifyd import mpris
+from notifyd import mpris, volume
 from notifyd.config import ConfigError, load_preset
 from notifyd.markup import prepare
 from notifyd.render.css import build_css, resolve_style, style_class
+from notifyd.rules import known_modes
+
+VOLUME_DELAY = 50   # ms after the slider stops moving before pactl is run
 
 REFRESH_EVENTS = {'shown', 'replaced', 'expired', 'dismissed', 'closed', 'suppressed', 'paused', 'resumed', 'mode',
                   'reload', 'history'}
@@ -26,6 +30,8 @@ class Center:
         self.manager = renderer.manager
         self.window = None
         self.pending = False
+        self.volume_timer = None
+        self.dragging = False      # a slider held down: rebuilding would pull it from under the pointer
         renderer.log.listeners.append(self.on_event)
         self.bus = None
         try:
@@ -81,6 +87,9 @@ class Center:
         self.window.move(x, area.y)
 
     def on_leave(self, _widget, event):
+        # A grab (the mode picker's menu opening) also sends a leave: only a real one hides it.
+        if event.mode != Gdk.CrossingMode.NORMAL:
+            return
         if event.detail != Gdk.NotifyType.INFERIOR and self.settings().get('hide-on-leave', True):
             self.hide()
 
@@ -94,6 +103,9 @@ class Center:
 
     def refresh(self):
         self.pending = False
+        if self.dragging:
+            self.pending = True    # once the slider is let go
+            return False
         if self.visible:
             self.rebuild()
             self.window.show_all()
@@ -136,9 +148,13 @@ class Center:
         panel.pack_start(header, False, False, 0)
 
         status = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        mode = f'mode {self.manager.mode}' + (f'  ·  {len(self.manager.held_back)} held back'
-                                             if self.manager.held_back else '')
-        status.pack_start(self.renderer.label(GLib.markup_escape_text(mode), 'appname', wrap=False), True, True, 0)
+        if self.settings().get('modes', True):
+            status.pack_start(self.mode_picker(), False, False, 0)
+            text = f'{len(self.manager.held_back)} held back' if self.manager.held_back else ''
+        else:
+            text = f'mode {self.manager.mode}' + (f'  ·  {len(self.manager.held_back)} held back'
+                                                 if self.manager.held_back else '')
+        status.pack_start(self.renderer.label(GLib.markup_escape_text(text), 'appname', wrap=False), True, True, 0)
         clear = Gtk.Button(label='Clear')
         clear.connect('clicked', lambda _b: self.clear())
         status.pack_end(clear, False, False, 0)
@@ -147,6 +163,9 @@ class Center:
         playing = mpris.now_playing(self.bus) if self.bus and self.settings().get('mpris', True) else None
         if playing:
             panel.pack_start(self.player_row(playing), False, False, 0)
+        level = volume.get() if self.settings().get('volume', True) and volume.available() else None
+        if level is not None:
+            panel.pack_start(self.volume_row(level), False, False, 0)
 
         rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         open_entries = self.manager.listing()
@@ -164,6 +183,63 @@ class Center:
         scroll.add(rows)
         panel.pack_start(scroll, True, True, 0)
         self.window.add(panel)
+
+    def mode_picker(self):
+        picker = Gtk.ComboBoxText()
+        picker.get_style_context().add_class('center-mode')
+        modes = known_modes(self.manager.config.rules, self.manager.mode)
+        for name in modes:
+            picker.append(name, name)
+        picker.set_active_id(self.manager.mode)
+        picker.set_tooltip_text('mode (rules match it with match: {mode: NAME})')
+        picker.connect('changed', lambda p: p.get_active_id() and self.manager.set_mode(p.get_active_id()))
+        return picker
+
+    def volume_row(self, level):
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        row.get_style_context().add_class('center-card')
+        row.get_style_context().add_class('center-volume')
+        mute = Gtk.ToggleButton()
+        mute.set_relief(Gtk.ReliefStyle.NONE)
+        mute.set_active(level['muted'])
+        mute.set_image(Gtk.Image.new_from_icon_name(
+            'audio-volume-muted-symbolic' if level['muted'] else 'audio-volume-high-symbolic', Gtk.IconSize.BUTTON))
+        mute.set_tooltip_text('mute')
+        mute.connect('toggled', self.on_mute)
+        row.pack_start(mute, False, False, 0)
+        scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1)
+        scale.set_value(min(100, level['volume']))
+        scale.set_digits(0)
+        scale.set_value_pos(Gtk.PositionType.RIGHT)
+        scale.connect('format-value', lambda _s, value: f'{int(value)}%')
+        scale.connect('value-changed', self.on_volume)
+        scale.connect('button-press-event', self.on_drag, True)
+        scale.connect('button-release-event', self.on_drag, False)
+        row.pack_start(scale, True, True, 0)
+        return row
+
+    def on_drag(self, _scale, _event, held):
+        self.dragging = held
+        if not held and self.pending:
+            GLib.idle_add(self.refresh)
+        return False
+
+    def on_mute(self, button):
+        volume.toggle_mute()
+        button.set_image(Gtk.Image.new_from_icon_name(
+            'audio-volume-muted-symbolic' if button.get_active() else 'audio-volume-high-symbolic',
+            Gtk.IconSize.BUTTON))
+
+    def on_volume(self, scale):
+        # debounced: a drag runs pactl once it pauses, not for every pixel
+        if self.volume_timer is not None:
+            GLib.source_remove(self.volume_timer)
+        self.volume_timer = GLib.timeout_add(VOLUME_DELAY, self.apply_volume, scale.get_value())
+
+    def apply_volume(self, value):
+        self.volume_timer = None
+        volume.set_volume(value)
+        return False
 
     def player_row(self, playing):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
