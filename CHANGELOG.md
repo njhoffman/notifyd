@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-22
+
+### Added
+
+- The notification center works from the keyboard: while open it takes the keyboard, `j`/`k` or
+  the arrows move between cards (scrolling them into view, loading more past the last), `g`/`G` go
+  to the first and last, `Enter` acts like a left click, `d`/`Delete` closes or forgets one, `C`
+  clears, `p` toggles do not disturb, `m` picks the next mode, `space`/`n`/`N` control the player,
+  `+`/`-` the volume, `Esc`/`q` close it. `center.keyboard: false` leaves the keyboard alone.
+- Style key `center-selected`: the outline of the selected card.
+
+### Fixed
+
+- The center no longer waits up to a second to follow a change right after scrolling, while the
+  scrollbar faded out.
+
 ## [0.7.1] - 2026-11-22
 
 ### Changed

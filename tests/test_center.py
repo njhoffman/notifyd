@@ -246,3 +246,117 @@ def test_center_mode_picker_volume_row_and_grab_leave(pactl):
     finally:
         xvfb.terminate()
         xvfb.wait(5)
+
+
+KEYS_SCRIPT = r"""
+import io, sys, time
+sys.path.insert(0, sys.argv[1])
+from notifyd.config import load_config
+from notifyd.log import EventLog
+from notifyd.manager import Manager
+from notifyd.render.gtk import GtkRenderer       # pins GTK 3 before Gtk is imported here
+from gi.repository import Gdk, GLib, Gtk
+sys.path.insert(0, sys.argv[2])
+from conftest import FakeScheduler
+
+def spin(ms):
+    end = time.monotonic() + ms / 1000
+    while time.monotonic() < end:
+        GLib.MainContext.default().iteration(False)
+        time.sleep(0.005)
+
+def press(name, state=0):
+    event = Gdk.Event.new(Gdk.EventType.KEY_PRESS)
+    event.key.keyval, event.key.state = Gdk.keyval_from_name(name), state
+    handled = center.on_key(None, event.key)
+    spin(30)                                     # rebuilds after events run at idle
+    return handled
+
+def selected():
+    index = center.index()
+    return None if index is None else center.cards[index][1]['summary']
+
+config = load_config(text='position: {follow: none}\ncenter: {cards: 3}\n'
+                          'rules:\n- match: {mode: focus}\n  timeout: 2s\n')
+log = EventLog(stream=io.StringIO(), color='never')
+manager = Manager(config, log, FakeScheduler())
+renderer = GtkRenderer(manager, log)
+manager.renderer = renderer
+center = renderer.center
+for i in range(5):
+    manager.close(manager.notify('h', summary=f'h{i}'))   # history, newest first: h4 .. h0
+
+center.toggle('show')
+spin(100)
+assert center.grabbed
+assert selected() is None
+assert press('j') and selected() == 'h4'
+assert 'selected' in center.cards[0][0].get_child().get_style_context().list_classes()
+press('j'); press('Down')
+assert selected() == 'h2'
+press('j')                                       # past the last of 3 cards: loads more
+assert len(center.cards) == 5 and selected() == 'h1'
+press('k'); press('Up')
+assert selected() == 'h3'
+press('G'); assert selected() == 'h0'
+press('g'); assert selected() == 'h4'
+
+press('Return')                                  # shows it again; it stays in the history
+assert [n.summary for n in manager.active.values()] == ['h4']
+spin(100)
+assert center.cards[0][2] and center.cards[0][1]['summary'] == 'h4'   # now also an open card on top
+assert selected() == 'h4' and not center.cards[center.index()][2]   # still the history one
+press('d')                                       # forgets it: the selection moves to its neighbor
+spin(100)
+assert 'h4' not in [e['summary'] for e in manager.history]
+assert selected() == 'h3' and not center.cards[center.index()][2]
+press('k')                                       # up into the open ones
+assert selected() == 'h4' and center.cards[center.index()][2]
+press('d')                                       # closes the open one
+spin(100)
+assert not manager.active
+
+paused = manager.paused
+press('p'); assert manager.paused != paused
+press('p'); assert manager.paused == paused
+press('m'); assert manager.mode == 'focus'
+press('m'); assert manager.mode == 'normal'
+
+scale = center.volume_widgets[1]
+press('plus'); press('equal')
+assert scale.get_value() == 75
+press('minus')
+assert scale.get_value() == 70
+spin(150)
+
+assert not press('j', Gdk.ModifierType.CONTROL_MASK)   # chords are left alone
+assert not press('x')
+press('Escape')
+assert not center.visible and not center.grabbed
+
+manager.config.settings['center']['keyboard'] = False
+center.toggle('show')
+spin(100)
+assert center.visible and not center.grabbed
+print('ok')
+"""
+
+
+@pytest.mark.skipif(not shutil.which('Xvfb'), reason='needs Xvfb')
+def test_center_keyboard(pactl):
+    display = f':{70 + os.getpid() % 9}'
+    xvfb = subprocess.Popen(['Xvfb', display, '-screen', '0', '1280x720x24'], stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL)
+    try:
+        time.sleep(0.7)
+        result = subprocess.run([sys.executable, '-c', KEYS_SCRIPT, str(ROOT / 'src'), str(ROOT / 'tests')],
+                                env={**os.environ, 'DISPLAY': display, 'GIO_USE_VFS': 'local',
+                                     'DBUS_SESSION_BUS_ADDRESS': 'disabled:'},
+                                capture_output=True, text=True, timeout=30, check=False)
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == 'ok'
+        changes = [line for line in log_lines(pactl) if line.startswith('set-')]
+        assert changes == ['set-sink-volume @DEFAULT_SINK@ 70%'], changes   # debounced: the last step
+    finally:
+        xvfb.terminate()
+        xvfb.wait(5)

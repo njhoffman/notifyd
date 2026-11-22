@@ -40,11 +40,11 @@ Reviewed: 2026-11-22
       (`notifyd/mpris.py`), refreshed on the players' PropertiesChanged.
 - [x] **Center volume and mode picker.** (p3) [feature] swaync-style volume slider and mute for the
       default output (`notifyd/volume.py`, pactl), and a picker of the modes rules match on (0.7.0).
-- [ ] **Center keyboard use.** (p3) [feature] The center is an override-redirect popup without
+- [x] **Center keyboard use.** (p3) [feature] The center is an override-redirect popup without
       focus: grab the keyboard while it is open (as rofi does), release it on hide; retry the grab
       briefly when i3 still holds it. Keys: Esc/q close, j/k and arrows move between cards, Enter
       shows one again, d/Delete forgets or closes it, C clears, p do not disturb, m next mode,
-      space/n/N play-pause/next/previous, +/- volume. Planned as 0.8.0.
+      space/n/N play-pause/next/previous, +/- volume. Done in 0.8.0.
 - [ ] **Center remote cover art.** (p3) [feature] Spotify's `mpris:artUrl` is `https://i.scdn.co/...`,
       skipped now. Fetch http(s) art for the now-playing row only (not notification images, which
       keep the no-network rule) in a thread: 3 s timeout, 2 MB cap, cached under

@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-22 "notifyd 0.7.1" "User Commands"
+.TH NOTIFYD 1 2026-11-22 "notifyd 0.8.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -218,6 +218,27 @@ The notification center: a full\-height panel with a do\-not\-disturb toggle, a 
 previous, play/pause and next), the volume and mute of the default output (pactl), the open
 notifications and the history (click one to show it again, \(mu to forget it).
 SIGUSR1 toggles it too, as it did deadd's.
+While it is open it takes the keyboard:
+.BR j / k
+(or the arrows) move between cards,
+.BR g / G
+to the first and last,
+.B Enter
+acts like a left click,
+.BR d / Delete
+closes or forgets one,
+.B C
+clears,
+.B p
+toggles do not disturb,
+.B m
+picks the next mode,
+.BR space / n / N
+play\-pause, next and previous,
+.BR + / \-
+change the volume, and
+.BR Esc / q
+close it.
 .TP
 .BR pop " [\fIid\fR]"
 Show a closed notification again: the last one in the history, or
@@ -369,7 +390,7 @@ open one and is counted),
 (a command for each match),
 .B idle\-threshold
 (no expiry while the user is away that long),
-.BR center.width / side / hide\-on\-leave / mpris / volume / modes / cards ,
+.BR center.width / side / hide\-on\-leave / mpris / volume / modes / cards / keyboard ,
 .BR fade.in / out
 (ms; out defaults to 150, since picom does not fade translucent windows out),
 .BR history.size / keep / persist ,

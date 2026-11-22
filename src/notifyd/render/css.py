@@ -9,6 +9,7 @@ Style keys, all optional:
     progress: { color, background, height },
     button: { background, foreground, hover },
     center-card: background of a card in the notification center,
+    center-selected: outline of the card selected with the keyboard there,
     classes: { name: { Pango span attributes } }   (used by markup, not CSS)
     css: extra raw CSS, appended; `&` in it stands for the style's scope class
 
@@ -113,6 +114,8 @@ def build_css(style, scope):
         css += block(f'{center_card}.{urgency}', {'background-color': part.get('background')})
         if part.get('foreground'):
             css += block(f'{center_card}.{urgency} label', {'color': part['foreground']})
+    css += block(f'{center_card}.selected', {
+        'box-shadow': f"inset 0 0 0 2px {style.get('center-selected', 'rgba(255, 255, 255, 0.45)')}"})
     css += block(f'{card}.center .center-time', {'font-size': '28px', 'font-weight': 'bold'})
     for name in ('title', 'body', 'appname', 'time', 'count'):
         css += block(f'{card} .{name}', part_props(style.get(name)))

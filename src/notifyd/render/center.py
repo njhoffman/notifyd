@@ -11,6 +11,10 @@ Laying out the cards is what costs (GTK measures every wrapped label), so the pa
 between openings and rebuilt only after something changed: a notification, the mode, a player, the
 preset. What changes silently (the clock, the volume) is updated in place on each opening. The
 history shows the newest center.cards entries, with a button for more.
+
+While it is open it grabs the keyboard (it is an override-redirect popup, so it cannot take focus
+the usual way): j/k move between cards and scroll them into view, Enter acts like a left click,
+d removes one; see KEYS. center.keyboard: false leaves the keyboard alone.
 """
 
 import time
@@ -27,7 +31,28 @@ VOLUME_DELAY = 50   # ms after the slider stops moving before pactl is run
 
 REFRESH_EVENTS = {'shown', 'replaced', 'expired', 'dismissed', 'closed', 'suppressed', 'paused', 'resumed', 'mode',
                   'reload', 'history', 'queued', 'waiting'}
+# Idle priorities around GTK's own (resize 110, redraw 120): a rebuild runs before them, since a
+# scrollbar fading out redraws for a second and would hold back anything at the default 200; the
+# scroll to a selected card runs between them, once the card has its place.
+REBUILD_PRIORITY = GLib.PRIORITY_HIGH_IDLE
+SCROLL_PRIORITY = GLib.PRIORITY_HIGH_IDLE + 15
 CARDS = 20          # history cards shown at first, and how many more each "show more" adds
+GRAB_TRIES, GRAB_RETRY = 10, 50   # i3 can still hold the keyboard right after its binding ran
+VOLUME_STEP = 5
+
+# key name -> Center method name (and argument)
+KEYS = {
+    'Escape': ('hide',), 'q': ('hide',),
+    'j': ('move', 1), 'Down': ('move', 1), 'k': ('move', -1), 'Up': ('move', -1),
+    'g': ('move_to', 0), 'Home': ('move_to', 0), 'G': ('move_to', -1), 'End': ('move_to', -1),
+    'Return': ('activate',), 'KP_Enter': ('activate',),
+    'd': ('remove',), 'Delete': ('remove',),
+    'C': ('clear',), 'p': ('toggle_pause',), 'm': ('next_mode',),
+    'space': ('player', 'PlayPause'), 'n': ('player', 'Next'), 'N': ('player', 'Previous'),
+    'plus': ('step_volume', VOLUME_STEP), 'equal': ('step_volume', VOLUME_STEP),
+    'KP_Add': ('step_volume', VOLUME_STEP), 'minus': ('step_volume', -VOLUME_STEP),
+    'KP_Subtract': ('step_volume', -VOLUME_STEP),
+}
 
 
 class Center:
@@ -43,6 +68,12 @@ class Center:
         self.limit = None          # history cards shown; None: center.cards
         self.clock = None
         self.volume_widgets = None # (mute button, scale) to update in place
+        self.cards = []            # [(event box, entry, opened)] top to bottom, for the keyboard
+        self.selected = None       # (opened, id) of the selected card
+        self.selected_index = None # its place among the open or the closed cards, for its neighbor once gone
+        self.more = None           # the next limit when "show more" is there
+        self.scroll = None
+        self.grabbed = False
         renderer.log.listeners.append(self.on_event)
         self.bus = None
         try:
@@ -78,8 +109,9 @@ class Center:
             if self.renderer.visual is not None:
                 self.window.set_visual(self.renderer.visual)
             self.window.get_style_context().add_class('notifyd')
-            self.window.add_events(Gdk.EventMask.LEAVE_NOTIFY_MASK)
+            self.window.add_events(Gdk.EventMask.LEAVE_NOTIFY_MASK | Gdk.EventMask.KEY_PRESS_MASK)
             self.window.connect('leave-notify-event', self.on_leave)
+            self.window.connect('key-press-event', self.on_key)
         playing = self.now_playing()
         if self.dirty or self.built != (self.scope()[0], playing):
             self.rebuild(playing)
@@ -87,14 +119,34 @@ class Center:
             self.update_live()
         self.place()
         self.window.show_all()
+        self.grab_keyboard()
         self.renderer.log.emit('info', message='center shown')
 
     def hide(self):
+        self.ungrab_keyboard()
         if self.window is not None:
             self.window.hide()
         if self.limit is not None:   # "show more" lasts while it is open
             self.limit = None
             self.dirty = True
+
+    def grab_keyboard(self, tries=GRAB_TRIES):
+        if not self.visible or self.grabbed or not self.settings().get('keyboard', True):
+            return False
+        seat = Gdk.Display.get_default().get_default_seat()
+        status = seat.grab(self.window.get_window(), Gdk.SeatCapabilities.KEYBOARD, False, None, None, None, None)
+        if status == Gdk.GrabStatus.SUCCESS:
+            self.grabbed = True
+        elif tries > 1:
+            GLib.timeout_add(GRAB_RETRY, self.grab_keyboard, tries - 1)
+        else:
+            self.renderer.log.warn(f'center: no keyboard grab ({status.value_nick}); mouse only')
+        return False
+
+    def ungrab_keyboard(self):
+        if self.grabbed:
+            Gdk.Display.get_default().get_default_seat().ungrab()
+            self.grabbed = False
 
     def place(self):
         area = self.renderer.monitor_geometry()
@@ -117,7 +169,7 @@ class Center:
         self.dirty = True
         if self.visible and not self.pending:
             self.pending = True
-            GLib.idle_add(self.refresh)
+            GLib.idle_add(self.refresh, priority=REBUILD_PRIORITY)
 
     def on_player(self, *_args):
         self.on_event({'event': 'shown'})
@@ -211,6 +263,8 @@ class Center:
             panel.pack_start(self.volume_row(level), False, False, 0)
 
         rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.cards = []
+        self.more = None
         open_entries = self.manager.listing()
         closed = list(reversed(list(self.manager.history)))
         limit = self.limit or int(self.settings().get('cards') or CARDS)
@@ -227,11 +281,14 @@ class Center:
             more.get_style_context().add_class('center-more')
             more.connect('clicked', lambda _b: self.show_more(limit + step))
             rows.pack_start(more, False, False, 4)
+            self.more = limit + step
         if not open_entries and not closed:
             rows.pack_start(self.renderer.label('<i>No notifications</i>', 'body'), False, False, 12)
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.add(rows)
+        self.scroll = scroll
+        self.restore_selection()
         panel.pack_start(scroll, True, True, 0)
         self.window.add(panel)
 
@@ -281,7 +338,7 @@ class Center:
     def on_drag(self, _scale, _event, held):
         self.dragging = held
         if not held and self.pending:
-            GLib.idle_add(self.refresh)
+            GLib.idle_add(self.refresh, priority=REBUILD_PRIORITY)
         return False
 
     def on_mute(self, button):
@@ -361,7 +418,111 @@ class Center:
         events.add(box)
         if not opened:
             events.connect('button-release-event', lambda _w, _e: self.manager.pop(nid) and False)
+        self.cards.append((events, entry, opened))
         return events
+
+    # -- keyboard -------------------------------------------------------------
+    def on_key(self, _widget, event):
+        found = KEYS.get(Gdk.keyval_name(event.keyval))
+        if found is None or event.state & (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK):
+            return False
+        getattr(self, found[0])(*found[1:])
+        return True
+
+    def index(self):
+        keys = [(opened, entry['id']) for _box, entry, opened in self.cards]
+        return keys.index(self.selected) if self.selected in keys else None
+
+    def select(self, index):
+        for number, (box, _entry, _opened) in enumerate(self.cards):
+            context = box.get_child().get_style_context()
+            (context.add_class if number == index else context.remove_class)('selected')
+        if index is None:
+            self.selected = self.selected_index = None
+            return
+        box, entry, opened = self.cards[index]
+        group = [number for number, card in enumerate(self.cards) if card[2] == opened]
+        self.selected, self.selected_index = (opened, entry['id']), group.index(index)
+        GLib.idle_add(self.scroll_to, box, priority=SCROLL_PRIORITY)
+
+    def scroll_to(self, box):
+        if self.scroll is None or box.get_parent() is None:
+            return False
+        rows = self.scroll.get_child()
+        rows = rows.get_child() if isinstance(rows, Gtk.Viewport) else rows
+        position = box.translate_coordinates(rows, 0, 0)
+        if position:
+            top = position[1]
+            self.scroll.get_vadjustment().clamp_page(top, top + box.get_allocated_height())
+        return False
+
+    def restore_selection(self):
+        """The selected card after a rebuild: the same one, else the one now in its place."""
+        if self.selected is None or not self.cards:
+            self.select(None)
+            return
+        index = self.index()
+        if index is None:
+            # gone (closed, forgotten, shown again): the card now in its place in the same group
+            group = [number for number, card in enumerate(self.cards) if card[2] == self.selected[0]]
+            group = group or list(range(len(self.cards)))
+            index = group[min(self.selected_index or 0, len(group) - 1)]
+        self.select(index)
+
+    def move(self, delta):
+        if not self.cards:
+            return
+        index = self.index()
+        if index is None:
+            index = 0 if delta > 0 else len(self.cards) - 1
+        elif index + delta >= len(self.cards) and self.more:
+            self.show_more(self.more)              # j at the last card loads more
+            index = min(index + delta, len(self.cards) - 1)
+        else:
+            index = max(0, min(len(self.cards) - 1, index + delta))
+        self.select(index)
+
+    def move_to(self, index):
+        if self.cards:
+            self.select(index % len(self.cards))
+
+    def activate(self):
+        index = self.index()
+        if index is None:
+            return
+        _box, entry, opened = self.cards[index]
+        if opened:
+            self.manager.click(entry['id'], 'left')
+        else:
+            self.manager.pop(entry['id'])
+
+    def remove(self):
+        index = self.index()
+        if index is None:
+            return
+        _box, entry, opened = self.cards[index]
+        if opened:
+            self.manager.close(entry['id'])
+        else:
+            self.forget(entry['id'])
+
+    def toggle_pause(self):
+        self.manager.pause(not self.manager.paused)
+
+    def next_mode(self):
+        modes = known_modes(self.manager.config.rules, self.manager.mode)
+        self.manager.set_mode(modes[(modes.index(self.manager.mode) + 1) % len(modes)])
+
+    def player(self, method):
+        playing = self.built[1] if self.built else None
+        if playing and self.bus:
+            mpris.command(self.bus, playing['name'], method)
+
+    def step_volume(self, delta):
+        if not self.volume_widgets:
+            return
+        _mute, scale = self.volume_widgets
+        scale.set_value(max(0, min(100, scale.get_value() + delta)))   # the slider runs pactl (debounced)
 
     def forget(self, nid):
         self.manager.forget(nid)
