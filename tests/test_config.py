@@ -102,3 +102,19 @@ def test_user_presets_shadow_bundled_ones(tmp_path, monkeypatch):
     (tmp_path / 'notifyd' / 'presets').mkdir(parents=True)
     (tmp_path / 'notifyd' / 'presets' / 'deadd.yaml').write_text('description: mine\nstyle: {foreground: red}\n')
     assert load_preset('deadd')['style'] == {'foreground': 'red'}
+
+
+def test_preset_descriptions_are_read_whole():
+    # an unquoted ' #acf' in YAML starts a comment and cut the description there
+    from pathlib import Path
+
+    import notifyd
+    presets = Path(notifyd.__file__).parent / 'presets'
+    for name in preset_names():
+        path = presets / f'{name}.yaml'
+        if not path.exists():
+            continue                           # a user preset elsewhere
+        first = path.read_text().splitlines()[0]
+        assert first.startswith('description: '), path
+        raw = first[len('description: '):].strip().strip('\'"')
+        assert load_preset(name)['description'] == raw, name

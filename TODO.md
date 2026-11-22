@@ -52,7 +52,7 @@ Reviewed: 2026-11-22
 
 ## 11. Maintenance
 
-- [ ] **Preset descriptions cut at `#`.** (p2) [bug] `description:` in `presets/deadd.yaml` and
+- [x] **Preset descriptions cut at `#`.** (p2) [bug] `description:` in `presets/deadd.yaml` and
       `presets/dunst.yaml` is unquoted, so YAML reads ` #acf text` and ` #000811, thin frame...` as
       comments: `notifyd presets` prints "...on" for dunst and "...shadow)," for deadd, and
       `docs/presets.md` carries the cut text. Quote them, and add a test that every preset's
@@ -60,10 +60,10 @@ Reviewed: 2026-11-22
 - [x] **Man page version is stale.** (p3) [docs] `share/man/man1/notifyd.1` says `notifyd 0.6.0`
       while `__version__` is 0.6.1; nothing keeps them together. Test that `.TH` names the current
       version (or stamp it in `just install`).
-- [ ] **README install section predates the switch.** (p3) [docs] It still says to restart deadd
+- [x] **README install section predates the switch.** (p3) [docs] It still says to restart deadd
       with `notify-daemon ensure` and to link the unit by hand; now `notify-daemon use notifyd`
       (shell 0.126.0) does the switch, and `notify-daemon use deadd` goes back.
-- [ ] **`just install` links the systemd unit.** (p3) [chore] It links the binary, man page and
+- [x] **`just install` links the systemd unit.** (p3) [chore] It links the binary, man page and
       completions but not `share/systemd/notifyd.service`, which had to be linked by hand.
 - [ ] **History keeps the sender.** (p3) [feature] Entries have no sender pid, process name or
       `desktop-entry` hint, so two senders using one app name (the Spotify client and musicman, both

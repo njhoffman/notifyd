@@ -13,13 +13,13 @@ Rounded card for media - generous padding, soft border, large title.
 
 ## deadd
 
-Deadd-notification-center as configured here - black card at 0.8, no frame (picom draws the shadow),.
+Deadd-notification-center as configured here - black card at 0.8, no frame (picom draws the shadow), #acf text.
 
 ![deadd](presets/deadd.png)
 
 ## dunst
 
-The dunstrc in use here - Iosevka Term 13 on.
+The dunstrc in use here - Iosevka Term 13 on #000811, thin frame colored by urgency, rounded 5px.
 
 ![dunst](presets/dunst.png)
 

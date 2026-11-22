@@ -1,4 +1,4 @@
-description: deadd-notification-center as configured here - black card at 0.8, no frame (picom draws the shadow), #acf text
+description: 'deadd-notification-center as configured here - black card at 0.8, no frame (picom draws the shadow), #acf text'
 style:
   background: rgba(0, 0, 0, 0.8)
   foreground: '#acf'

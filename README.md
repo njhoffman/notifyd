@@ -20,14 +20,19 @@ Needs Python 3.11+, PyGObject with GTK 3, and PyYAML (all from the distribution 
 add `pip install --no-build-isolation` offline), else pip tries to build PyGObject from source.
 
 ```sh
-just install                 # links bin/notifyd and the man page into ~/.local, writes completions
+just install                 # links bin/notifyd, the man page and the systemd user unit, writes completions
 just import-deadd            # writes ~/.config/notifyd/config.yaml from ~/.config/deadd
-notifyd daemon --replace     # take over from the running daemon (Ctrl-C hands nothing back;
-                             # restart deadd with `notify-daemon ensure`)
+notifyd daemon --replace     # try it in the foreground, taking over from the running daemon
+                             # (Ctrl-C hands nothing back: restart the old one yourself)
 ```
 
-As a service: link `share/systemd/notifyd.service` into `~/.config/systemd/user/` and enable it
-instead of deadd's.
+To keep it, run it as the `notifyd.service` user unit instead of the old daemon's. With
+`notify-daemon` from [~/.shell](https://github.com/njhoffman/shell) that is
+`notify-daemon use notifyd`: it stops and disables the other daemons' units, enables and starts
+notifyd's, and points D-Bus activation at it (`notify-daemon use deadd` goes back). Without it:
+disable the old daemon's unit, then `systemctl --user enable --now notifyd.service`. The unit
+starts with `xsession.target`, which the X session (the i3 config here) has to start. Its log is
+`notifyd ctl watch` (live, colored) or `journalctl --user -u notifyd`.
 
 ## Use
 

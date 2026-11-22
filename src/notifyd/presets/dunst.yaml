@@ -1,4 +1,4 @@
-description: the dunstrc in use here - Iosevka Term 13 on #000811, thin frame colored by urgency, rounded 5px
+description: 'the dunstrc in use here - Iosevka Term 13 on #000811, thin frame colored by urgency, rounded 5px'
 style:
   font-family: Iosevka Term
   font-size: 13pt

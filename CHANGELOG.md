@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-22
+
+### Changed
+
+- `just install` also links the systemd user unit into `~/.config/systemd/user/` (it does not
+  enable it).
+- README: installing as a service is `notify-daemon use notifyd` (or enabling the unit by hand),
+  and where its log is.
+
+### Fixed
+
+- The deadd and dunst presets' descriptions were cut at their first color (`#acf`, `#000811`),
+  which YAML read as a comment; `notifyd presets` and `docs/presets.md` show them whole.
+
 ## [0.8.0] - 2026-11-22
 
 ### Added

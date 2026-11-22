@@ -36,6 +36,11 @@ install:
     data="${XDG_DATA_HOME:-$HOME/.local/share}"
     link "$(pwd -P)/bin/notifyd" "${XDG_BIN_HOME:-$HOME/.local/bin}/notifyd"
     link "$(pwd -P)/share/man/man1/notifyd.1" "$data/man/man1/notifyd.1"
+    # the user unit, linked (not enabled: `notify-daemon use notifyd`, or `systemctl --user enable`)
+    link "$(pwd -P)/share/systemd/notifyd.service" "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/notifyd.service"
+    if command -v systemctl >/dev/null && systemctl --user show-environment >/dev/null 2>&1; then
+      systemctl --user daemon-reload
+    fi
     just completions
 
 # write the completion scripts where zsh, bash and fish look for them
