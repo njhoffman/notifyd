@@ -151,7 +151,7 @@ Reviewed: 2026-11-10
       deadd-notification-center)` (`~/.config/i3/conf.d/60-apps.conf:101`); with notifyd it needs
       `notifyd ctl center` (or `pkill -USR1 -x notifyd`: `pidof` matches the executable, which is
       python3 for notifyd). Belongs to the i3 config when notifyd replaces deadd.
-- [ ] **Stale deadd config copy.** (p3) [chore] `~/.config/deadd.yml` is an older copy of
+- [x] **Stale deadd config copy.** (p3) [chore] `~/.config/deadd.yml` is an older copy of
       `~/.config/deadd/deadd.yml` (no backdrop rule); the importer reads the latter, and the old
       file can go.
 
