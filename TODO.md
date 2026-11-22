@@ -10,7 +10,60 @@ center after popups + history) are under Completed.
 
 Reviewed: 2026-11-10
 
-## 2. Core daemon
+## 5. Sender and control CLI
+
+- [x] **notifyd send.** (p1) [feature] notify-send flags plus `--replace-name`
+      (`--replaces-process`), `--tag`, `--image`, `--progress`, `--close`; waits and prints the
+      chosen action.
+- [x] **notifyd ctl.** (p2) [feature] status, history, close, action, close-all, pause, resume,
+      toggle, reload, preset, preview, watch; over the `io.github.njhoffman.Notifyd` interface.
+- [x] **Shell completion.** (p3) [feature] `notifyd completion zsh|bash|fish`, generated from
+      the argparse tree; preset names complete live.
+- [x] **Complete notification ids.** (p3) [feature] `ctl close`/`ctl action` ids could complete
+      from the daemon: `ctl list --ids`, with the summary as the description in zsh and fish.
+- [ ] **Run the fish completion.** (p3) [test] fish is not installed here, so the fish script is
+      only checked for its shape (`tests/test_cli.py`); `fish --no-execute` and `complete -C`
+      tests skip. Check it on a machine with fish.
+- [x] **Help and version.** (p2) [feature] `-h/--help` on every command with examples,
+      `notifyd help [COMMAND]`, `notifyd version`, `-V`.
+- [x] **Man page.** (p2) [docs] `share/man/man1/notifyd.1`; a test fails when a command or
+      option is missing from it or its version is stale.
+- [x] **Process name.** (p2) [bug] The daemon ran as `python3` in `/proc/PID/comm`, so a second
+      daemon reported "owned by python3" and `pgrep notifyd` found nothing; it now sets its name
+      with `prctl(PR_SET_NAME)`.
+
+## 10. Notification center
+
+- [x] **Center sidebar.** (p2) [feature] deadd's sidebar: history as cards, clear all, the pause
+      toggle, opened with `notifyd ctl center` (and SIGUSR1 for the current i3 binding).
+- [x] **Center now playing.** (p3) [feature] MPRIS now playing with previous/play-pause/next
+      (`notifyd/mpris.py`), refreshed on the players' PropertiesChanged.
+- [ ] **More center widgets.** (p3) [feature] swaync-style volume slider and mode picker; keyboard
+      use (the center is a popup without focus); remote cover art (http artUrl is skipped now).
+
+## Completed
+
+### 1. Decisions (completed 2026-11-10)
+
+- [x] **Language and toolkit.** (p1) [chore] Python + GTK3: GTK CSS for presets and live preview,
+      native Pango, same stack as displayd. GTK4 cannot position windows on X11.
+- [x] **Config format.** (p1) [chore] YAML.
+- [x] **Agree on the config schema.** (p1) [docs] As in `docs/config.md`.
+- [x] **Markup syntax for senders.** (p1) [chore] Pango plus preset-named styles
+      (`<span class="accent">`).
+- [x] **Timeout precedence.** (p2) [chore] A rule's timeout wins over the sender's.
+- [x] **Notification center scope.** (p2) [chore] Popups + history first, the center later.
+
+### 8. Project setup (completed 2026-11-10)
+
+- [x] **Scaffold.** (p1) [chore] `src/notifyd`, `bin/notifyd`, pyproject (version in
+      `notifyd/__init__.py`), ruff, Justfile (`test`, `lint`, `run`, `preview`, `install`,
+      `import-deadd`), systemd unit.
+- [x] **Tests.** (p1) [test] 118 pytest cases: config, rules, markup, manager (fake clock),
+      importer, log, CSS, send parsing, and the daemon end to end on a private D-Bus, with the
+      GTK renderer under Xvfb.
+
+### 2. Core daemon (completed 2026-11-22)
 
 - [x] **D-Bus server.** (p1) [feature] Own `org.freedesktop.Notifications`: `Notify`,
       `CloseNotification`, `GetCapabilities`, `GetServerInformation` (spec 1.2), signals
@@ -56,7 +109,7 @@ Reviewed: 2026-11-10
       until then. Now `monitors-changed` lays them out again, and the stack keeps the monitor it
       opened on until it is empty.
 
-## 3. Rules and interception
+### 3. Rules and interception (completed 2026-11-22)
 
 - [x] **Rule engine.** (p1) [feature] Ordered rules; `match` on app, summary, body, icon,
       category, urgency, desktop-entry, stack tag and any hint; exact, list or `/regex/i`. A
@@ -70,7 +123,7 @@ Reviewed: 2026-11-10
 - [x] **Rule tracing.** (p2) [feature] `notifyd rules --app X --summary Y ...` shows which rules
       match and the resulting settings and timeout; the log lists matched rules per event.
 
-## 4. Rendering and presets
+### 4. Rendering and presets (completed 2026-11-22)
 
 - [x] **Popup window.** (p1) [feature] Override-redirect GTK3 window, RGBA visual, WM class
       `Notifyd`, title `notifyd` (picom's `! name~=''` excludes nameless windows from shadows),
@@ -87,7 +140,7 @@ Reviewed: 2026-11-10
       clicks per `click.left/middle/right`.
 - [x] **Hot reload.** (p2) [feature] On file change, SIGHUP or `ctl reload`; a broken file keeps
       the old config and says why.
-- [ ] **Check translucency and shadow on the real desktop.** (p1) [test] Under Xvfb picom
+- [x] **Check translucency and shadow on the real desktop.** (p1) [test] Under Xvfb picom
       draws a black root, so the 0.8 opacity and the shadow were not seen. Run
       `notifyd daemon --replace` on i3 + picom and compare with deadd side by side.
 - [x] **Slide/fade animations.** (p3) [feature] Fade in/out (window opacity steps on a GLib
@@ -96,29 +149,7 @@ Reviewed: 2026-11-10
 - [x] **Preset gallery.** (p3) [docs] Screenshots of each preset in `docs/presets.md`
       (`tools/gallery.sh`, Xvfb without a compositor, so translucency is not shown).
 
-## 5. Sender and control CLI
-
-- [x] **notifyd send.** (p1) [feature] notify-send flags plus `--replace-name`
-      (`--replaces-process`), `--tag`, `--image`, `--progress`, `--close`; waits and prints the
-      chosen action.
-- [x] **notifyd ctl.** (p2) [feature] status, history, close, action, close-all, pause, resume,
-      toggle, reload, preset, preview, watch; over the `io.github.njhoffman.Notifyd` interface.
-- [x] **Shell completion.** (p3) [feature] `notifyd completion zsh|bash|fish`, generated from
-      the argparse tree; preset names complete live.
-- [x] **Complete notification ids.** (p3) [feature] `ctl close`/`ctl action` ids could complete
-      from the daemon: `ctl list --ids`, with the summary as the description in zsh and fish.
-- [ ] **Run the fish completion.** (p3) [test] fish is not installed here, so the fish script is
-      only checked for its shape (`tests/test_cli.py`); `fish --no-execute` and `complete -C`
-      tests skip. Check it on a machine with fish.
-- [x] **Help and version.** (p2) [feature] `-h/--help` on every command with examples,
-      `notifyd help [COMMAND]`, `notifyd version`, `-V`.
-- [x] **Man page.** (p2) [docs] `share/man/man1/notifyd.1`; a test fails when a command or
-      option is missing from it or its version is stale.
-- [x] **Process name.** (p2) [bug] The daemon ran as `python3` in `/proc/PID/comm`, so a second
-      daemon reported "owned by python3" and `pgrep notifyd` found nothing; it now sets its name
-      with `prctl(PR_SET_NAME)`.
-
-## 6. Logging
+### 6. Logging (completed 2026-11-22)
 
 - [x] **Colored event log.** (p1) [feature] One aligned line per event, colored by urgency and
       event; `NO_COLOR` and non-terminals plain.
@@ -126,7 +157,7 @@ Reviewed: 2026-11-10
 - [x] **Log levels.** (p3) [feature] `-v/-q`, `log.level`.
 - [x] **Log file.** (p3) [feature] `log.file`, plain lines (rotation is left to logrotate).
 
-## 7. Integration with this desktop
+### 7. Integration with this desktop (completed 2026-11-22)
 
 - [x] **deadd importer.** (p1) [feature] `notifyd import deadd [-o config]`; style values equal to
       the deadd preset are left out, unsupported keys are reported.
@@ -155,41 +186,10 @@ Reviewed: 2026-11-10
       `~/.config/deadd/deadd.yml` (no backdrop rule); the importer reads the latter, and the old
       file can go.
 
-## 10. Notification center
-
-- [x] **Center sidebar.** (p2) [feature] deadd's sidebar: history as cards, clear all, the pause
-      toggle, opened with `notifyd ctl center` (and SIGUSR1 for the current i3 binding).
-- [x] **Center now playing.** (p3) [feature] MPRIS now playing with previous/play-pause/next
-      (`notifyd/mpris.py`), refreshed on the players' PropertiesChanged.
-- [ ] **More center widgets.** (p3) [feature] swaync-style volume slider and mode picker; keyboard
-      use (the center is a popup without focus); remote cover art (http artUrl is skipped now).
-
-## 9. Project
+### 9. Project (completed 2026-11-22)
 
 - [x] **Spec compliance check.** (p2) [test] A script sending every hint and action combination
       used by musicman, backdrop and displayd, compared across notifyd, deadd and dunst:
       `just compliance` (`tools/compare.sh`); results in `docs/research.md` section 6.
 - [x] **Packaging.** (p3) [chore] Installs into a venv made with `--system-site-packages`
       (`pip install --no-build-isolation .` offline), presets included; README says so.
-
-## Completed
-
-### 1. Decisions (completed 2026-11-10)
-
-- [x] **Language and toolkit.** (p1) [chore] Python + GTK3: GTK CSS for presets and live preview,
-      native Pango, same stack as displayd. GTK4 cannot position windows on X11.
-- [x] **Config format.** (p1) [chore] YAML.
-- [x] **Agree on the config schema.** (p1) [docs] As in `docs/config.md`.
-- [x] **Markup syntax for senders.** (p1) [chore] Pango plus preset-named styles
-      (`<span class="accent">`).
-- [x] **Timeout precedence.** (p2) [chore] A rule's timeout wins over the sender's.
-- [x] **Notification center scope.** (p2) [chore] Popups + history first, the center later.
-
-### 8. Project setup (completed 2026-11-10)
-
-- [x] **Scaffold.** (p1) [chore] `src/notifyd`, `bin/notifyd`, pyproject (version in
-      `notifyd/__init__.py`), ruff, Justfile (`test`, `lint`, `run`, `preview`, `install`,
-      `import-deadd`), systemd unit.
-- [x] **Tests.** (p1) [test] 118 pytest cases: config, rules, markup, manager (fake clock),
-      importer, log, CSS, send parsing, and the daemon end to end on a private D-Bus, with the
-      GTK renderer under Xvfb.
