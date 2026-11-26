@@ -7,8 +7,12 @@ After=graphical-session.target
 [Service]
 # `just install` symlinks bin/notifyd here. DISPLAY and the session bus come from the user
 # manager's environment (the i3 config starts xsession.target after importing them).
-Type=dbus
-BusName=org.freedesktop.Notifications
+# Type=simple with no BusName=: systemd lets only one loaded unit name a bus name, and refuses
+# the second it loads ("Two services allocated for the same bus name"). With another daemon's
+# unit claiming org.freedesktop.Notifications too (dunst's ships with BusName=), either could
+# become unloadable after a daemon-reload. notifyd takes the name itself, D-Bus activation still
+# starts this unit through SystemdService=, and notify-daemon waits for the owner.
+Type=simple
 ExecStart=%h/.local/bin/notifyd daemon
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always

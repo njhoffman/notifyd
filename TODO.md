@@ -74,6 +74,11 @@ Reviewed: 2026-11-22
       that share an app name (the Spotify client and musicman both send "Spotify").
 - [x] **Center has no tests of its own.** (p3) [test] `render/center.py` is only exercised through
       the daemon tests; the widget work (section 10) adds `tests/test_center.py` for its rows.
+- [x] **The unit claims the bus name.** (p2) [bug] `share/systemd/notifyd.service` had
+      `Type=dbus` and `BusName=org.freedesktop.Notifications`, like dunst's unit; systemd refuses
+      the second unit it loads that names the same bus, so after a daemon-reload notifyd's unit
+      could not start (seen 2026-11-25 on charon). Done 2026-11-25 (0.11.1): `Type=simple`, no
+      `BusName=`; `tests/test_unit.py`.
 
 ## Completed
 

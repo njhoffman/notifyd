@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-11-25
+
+### Fixed
+
+- `notifyd.service` no longer names `org.freedesktop.Notifications` as its `BusName=` (it is
+  `Type=simple` now). systemd lets only one loaded unit name a bus name, so with dunst's unit
+  installed too, a daemon-reload could leave notifyd's unit unloadable ("Two services allocated
+  for the same bus name"): it could not restart or be started by D-Bus activation. notifyd still
+  takes the name itself, and D-Bus activation still starts the unit.
+
 ## [0.11.0] - 2026-11-22
 
 ### Added
