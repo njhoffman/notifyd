@@ -7,7 +7,10 @@ Style keys, all optional:
     title / body / appname / time / count: { size, weight, style, color, family },
     low / normal / critical: { background, foreground, border-color },
     progress: { color, background, height },
-    button: { background, foreground, hover },
+    timeout-bar: { color, background, height }   (drawn by the renderer, not CSS)
+    button: { background, foreground, hover, radius, on },   (on: a center button whose state is on)
+    accent: the on-color of center buttons when button.on is not set,
+    markup-error: color of the "markup error" mark,
     center-card: background of a card in the notification center,
     center-selected: outline of the card selected with the keyboard there,
     classes: { name: { Pango span attributes } }   (used by markup, not CSS)
@@ -131,13 +134,6 @@ def build_css(style, scope):
     css += block(f'{card} progressbar progress', {
         'background-color': progress.get('color', style.get('foreground')),
         'min-height': height, 'border': 'none', 'background-image': 'none'})
-    bar = style.get('timeout-bar') or {}
-    bar_height = px(bar.get('height', 2))
-    css += block(f'{card} progressbar.timeout-bar trough', {
-        'background-color': bar.get('background', 'transparent'), 'min-height': bar_height})
-    css += block(f'{card} progressbar.timeout-bar progress', {
-        'background-color': bar.get('color', progress.get('color', style.get('foreground'))),
-        'min-height': bar_height, 'opacity': '0.6'})
     button = style.get('button') or {}
     css += block(f'{card} button', {
         'background-color': button.get('background', 'rgba(255, 255, 255, 0.08)'),

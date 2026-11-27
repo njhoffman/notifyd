@@ -460,6 +460,13 @@ assert timeout == 4000 and 'timeout-bar' in bar.get_style_context().list_classes
 manager.scheduler.advance(1000)
 renderer.tick_timeout_bar(timed)
 assert abs(bar.get_fraction() - 0.75) < 0.01, bar.get_fraction()
+spin(100)
+assert bar.get_allocated_height() == 2 and bar.color.to_string() == 'rgb(0,215,215)'   # thin and cyan
+styled = manager.notify('a', summary='styled', extra={
+    'timeout': 4000, 'style': {'timeout-bar': {'color': '#ff8800', 'height': 5}}})
+spin(100)
+styled_bar = renderer.timeout_bars[styled][0]
+assert styled_bar.get_allocated_height() == 5 and styled_bar.color.to_string() == 'rgb(255,136,0)'
 untimed = manager.notify('a', summary='never', extra={'timeout': 0})
 assert untimed not in renderer.timeout_bars                 # nothing to count down
 manager.close(timed)

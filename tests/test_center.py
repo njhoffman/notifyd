@@ -481,12 +481,12 @@ from pathlib import Path
 manager.thumbs_path = Path(tempfile.mkdtemp())
 manager.config.settings['rules'] = load_config(text='rules:\n- match: {app: pic}\n  markup: plain\n').settings['rules']
 pic = manager.notify('pic', summary='<b>raw</b>', hints={'image-data': (8, 8, 24, False, 8, 3, bytes(192))})
-spin(100)
+assert wait_for(lambda: any(c[1]['id'] == pic and c[2] for c in center.cards))   # rebuilt at idle
 open_card = [c for c in center.cards if c[1]['id'] == pic and c[2]][0][0]
 assert widgets(open_card, Gtk.Image), 'the open card shows its image-data'
 manager.close(pic)
 center.refresh()
-spin(100)
+assert wait_for(lambda: any(c[1]['id'] == pic and not c[2] for c in center.cards))
 card = [c for c in center.cards if c[1]['id'] == pic][0][0]
 images = widgets(card, Gtk.Image)
 assert images and images[0].get_pixbuf() is not None and manager.history.entries[-1]['thumb']

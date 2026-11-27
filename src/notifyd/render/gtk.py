@@ -37,6 +37,7 @@ from notifyd.render.css import build_css, resolve_style, style_class  # noqa: E4
 
 BUTTONS = {1: 'left', 2: 'middle', 3: 'right'}
 TIMEOUT_BAR_TICK = 100   # ms between timeout-bar updates
+TIMEOUT_BAR_DEFAULTS = {'color': '#00d7d7', 'background': 'transparent', 'height': 2}   # thin and cyan
 IMAGE_HINTS = ('image-data', 'image_data')
 IMAGE_PATH_HINTS = ('image-path', 'image_path')
 
@@ -92,6 +93,45 @@ def load_pixbuf(source, size, color=None):
         return None
 
 
+class TimeoutBar(Gtk.DrawingArea):
+    """A bar of exactly HEIGHT px, FRACTION of it in COLOR over BACKGROUND, drawn with cairo: a
+    GtkProgressBar keeps the theme's minimum height (6 px here) whatever the CSS says."""
+
+    def __init__(self, color, background, height):
+        super().__init__()
+        self.fraction = 1.0
+        self.color = rgba(color) or rgba(TIMEOUT_BAR_DEFAULTS['color'])
+        self.background = rgba(background)
+        try:
+            height = max(int(str(height).removesuffix('px')), 1)
+        except ValueError:
+            height = TIMEOUT_BAR_DEFAULTS['height']
+        self.set_size_request(-1, height)
+        self.set_hexpand(True)
+        self.get_style_context().add_class('timeout-bar')
+        self.connect('draw', self.on_draw)
+
+    def set_fraction(self, fraction):
+        fraction = min(max(fraction, 0.0), 1.0)
+        if fraction != self.fraction:
+            self.fraction = fraction
+            self.queue_draw()
+
+    def get_fraction(self):
+        return self.fraction
+
+    def on_draw(self, _widget, cr):
+        width, height = self.get_allocated_width(), self.get_allocated_height()
+        if self.background is not None and self.background.alpha > 0:
+            Gdk.cairo_set_source_rgba(cr, self.background)
+            cr.rectangle(0, 0, width, height)
+            cr.fill()
+        Gdk.cairo_set_source_rgba(cr, self.color)
+        cr.rectangle(0, 0, width * self.fraction, height)
+        cr.fill()
+        return False
+
+
 class GtkRenderer:
     def __init__(self, manager, log):
         ok, _argv = Gtk.init_check(sys.argv)
@@ -103,7 +143,7 @@ class GtkRenderer:
         self.measured = None       # (notification, window) built by fits() for show()
         self.fades = {}            # window -> its running fade's GLib source
         self.bodies = {}           # notification id -> (body label, max-lines) when its body is capped
-        self.timeout_bars = {}     # notification id -> (progress bar, timeout ms, tick source)
+        self.timeout_bars = {}     # notification id -> (TimeoutBar, timeout ms, tick source)
         self.waiting_labels = {}   # notification id -> its header's +N label
         self.expanded = set()      # ids whose capped body is shown in full while hovered
         self.fade_out = {}         # notification id -> its fade.out (ms), from its own settings
@@ -411,8 +451,8 @@ class GtkRenderer:
         card.pack_start(content, False, False, 0)
         self.stop_timeout_bar(n.id)
         if settings.get('timeout-bar') and n.timeout > 0:
-            bar = Gtk.ProgressBar()
-            bar.get_style_context().add_class('timeout-bar')
+            look = {**TIMEOUT_BAR_DEFAULTS, **(style.get('timeout-bar') or {})}
+            bar = TimeoutBar(look['color'], look['background'], look['height'])
             bar.set_margin_top(6)
             card.pack_end(bar, False, False, 0)
             self.timeout_bars[n.id] = (bar, n.timeout, GLib.timeout_add(TIMEOUT_BAR_TICK, self.tick_timeout_bar, n.id))
@@ -601,7 +641,7 @@ class GtkRenderer:
             return False
         bar, timeout, _source = found
         remaining = self.manager.remaining(nid)
-        bar.set_fraction(min(max((remaining or 0) / timeout, 0.0), 1.0) if remaining is not None else 1.0)
+        bar.set_fraction((remaining or 0) / timeout if remaining is not None else 1.0)
         return True
 
     def stop_timeout_bar(self, nid):

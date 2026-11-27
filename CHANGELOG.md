@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.25.1] - 2026-11-27
+
+### Fixed
+
+- The timeout bar is drawn at exactly its `height` (default now 2 px) in its `color` (default now
+  cyan, `#00d7d7`): it was a GtkProgressBar, which kept the theme's 6 px minimum whatever the
+  style said. Set it with `style: {timeout-bar: {color, background, height}}`.
+- docs/config.md lists every style key, including `timeout-bar`, `count`, `button.on`, `accent`,
+  `markup-error`, `center-card` and `center-selected`, and the widget classes raw `css` can target.
+
 ## [0.25.0] - 2026-11-27
 
 ### Added

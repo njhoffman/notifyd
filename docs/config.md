@@ -29,7 +29,7 @@ missing file gives the deadd look. The daemon reloads the file when it changes (
 | `title.max-lines` / `body.max-lines` | `0` / `6` | longer summaries and bodies end in … (`0`: no limit), counting both wrapped lines and line breaks; hovering a popup shows its whole body, and `e` does on the selected center card |
 | `markup` | `full` | `full` (Pango), `strip` (text only), `plain` (tags shown as typed) |
 | `lock.pause` / `lock.processes` | `false` / `[i3lock, xsecurelock, slock, betterlockscreen]` | `pause: true` holds every notification back (critical ones too: popups can stack above an X locker) while the screen is locked, checked every 2 s: logind's `LockedHint` for this session, or one of `processes` running; unlocking shows them, unless do not disturb is on. `ctl status` shows `locked`. Not settable in a rule |
-| `timeout-bar` | `false` | `true` (also in a rule): a thin bar along the bottom of the popup drains as its timer runs and stops while it is hovered; the style key `timeout-bar: {color, background, height}` sets its look (height 2 px) |
+| `timeout-bar` | `false` | `true` (also in a rule): a thin bar along the bottom of the popup drains as its timer runs and stops while it is hovered; its look is the style key `timeout-bar: {color, background, height}` (default cyan `#00d7d7`, transparent background, 2 px; drawn at exactly that height, whatever the GTK theme), e.g. `style: {timeout-bar: {color: '#ff8800', height: 3}}` |
 | `ignore-close` | `false` | `true` (usually in a rule): the app closing its own notification (CloseNotification) is ignored, so it stays until it expires or you close it (dunst's `ignore_dbusclose`) |
 | `fullscreen` | `show` | `delay`: while the focused window covers the stack's monitor (a video, a game), notifications wait and show when it ends (critical ones always show); `match: {fullscreen: true}` matches on that state. dunst's `pushback` is not possible with override-redirect popups |
 | `hide` | `[]` | any of `app-icon app-name time title body image actions progress` |
@@ -118,14 +118,23 @@ style:
   padding: [10, 15]                  # [vertical, horizontal]
   spacing: 4                         # between header, content, actions
   title: { size: 16px, weight: bold, color: '#fff', style: italic, family: Sans }
-  body: { ... }  appname: { ... }  time: { ... }
+  body: { ... }  appname: { ... }  time: { ... }  count: { ... }
   low: { background: ..., foreground: ..., border-color: ... }   # also normal, critical
-  progress: { color: '#acf', background: '...', height: 6 }
-  button: { background: ..., foreground: ..., hover: ..., radius: 3 }
+  progress: { color: '#acf', background: '...', height: 6 }     # the value hint's bar
+  timeout-bar: { color: '#00d7d7', background: transparent, height: 2 }   # with timeout-bar: true
+  button: { background: ..., foreground: ..., hover: ..., radius: 3, on: ... }   # on: a center button whose state is on
+  accent: '#7aa2f7'                  # on-color of center buttons when button.on is not set
+  markup-error: '#e0af68'            # the "markup error" mark
+  center-card: 'rgba(255, 255, 255, 0.06)'   # a card in the center
+  center-selected: 'rgba(255, 255, 255, 0.45)'   # outline of the keyboard-selected card
   classes:                           # named styles for notification text, see Markup
     accent: { foreground: '#7aa2f7', weight: bold }
   css: '& .title { letter-spacing: 1px; }'   # raw GTK CSS; & is this style's scope
 ```
+
+For anything else, `css` can target the widgets' classes: `.title`, `.body`, `.appname`, `.time`,
+`.count`, `.waiting` (the `+N`), `.markup-error`, `.image`, `.appicon`, and in the center
+`.center-card`, `.center-group`, `.center-button`, `.center-more`.
 
 The shadow comes from the compositor. The windows are named `notifyd`, class `Notifyd`, so picom
 rules can target them (picom's `! name~=''` shadow exclusion does not hit them).
