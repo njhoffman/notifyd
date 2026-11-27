@@ -70,7 +70,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       non-numeric `width` or `image.margin-right`, an unreadable preset raising `OSError` in
       `style_for`) no timer starts and the id holds a `max-visible` slot forever. Catch, log and
       roll back; type-check numeric settings in `config.normalize`.
-- [ ] **Held-back notifications are lost on shutdown.** (p2) [bug] `close_all` covers `displayed +
+- [x] **Held-back notifications are lost on shutdown.** (p2) [bug] `close_all` covers `displayed +
       waiting` only, so notifications held back by do-not-disturb never reach history or get
       `NotificationClosed` when the daemon stops (`daemon.py:284`); `paused` is not in
       `state.json` either. Close them with reason 4 (or persist the queue) and persist `paused`.

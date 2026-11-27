@@ -74,9 +74,12 @@ class Manager:
         self.sound = sound or (lambda name: None)
         self.idle = idle or (lambda: 0)
         self.state_path = Path(state_path) if state_path else None
-        self.mode = self._load_state().get('mode') or 'normal'
+        state = self._load_state()
+        self.mode = state.get('mode') or 'normal'
         # ids go on from the kept history, so pop and forget never mix up an old one with a new one
         self.next_id = max((e.get('id', 0) for e in self.history), default=0) % 0xFFFFFFFF + 1
+        if state.get('paused') is True:
+            self._restore_held(state.get('held'))
 
     # -- incoming -------------------------------------------------------
     def notify(self, app='', replaces_id=0, app_icon='', summary='', body='', actions=(), hints=None,
@@ -114,6 +117,7 @@ class Manager:
             self.active[n.id] = n
             self.held_back.append(n.id)
             self.log.emit('queued', n, reason='paused')
+            self._save_state()                    # held ones outlive a restart (or a crash)
         else:
             self.active[n.id] = n
             self._place(n)
@@ -244,6 +248,7 @@ class Manager:
         self._cancel_timer(nid)
         self.hovered.pop(nid, None)
         shown = nid in self.displayed
+        held = nid in self.held_back
         for queue in (self.displayed, self.waiting, self.held_back):
             if nid in queue:
                 queue.remove(nid)
@@ -253,6 +258,8 @@ class Manager:
             self._remember(n, reason)
             self.log.emit(REASON_NAMES.get(reason, 'closed'), n)
             self.on_closed(nid, reason)
+        if held:
+            self._save_state()
         while self.waiting and self._room():
             self._show(self.active[self.waiting.pop(0)])
         return True
@@ -305,7 +312,52 @@ class Manager:
             for nid in held:
                 if nid in self.active:
                     self._place(self.active[nid])
+        self._save_state()
         return self.paused
+
+    def shutdown(self):
+        """The daemon stops: keep the paused state and the held-back queue for the next start (their
+        ids end here, so their senders hear UNDEFINED), and close the rest."""
+        self._save_state()
+        held, self.held_back = self.held_back, []
+        for nid in held:
+            if self.active.pop(nid, None) is not None:
+                self.on_closed(nid, UNDEFINED)
+        return self.close_all(CLOSED)
+
+    @staticmethod
+    def _held_record(n):
+        """N as JSON for state.json: what notify() needs to bring it back (image-data bytes are not kept)."""
+        def plain(value):
+            return isinstance(value, (str, int, float, bool)) or value is None
+        actions = [[key, label] for key, label in n.actions if not key.startswith('notifyd-button-')]
+        return {'app': n.app, 'summary': n.summary, 'body': n.body, 'app_icon': n.app_icon,
+                'actions': actions, 'hints': {k: v for k, v in n.hints.items() if plain(v)},
+                'timeout': n.requested_timeout, 'sender': n.sender, 'received': n.received}
+
+    def _restore_held(self, records):
+        """Pause again and hold back what was held when the daemon stopped (new ids; rules apply again,
+        but their `run:` commands ran when these first arrived)."""
+        self.paused = True
+        restored = 0
+        for record in records if isinstance(records, list) else []:
+            if not isinstance(record, dict):
+                continue
+            try:
+                actions = [item for pair in record.get('actions') or [] for item in pair]
+                nid = self.notify(app=str(record.get('app', '')), summary=str(record.get('summary', '')),
+                                  body=str(record.get('body', '')), app_icon=str(record.get('app_icon', '')),
+                                  actions=actions, hints=dict(record.get('hints') or {}),
+                                  timeout=int(record.get('timeout', -1)), extra={'run': None},
+                                  sender=record.get('sender') or {})
+            except (TypeError, ValueError, AttributeError) as exc:
+                self.log.warn(f'state: a held-back notification could not be restored: {exc}')
+                continue
+            n = self.active.get(nid)
+            if n is not None and isinstance(record.get('received'), (int, float)):
+                n.received = record['received']
+            restored += 1
+        self.log.emit('paused', message=f'restored, {restored} held back' if restored else 'restored')
 
     def set_mode(self, mode):
         if mode != self.mode:
@@ -329,7 +381,8 @@ class Manager:
         try:
             self.state_path.parent.mkdir(parents=True, exist_ok=True)
             tmp = self.state_path.with_suffix('.tmp')
-            tmp.write_text(json.dumps({'mode': self.mode}))
+            held = [self._held_record(self.active[nid]) for nid in self.held_back if nid in self.active]
+            tmp.write_text(json.dumps({'mode': self.mode, 'paused': self.paused, 'held': held}))
             tmp.replace(self.state_path)
         except OSError as exc:
             self.log.warn(f'state {self.state_path}: {exc.strerror}')

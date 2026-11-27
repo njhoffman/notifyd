@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.5] - 2026-11-26
+
+### Fixed
+
+- Notifications held back by do-not-disturb are no longer lost when the daemon stops or restarts:
+  the paused state and the held-back queue are kept in `state.json` (written as they change), and
+  the next start is paused again with them held back, to show on resume. They get new ids (their
+  old ones end with the daemon, so their senders hear reason 4, undefined); rules apply again, but
+  `run:` commands do not run a second time; image-data hints are not kept.
+
 ## [0.12.4] - 2026-11-26
 
 ### Fixed

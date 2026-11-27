@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-26 "notifyd 0.12.4" "User Commands"
+.TH NOTIFYD 1 2026-11-26 "notifyd 0.12.5" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -257,7 +257,7 @@ Invoke an action: the key given, else the default action, else the first one.
 Close everything shown or waiting.
 .TP
 .BR pause ", " resume ", " toggle
-Hold back all but critical notifications; resume shows what was held back.
+Hold back all but critical notifications; resume shows what was held back. The paused state and what is held back survive a restart of the daemon.
 .TP
 .BR mode " [\fIname\fR]"
 Show the mode, or set it. Rules match on it with
@@ -453,7 +453,7 @@ History kept across restarts (with
 the default).
 .TP
 .I $XDG_STATE_HOME/notifyd/state.json
-The mode, kept across restarts.
+The mode, the paused state and the notifications held back by pause, kept across restarts.
 .TP
 .I $XDG_RUNTIME_DIR/notifyd/send\-ids.json
 Ids for

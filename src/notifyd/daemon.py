@@ -10,7 +10,6 @@ from notifyd.effects import Runner, SoundPlayer, XIdle
 from notifyd.history import default_path as history_default_path
 from notifyd.log import EventLog
 from notifyd.manager import GLibScheduler, Manager
-from notifyd.model import CLOSED
 from notifyd.server import BUS_NAME, CONTROL_NAME, Server, owner_description
 
 # What `notifyd ctl preview` shows: one of each kind a preset has to handle
@@ -172,7 +171,7 @@ class Daemon:
         try:
             self.loop.run()
         finally:
-            self.manager.close_all(CLOSED)
+            self.manager.shutdown()
             for owner in owners:
                 Gio.bus_unown_name(owner)
             self.server.unregister()

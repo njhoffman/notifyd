@@ -1,3 +1,5 @@
+import json
+
 from notifyd.config import load_config
 from notifyd.model import CLOSED, DISMISSED, EXPIRED, UNDEFINED
 
@@ -428,3 +430,68 @@ def test_a_renderer_failure_on_update_or_close_keeps_the_manager_consistent(make
     assert closed == [(nid, EXPIRED)] and m.displayed == []
     assert [e['message'].split(':')[0] for e in events if e['event'] == 'error'] == [
         f'#{nid} could not be drawn (update)', f'#{nid} could not be drawn (close)']
+
+
+SONG_RULE = 'rules:\n- match: {app: player}\n  run: echo hi\n  buttons: [{label: Skip, run: skip}]\n'
+
+
+def test_held_back_notifications_and_pause_survive_a_restart(make_manager, tmp_path):
+    state = tmp_path / 'state.json'
+    m, _s, _r, _e, closed, _a = make_manager(SONG_RULE, state_path=state)
+    m.pause(True)
+    first = m.notify('player', summary='song', body='<b>artist</b>', app_icon='music', actions=['play', 'Play'],
+                     hints={'category': 'x', 'image-data': (1, 1, 3, False, 8, 3, b'abc'), 'urgency': 1},
+                     sender={'process': 'musicman'})
+    m.notify('chat', summary='hi')
+    assert m.ran == [('run', 'echo hi', first)]
+    saved = json.loads(state.read_text())
+    assert saved['paused'] is True and [h['summary'] for h in saved['held']] == ['song', 'hi']
+    assert 'image-data' not in saved['held'][0]['hints']          # bytes are not kept
+    assert saved['held'][0]['actions'] == [['play', 'Play']]       # the rule's button comes back from the rule
+    received = m.active[first].received
+    assert m.shutdown() == 0
+    assert sorted(closed) == [(1, UNDEFINED), (2, UNDEFINED)]
+    assert len(m.history) == 0                                     # not closed into history: they come back
+
+    again, _s2, renderer, _e2, _c2, _a2 = make_manager(SONG_RULE, state_path=state)
+    assert again.paused is True
+    held = [again.active[nid] for nid in again.held_back]
+    assert [(n.app, n.summary, n.body, n.app_icon) for n in held] == [
+        ('player', 'song', '<b>artist</b>', 'music'), ('chat', 'hi', '', '')]
+    assert held[0].actions == [('play', 'Play'), ('notifyd-button-0', 'Skip')]
+    assert held[0].sender == {'process': 'musicman'} and held[0].received == received
+    assert held[0].hints['category'] == 'x'
+    assert again.ran == []                                          # run: is not repeated
+    assert renderer.calls == []
+    again.pause(False)
+    assert len(again.displayed) == 2
+    assert json.loads(state.read_text()) == {'mode': 'normal', 'paused': False, 'held': []}
+
+
+def test_a_held_one_closed_while_paused_leaves_the_saved_queue(make_manager, tmp_path):
+    state = tmp_path / 'state.json'
+    m, *_ = make_manager(state_path=state)
+    m.pause(True)
+    nid = m.notify('a', summary='one')
+    m.notify('a', summary='two')
+    m.close(nid)
+    assert [h['summary'] for h in json.loads(state.read_text())['held']] == ['two']
+
+
+def test_a_damaged_state_file_restores_what_it_can(make_manager, tmp_path):
+    state = tmp_path / 'state.json'
+    state.write_text(json.dumps({'mode': 'focus', 'paused': True,
+                                 'held': [{'summary': 'ok'}, 'junk', {'summary': 'bad', 'timeout': 'soon'}]}))
+    m, _s, _r, events, _c, _a = make_manager(state_path=state)
+    assert m.paused and m.mode == 'focus'
+    assert [m.active[nid].summary for nid in m.held_back] == ['ok']
+    assert any(e['event'] == 'warn' and 'could not be restored' in e['message'] for e in events)
+
+
+def test_not_paused_at_shutdown_restores_nothing(make_manager, tmp_path):
+    state = tmp_path / 'state.json'
+    m, *_ = make_manager(state_path=state)
+    m.notify('a', summary='shown')
+    m.shutdown()
+    again, *_ = make_manager(state_path=state)
+    assert not again.paused and again.held_back == [] and again.active == {}
