@@ -227,6 +227,16 @@ class Manager:
         limit = self.config.settings.get('max-visible') or 0
         return not limit or len(self.displayed) < limit
 
+    def _waiting_changed(self):
+        """The waiting queue grew or shrank: the renderer's +N follows (when it has one)."""
+        hook = getattr(self.renderer, 'waiting_changed', None)
+        if hook is None:
+            return
+        try:
+            hook()
+        except Exception as exc:   # a cosmetic count must not break placing notifications
+            self.log.error(f'waiting count: {type(exc).__name__}: {exc}')
+
     def _fits(self, n):
         fits = getattr(self.renderer, 'fits', None)
         return fits is None or fits(n)
@@ -237,6 +247,7 @@ class Manager:
         else:
             self.waiting.append(n.id)
             self.log.emit('waiting', n, reason=f'{len(self.displayed)} on screen')
+            self._waiting_changed()
 
     def _render(self, what, nid, arg):
         """renderer.WHAT(ARG); an exception (a bad style value, an unreadable preset) is logged instead
@@ -332,6 +343,7 @@ class Manager:
         # oldest first; one that does not fit on screen yet stops the rest (they keep their order)
         while self.waiting and self._room() and self._fits(self.active[self.waiting[0]]):
             self._show(self.active[self.waiting.pop(0)])
+        self._waiting_changed()
         return True
 
     def sender_close(self, nid):

@@ -104,6 +104,7 @@ class GtkRenderer:
         self.fades = {}            # window -> its running fade's GLib source
         self.bodies = {}           # notification id -> (body label, max-lines) when its body is capped
         self.timeout_bars = {}     # notification id -> (progress bar, timeout ms, tick source)
+        self.waiting_labels = {}   # notification id -> its header's +N label
         self.expanded = set()      # ids whose capped body is shown in full while hovered
         self.fade_out = {}         # notification id -> its fade.out (ms), from its own settings
         self.screen = Gdk.Screen.get_default()
@@ -195,6 +196,7 @@ class GtkRenderer:
             n, window = self.measured
             if n.id not in self.windows:
                 self.window_scopes.pop(n.id, None)
+                self.waiting_labels.pop(n.id, None)
                 self.bodies.pop(n.id, None)
                 self.stop_timeout_bar(n.id)
             window.destroy()
@@ -251,6 +253,7 @@ class GtkRenderer:
         window = self.windows.pop(nid, None)
         fade_out = self.fade_out.pop(nid, 0)
         self.window_scopes.pop(nid, None)
+        self.waiting_labels.pop(nid, None)
         self.stop_timeout_bar(nid)
         self.bodies.pop(nid, None)
         self.expanded.discard(nid)
@@ -363,6 +366,10 @@ class GtkRenderer:
         if 'time' not in hide:
             header.pack_end(self.label(time.strftime('%H:%M', time.localtime(n.received)), 'time', wrap=False),
                             False, False, 0)
+        waiting = self.label('', 'waiting', wrap=False)    # +N on the last popup while some wait
+        waiting.set_no_show_all(True)
+        header.pack_end(waiting, False, False, 0)
+        self.waiting_labels[n.id] = waiting
         flag = self.markup_flag(n.summary, n.body, mode, classes)
         if flag is not None:
             header.pack_end(flag, False, False, 0)
@@ -562,6 +569,7 @@ class GtkRenderer:
                 y = area.y + offset
             window.move(int(x), int(y))
             offset += height + gap
+        self.waiting_changed()
 
     # -- input ----------------------------------------------------------
     def on_enter(self, _widget, event, nid):
@@ -573,6 +581,19 @@ class GtkRenderer:
         if event.detail != Gdk.NotifyType.INFERIOR:
             self.manager.release(nid)
             self.expand(nid, False)
+
+    def waiting_changed(self):
+        """Show +N on the last popup of the stack while N wait for room (indicate-waiting)."""
+        count = len(self.manager.waiting)
+        shown = [nid for nid in self.manager.displayed if nid in self.windows]
+        last = shown[-1] if shown and count and self.manager.config.settings.get('indicate-waiting', True) else None
+        for nid, label in self.waiting_labels.items():
+            if nid == last:
+                label.set_text(f'+{count}')
+                label.set_tooltip_text(f'{count} more waiting for room')
+                label.show()
+            else:
+                label.hide()
 
     def tick_timeout_bar(self, nid):
         found = self.timeout_bars.get(nid)

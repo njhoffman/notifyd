@@ -17,6 +17,7 @@ missing file gives the deadd look. The daemon reloads the file when it changes (
 | `timeout` | `8s` | `8000`, `8s`, `1500ms`, `2m`, `never` |
 | `timeout-critical` | `never` | for critical notifications no rule gives a timeout |
 | `max-visible` | `6` | more wait until one closes (`0`: no limit); one that would not fit in the monitor's work area waits too (oldest first), except the first on screen |
+| `indicate-waiting` | `true` | the last popup of the stack shows `+N` while N wait for room (`max-visible`, or no space on screen); daemon-wide |
 | `group-by` | `[]` | e.g. `[app]`: a new notification with the same values replaces the open one, shown `×N` (fields: app, summary, category, urgency; set it in a rule to group one app only) |
 | `stack-duplicates` | `true` | an identical notification (app, summary, body, urgency) replaces the open one, shown `×N` |
 | `position.anchor` | `top-right` | `top-`/`bottom-` + `left`/`center`/`right` |
@@ -48,8 +49,8 @@ missing file gives the deadd look. The daemon reloads the file when it changes (
 ## Rules
 
 Each rule has an optional `name`, a `match`, and any of the keys above except the daemon-wide ones
-(`position`, `max-visible`, `log`, `click`, `center`, `lock`, `rules`), which a rule refuses as
-unknown. Rules apply in order; each sees what earlier rules rewrote,
+(`position`, `max-visible`, `indicate-waiting`, `log`, `click`, `center`, `lock`, `rules`), which a
+rule refuses as unknown. Rules apply in order; each sees what earlier rules rewrote,
 and later ones override earlier ones. A rule's `timeout` wins over the one the sender asked for.
 
 ```yaml

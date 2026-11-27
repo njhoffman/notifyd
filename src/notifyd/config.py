@@ -35,6 +35,7 @@ DEFAULTS = {
     'body': {'max-lines': 6},
     'markup': 'full',            # full (Pango), strip (text only), plain (shown as typed)
     'lock': {'pause': False, 'processes': ['i3lock', 'xsecurelock', 'slock', 'betterlockscreen']},
+    'indicate-waiting': True,    # +N on the last popup while N wait for room
     'timeout-bar': False,        # true: a thin bar along the popup drains as its timer runs
     'ignore-close': False,       # true (in a rule): the app closing its own notification is ignored
     'fullscreen': 'show',        # or delay: wait while the focused window is fullscreen (not critical ones)

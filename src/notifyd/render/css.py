@@ -105,6 +105,7 @@ def build_css(style, scope):
         if part.get('foreground'):
             css += block(f'{card}.{urgency} label', {'color': part['foreground']})
     css += block(f'{card} .count', {'font-weight': 'bold', 'opacity': '0.8'})
+    css += block(f'{card} .waiting', {'font-weight': 'bold', 'opacity': '0.7'})
     css += block(f'{card} label.markup-error', {
         'color': style.get('markup-error', '#e0af68'), 'font-size': '80%', 'font-weight': 'bold'})
     # the notification center: cards inside the panel

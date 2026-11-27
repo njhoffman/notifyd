@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.21.0" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.22.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -387,6 +387,8 @@ open one and is counted),
 (full, strip, plain),
 .B fullscreen
 (show, delay: wait while the focused window is fullscreen),
+.B indicate\-waiting
+(+N on the last popup while N wait),
 .B timeout\-bar
 (true: a bar drains with the timer),
 .B ignore\-close
@@ -417,8 +419,8 @@ and
 .PP
 A rule is a
 .B match
-plus any of those keys except the daemon-wide ones (position, max\-visible, log, click, center, lock,
-rules), applied in order to the notifications it matches:
+plus any of those keys except the daemon-wide ones (position, max\-visible, indicate\-waiting, log,
+click, center, lock, rules), applied in order to the notifications it matches:
 .PP
 .RS
 .nf

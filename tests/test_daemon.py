@@ -466,6 +466,25 @@ manager.close(timed)
 assert timed not in renderer.timeout_bars
 manager.config.settings['timeout-bar'] = False
 
+# +N on the last popup while some wait for room (max-visible here)
+manager.close_all()
+manager.config.settings['max-visible'] = 2
+ids = [manager.notify('a', summary=f'w{i}') for i in range(5)]
+oldest_shown = manager.displayed[-1]
+labels_now = {nid: (label.get_visible(), label.get_text()) for nid, label in renderer.waiting_labels.items()}
+assert labels_now[oldest_shown] == (True, '+3'), labels_now
+assert not labels_now[manager.displayed[0]][0]
+manager.close(oldest_shown)                                  # one moves up: two wait now
+assert renderer.waiting_labels[manager.displayed[-1]].get_text() == '+2'
+manager.config.settings['indicate-waiting'] = False
+renderer.waiting_changed()
+assert not any(label.get_visible() for label in renderer.waiting_labels.values())
+manager.config.settings['indicate-waiting'] = True
+while manager.waiting:
+    manager.close(manager.displayed[-1])
+assert not any(label.get_visible() for label in renderer.waiting_labels.values())
+manager.config.settings['max-visible'] = 6
+
 manager.close_all()
 assert renderer.area is None and renderer.windows == {}
 print('ok', x1, y1)

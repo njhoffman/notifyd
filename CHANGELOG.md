@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-11-27
+
+### Added
+
+- `indicate-waiting` (on by default): while notifications wait for room (`max-visible`, or no space
+  left on screen), the last popup of the stack shows `+N` in its header.
+
 ## [0.21.0] - 2026-11-27
 
 ### Added
