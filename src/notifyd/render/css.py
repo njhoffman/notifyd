@@ -129,6 +129,13 @@ def build_css(style, scope):
     css += block(f'{card} progressbar progress', {
         'background-color': progress.get('color', style.get('foreground')),
         'min-height': height, 'border': 'none', 'background-image': 'none'})
+    bar = style.get('timeout-bar') or {}
+    bar_height = px(bar.get('height', 2))
+    css += block(f'{card} progressbar.timeout-bar trough', {
+        'background-color': bar.get('background', 'transparent'), 'min-height': bar_height})
+    css += block(f'{card} progressbar.timeout-bar progress', {
+        'background-color': bar.get('color', progress.get('color', style.get('foreground'))),
+        'min-height': bar_height, 'opacity': '0.6'})
     button = style.get('button') or {}
     css += block(f'{card} button', {
         'background-color': button.get('background', 'rgba(255, 255, 255, 0.08)'),

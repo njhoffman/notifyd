@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-11-27
+
+### Added
+
+- `timeout-bar: true` (off by default; also in a rule): a thin bar along the bottom of a popup
+  drains as its timer runs and stops while it is hovered. The style key
+  `timeout-bar: {color, background, height}` sets its look.
+
 ## [0.20.0] - 2026-11-27
 
 ### Added

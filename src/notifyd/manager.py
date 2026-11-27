@@ -293,6 +293,13 @@ class Manager:
         timer = self._cancel_timer(nid)
         self.hovered[nid] = max(timer[1] - self.scheduler.now(), 0) if timer else 0
 
+    def remaining(self, nid):
+        """Milliseconds left on NID's clock (frozen while hovered), or None when it has none."""
+        if nid in self.hovered:
+            return self.hovered[nid]
+        timer = self.timers.get(nid)
+        return max(timer[1] - self.scheduler.now(), 0) if timer else None
+
     def release(self, nid):
         """The pointer left NID: its clock runs again, for what was left (at least a second)."""
         if nid not in self.hovered:

@@ -722,3 +722,18 @@ def test_ignore_close_keeps_it_open_when_the_app_closes_it(make_manager):
     assert [e['event'] for e in events][-1] == 'kept'
     assert m.sender_close(other) is True and closed == [(other, CLOSED)]
     assert m.close(kept) is True                                  # ctl close and the user still close it
+
+
+def test_remaining_time_runs_and_freezes_while_hovered(make_manager):
+    m, s, *_ = make_manager('timeout: 5s')
+    nid = m.notify('a', summary='x')
+    assert m.remaining(nid) == 5000
+    s.advance(2000)
+    assert m.remaining(nid) == 3000
+    m.hold(nid)
+    s.advance(10000)
+    assert m.remaining(nid) == 3000
+    m.release(nid)
+    assert m.remaining(nid) == 3000
+    never = m.notify('a', summary='y', timeout=0, extra={'timeout': 0})
+    assert m.remaining(never) is None

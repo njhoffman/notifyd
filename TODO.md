@@ -143,7 +143,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [x] **Read a cut-off notification in full.** (p3) [feature] Bodies stop at `max-lines` (3 in the
       center). Expand on hover, a `click.*: expand` value, and Enter in the center. Upstream:
       dunst#514.
-- [ ] **Timeout bar.** (p3) [feature] A thin bar that drains with the timer and freezes on hover;
+- [x] **Timeout bar.** (p3) [feature] A thin bar that drains with the timer and freezes on hover;
       the manager already keeps the deadline. Upstream: dunst PR#1550, deadd#56, swaync#765.
 - [ ] **`+N` while popups wait.** (p3) [feature] dunst's `indicate_hidden`: show how many are
       waiting on the last card; optionally `position.order: newest-first|oldest-first`.

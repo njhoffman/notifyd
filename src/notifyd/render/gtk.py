@@ -36,6 +36,7 @@ from notifyd.render.center import Center  # noqa: E402
 from notifyd.render.css import build_css, resolve_style, style_class  # noqa: E402
 
 BUTTONS = {1: 'left', 2: 'middle', 3: 'right'}
+TIMEOUT_BAR_TICK = 100   # ms between timeout-bar updates
 IMAGE_HINTS = ('image-data', 'image_data')
 IMAGE_PATH_HINTS = ('image-path', 'image_path')
 
@@ -102,6 +103,7 @@ class GtkRenderer:
         self.measured = None       # (notification, window) built by fits() for show()
         self.fades = {}            # window -> its running fade's GLib source
         self.bodies = {}           # notification id -> (body label, max-lines) when its body is capped
+        self.timeout_bars = {}     # notification id -> (progress bar, timeout ms, tick source)
         self.expanded = set()      # ids whose capped body is shown in full while hovered
         self.fade_out = {}         # notification id -> its fade.out (ms), from its own settings
         self.screen = Gdk.Screen.get_default()
@@ -194,6 +196,7 @@ class GtkRenderer:
             if n.id not in self.windows:
                 self.window_scopes.pop(n.id, None)
                 self.bodies.pop(n.id, None)
+                self.stop_timeout_bar(n.id)
             window.destroy()
             self.measured = None
 
@@ -248,6 +251,7 @@ class GtkRenderer:
         window = self.windows.pop(nid, None)
         fade_out = self.fade_out.pop(nid, 0)
         self.window_scopes.pop(nid, None)
+        self.stop_timeout_bar(nid)
         self.bodies.pop(nid, None)
         self.expanded.discard(nid)
         self.prune_styles()
@@ -398,6 +402,14 @@ class GtkRenderer:
             text.pack_start(bar, False, False, 0)
         content.pack_start(text, True, True, 0)
         card.pack_start(content, False, False, 0)
+        self.stop_timeout_bar(n.id)
+        if settings.get('timeout-bar') and n.timeout > 0:
+            bar = Gtk.ProgressBar()
+            bar.get_style_context().add_class('timeout-bar')
+            bar.set_margin_top(6)
+            card.pack_end(bar, False, False, 0)
+            self.timeout_bars[n.id] = (bar, n.timeout, GLib.timeout_add(TIMEOUT_BAR_TICK, self.tick_timeout_bar, n.id))
+            self.tick_timeout_bar(n.id)
 
         buttons = [(key, label) for key, label in n.actions if key != 'default']
         if buttons and 'actions' not in hide:
@@ -561,6 +573,20 @@ class GtkRenderer:
         if event.detail != Gdk.NotifyType.INFERIOR:
             self.manager.release(nid)
             self.expand(nid, False)
+
+    def tick_timeout_bar(self, nid):
+        found = self.timeout_bars.get(nid)
+        if found is None:
+            return False
+        bar, timeout, _source = found
+        remaining = self.manager.remaining(nid)
+        bar.set_fraction(min(max((remaining or 0) / timeout, 0.0), 1.0) if remaining is not None else 1.0)
+        return True
+
+    def stop_timeout_bar(self, nid):
+        found = self.timeout_bars.pop(nid, None)
+        if found is not None:
+            GLib.source_remove(found[2])
 
     def expand(self, nid, on):
         """Show all of NID's body while it is hovered, when max-lines cut it; back to max-lines after."""

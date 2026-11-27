@@ -449,6 +449,23 @@ manager.close(long_one)
 assert long_one not in renderer.bodies
 manager.config.settings['body'] = {'max-lines': 6}
 
+# the timeout bar drains with the timer (off by default)
+manager.close_all()
+plain = manager.notify('a', summary='no bar')
+assert plain not in renderer.timeout_bars
+manager.config.settings['timeout-bar'] = True
+timed = manager.notify('a', summary='bar', extra={'timeout': 4000})
+bar, timeout, _source = renderer.timeout_bars[timed]
+assert timeout == 4000 and 'timeout-bar' in bar.get_style_context().list_classes()
+manager.scheduler.advance(1000)
+renderer.tick_timeout_bar(timed)
+assert abs(bar.get_fraction() - 0.75) < 0.01, bar.get_fraction()
+untimed = manager.notify('a', summary='never', extra={'timeout': 0})
+assert untimed not in renderer.timeout_bars                 # nothing to count down
+manager.close(timed)
+assert timed not in renderer.timeout_bars
+manager.config.settings['timeout-bar'] = False
+
 manager.close_all()
 assert renderer.area is None and renderer.windows == {}
 print('ok', x1, y1)
