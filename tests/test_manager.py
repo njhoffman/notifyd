@@ -712,3 +712,13 @@ def test_held_by_the_lock_at_shutdown_goes_to_history(make_manager, tmp_path):
     assert closed == [(nid, UNDEFINED)] and m.history.entries[-1]['id'] == nid
     again, *_ = make_manager(state_path=tmp_path / 'state.json')
     assert again.active == {}
+
+
+def test_ignore_close_keeps_it_open_when_the_app_closes_it(make_manager):
+    m, _s, _r, events, closed, _a = make_manager('rules:\n- match: {app: chat}\n  ignore-close: true\n')
+    kept = m.notify('chat', summary='new message')
+    other = m.notify('mail', summary='new mail')
+    assert m.sender_close(kept) is False and kept in m.displayed and closed == []
+    assert [e['event'] for e in events][-1] == 'kept'
+    assert m.sender_close(other) is True and closed == [(other, CLOSED)]
+    assert m.close(kept) is True                                  # ctl close and the user still close it

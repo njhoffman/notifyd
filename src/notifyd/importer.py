@@ -236,7 +236,7 @@ DUNST_IGNORED_GLOBAL = {'monitor', 'scale', 'progress_bar', 'progress_bar_frame_
                         'line_height', 'sort', 'alignment', 'vertical_alignment', 'ellipsize', 'word_wrap',
                         'ignore_newline', 'show_indicators', 'icon_position', 'icon_path', 'icon_theme',
                         'enable_recursive_icon_lookup', 'sticky_history', 'show_age_threshold', 'indicate_hidden',
-                        'dmenu', 'browser', 'always_run_script', 'title', 'class', 'ignore_dbusclose',
+                        'dmenu', 'browser', 'always_run_script', 'title', 'class',
                         'hide_duplicate_count', 'height', 'notification_limit_shown'}
 
 
@@ -352,12 +352,14 @@ def import_dunst(text):
         out['click'] = {k: v for k, v in click.items() if v}
     if 'fullscreen' in g:
         out['fullscreen'] = _fullscreen(g['fullscreen'], 'global.fullscreen', report)
+    if _bool(g.get('ignore_dbusclose', 'false')):
+        out['ignore-close'] = True
     for key in g:
         handled = {'width', 'origin', 'offset', 'follow', 'font', 'frame_width', 'frame_color', 'corner_radius',
                    'padding', 'horizontal_padding', 'markup', 'notification_limit', 'history_length',
                    'stack_duplicates', 'idle_threshold', 'transparency', 'format', 'mouse_left_click',
                    'mouse_middle_click', 'mouse_right_click', 'min_icon_size', 'max_icon_size', 'icon_size',
-                   'progress_bar_height', 'highlight', 'fullscreen'}
+                   'progress_bar_height', 'highlight', 'fullscreen', 'ignore_dbusclose'}
         if key in DUNST_IGNORED_GLOBAL:
             continue
         if key not in handled:
@@ -436,6 +438,9 @@ def import_dunst(text):
                 rule['icon'] = {'name': value}
             elif key == 'set_stack_tag':
                 rule['stack-tag'] = value
+            elif key == 'ignore_dbusclose':
+                if _bool(value):
+                    rule['ignore-close'] = True
             elif key == 'fullscreen':
                 rule['fullscreen'] = _fullscreen(value, f'[{name}] fullscreen', report)
             elif key == 'script':

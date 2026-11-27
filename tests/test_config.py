@@ -167,3 +167,9 @@ def test_lock_settings():
         load_config(text='lock: {processes: i3lock}')
     with pytest.raises(ConfigError, match='lock'):
         load_config(text='rules:\n- match: {app: a}\n  lock: {pause: true}\n')
+
+
+def test_ignore_close_is_a_boolean():
+    assert load_config().settings['ignore-close'] is False
+    with pytest.raises(ConfigError, match='ignore-close'):
+        load_config(text='ignore-close: sometimes')

@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-26
+
+### Added
+
+- `ignore-close: true` (usually in a rule) keeps a notification open when its app closes it
+  (CloseNotification), until it expires or you close it; `ctl close` and clicks still close it.
+  `notifyd import dunst` carries `ignore_dbusclose` over, globally and per rule.
+
 ## [0.17.0] - 2026-11-26
 
 ### Added

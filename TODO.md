@@ -98,7 +98,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [x] **Advertise `sound`; consider `ActivationToken`.** (p3) [feature] Sound hints are handled but
       the `sound` capability is not advertised, so clients may play their own too; the spec 1.2
       `ActivationToken` signal before `ActionInvoked` is not sent.
-- [ ] **Option to ignore an app's own CloseNotification.** (p3) [feature] dunst's
+- [x] **Option to ignore an app's own CloseNotification.** (p3) [feature] dunst's
       `ignore_dbusclose` as a rule key `ignore-close: true` (`server.py`, manager). Upstream:
       mako#561.
 - [ ] **Docs misstate which keys a rule can set.** (p3) [docs] docs/config.md leaves `center` out

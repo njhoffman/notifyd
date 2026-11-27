@@ -327,6 +327,15 @@ class Manager:
             self._show(self.active[self.waiting.pop(0)])
         return True
 
+    def sender_close(self, nid):
+        """The app closes its own notification (CloseNotification); a rule's `ignore-close: true` keeps
+        it open (dunst's ignore_dbusclose). `ctl close` and the user still close it."""
+        n = self.active.get(nid)
+        if n is not None and n.settings.get('ignore-close'):
+            self.log.emit('kept', n, reason='the sender closed it; ignore-close')
+            return False
+        return self.close(nid, CLOSED)
+
     def close_all(self, reason=DISMISSED):
         ids = list(self.displayed) + list(self.waiting) + list(self.deferred)
         for nid in ids:

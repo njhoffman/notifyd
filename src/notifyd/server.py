@@ -209,7 +209,7 @@ class Server:
                                sender=self.sender_info(sender))
                 return GLib.Variant('(u)', (nid,))
             if method == 'CloseNotification':
-                m.close(params.unpack()[0], CLOSED)
+                m.sender_close(params.unpack()[0])
                 return None
             if method == 'GetCapabilities':
                 return GLib.Variant('(as)', (self.capabilities(),))

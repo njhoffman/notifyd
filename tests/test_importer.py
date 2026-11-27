@@ -194,3 +194,13 @@ def test_dunst_fullscreen():
     assert '[game] fullscreen pushback: not supported, using show' in report
     assert not [line for line in report if 'global.fullscreen' in line]
     load_config(text=dump_config(dict(config), 'dunst'))
+
+
+def test_dunst_ignore_dbusclose():
+    from notifyd.importer import import_dunst
+    config, report = import_dunst('[global]\n    ignore_dbusclose = true\n\n[chat]\n    appname = Signal\n'
+                                  '    ignore_dbusclose = yes\n')
+    assert config['ignore-close'] is True
+    assert {r['name']: r for r in config['rules']}['chat']['ignore-close'] is True
+    assert not [line for line in report if 'ignore_dbusclose' in line]
+    load_config(text=dump_config(dict(config), 'dunst'))

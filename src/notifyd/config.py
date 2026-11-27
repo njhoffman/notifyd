@@ -35,6 +35,7 @@ DEFAULTS = {
     'body': {'max-lines': 6},
     'markup': 'full',            # full (Pango), strip (text only), plain (shown as typed)
     'lock': {'pause': False, 'processes': ['i3lock', 'xsecurelock', 'slock', 'betterlockscreen']},
+    'ignore-close': False,       # true (in a rule): the app closing its own notification is ignored
     'fullscreen': 'show',        # or delay: wait while the focused window is fullscreen (not critical ones)
     'hide': [],                  # parts not shown: app-icon, app-name, time, title, body, image
     'class': None,               # extra CSS class for the notification
@@ -184,6 +185,8 @@ def normalize(settings, where='config'):
         processes = lock.get('processes', [])
         if not isinstance(processes, list) or not all(isinstance(p, str) for p in processes):
             raise ConfigError(f'{where}: lock.processes: expected a list of process names')
+    if not isinstance(settings.get('ignore-close', False), bool):
+        raise ConfigError(f'{where}: ignore-close: expected true or false')
     if 'fullscreen' in settings and settings['fullscreen'] not in ('show', 'delay'):
         raise ConfigError(f'{where}: fullscreen: expected show or delay, got {settings["fullscreen"]!r}')
     if 'markup' in settings and settings['markup'] not in ('full', 'strip', 'plain'):
