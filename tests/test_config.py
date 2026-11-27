@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from notifyd.config import (
@@ -118,3 +120,31 @@ def test_preset_descriptions_are_read_whole():
         assert first.startswith('description: '), path
         raw = first[len('description: '):].strip().strip('\'"')
         assert load_preset(name)['description'] == raw, name
+
+
+@pytest.mark.parametrize('text, message', [
+    ('width: wide', 'width: expected a whole number >= 0'),
+    ('image: {size: -3}', 'image.size: expected a whole number >= 0'),
+    ('icon: {size: 1.5}', 'icon.size: expected a whole number >= 0'),
+    ('body: {max-lines: true}', 'body.max-lines'),
+    ('position: {gap: x}', 'position.gap: expected a whole number,'),
+    ('rules:\n- match: {app: a}\n  width: big', 'width: expected a whole number >= 0'),
+])
+def test_numeric_settings_are_checked(text, message):
+    with pytest.raises(ConfigError, match=re.escape(message)):
+        load_config(text=text)
+
+
+def test_numeric_settings_accept_digit_strings_and_negative_offsets():
+    config = load_config(text="width: '420'\nposition: {gap: -4}\nimage: {margin-right: -2}")
+    assert config.settings['width'] == 420
+    assert config.settings['position']['gap'] == -4
+    assert config.settings['image']['margin-right'] == -2
+
+
+def test_an_unreadable_preset_is_a_config_error(tmp_path, monkeypatch):
+    from notifyd import config as config_module
+    monkeypatch.setattr(config_module, 'preset_dirs', lambda: [tmp_path])
+    (tmp_path / 'broken.yaml').write_bytes(b'\xff\xfe style: x')
+    with pytest.raises(ConfigError, match='preset broken'):
+        config_module.load_preset('broken')

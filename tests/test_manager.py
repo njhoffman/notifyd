@@ -1,5 +1,5 @@
 from notifyd.config import load_config
-from notifyd.model import CLOSED, DISMISSED, EXPIRED
+from notifyd.model import CLOSED, DISMISSED, EXPIRED, UNDEFINED
 
 
 def kinds(events):
@@ -395,3 +395,36 @@ def test_plain_markup_setting_logs_no_warning(make_manager):
     m, _s, _r, events, _c, _a = make_manager('markup: plain')
     m.notify('a', summary='<b>broken')
     assert 'warn' not in kinds(events)
+
+
+def test_a_renderer_failure_on_show_closes_it_and_frees_the_slot(make_manager):
+    m, s, renderer, events, closed, _a = make_manager('max-visible: 1\ntimeout: 5s')
+    real_show = renderer.show
+
+    def show(n):
+        if n.summary == 'bad':
+            raise ValueError('invalid literal for int()')
+        real_show(n)
+    renderer.show = show
+    bad = m.notify('a', summary='bad')
+    assert closed == [(bad, UNDEFINED)]
+    assert m.displayed == [] and bad not in m.active and bad not in m.timers
+    assert m.history.entries[-1]['id'] == bad
+    assert any(e['event'] == 'error' and f'#{bad} could not be drawn (show): ValueError' in e['message']
+               for e in events)
+    good = m.notify('a', summary='good')                  # the slot max-visible gave the bad one is free
+    assert m.displayed == [good]
+    s.advance(5000)
+    assert closed[-1] == (good, EXPIRED)
+
+
+def test_a_renderer_failure_on_update_or_close_keeps_the_manager_consistent(make_manager):
+    m, s, renderer, events, closed, _a = make_manager('timeout: 5s')
+    nid = m.notify('a', summary='one')
+    renderer.update = renderer.close = lambda _x: (_ for _ in ()).throw(RuntimeError('gone'))
+    assert m.notify('a', replaces_id=nid, summary='two') == nid
+    assert m.active[nid].summary == 'two' and nid in m.timers      # the timer restarted anyway
+    s.advance(5000)
+    assert closed == [(nid, EXPIRED)] and m.displayed == []
+    assert [e['message'].split(':')[0] for e in events if e['event'] == 'error'] == [
+        f'#{nid} could not be drawn (update)', f'#{nid} could not be drawn (close)']

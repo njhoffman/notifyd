@@ -12,7 +12,7 @@ from pathlib import Path
 from notifyd.effects import sound_for
 from notifyd.history import History
 from notifyd.markup import markup_error
-from notifyd.model import CLOSED, DISMISSED, EXPIRED, REASON_NAMES, Notification, actions_from_list
+from notifyd.model import CLOSED, DISMISSED, EXPIRED, REASON_NAMES, UNDEFINED, Notification, actions_from_list
 from notifyd.rules import resolve
 
 MIN_RESUME_MS = 1000   # a notification left by the pointer stays at least this long
@@ -153,7 +153,7 @@ class Manager:
             reason = f'{"grouped" if n.grouped else "duplicate"} x{n.duplicates}'
         self.active[n.id] = n
         if n.id in self.displayed:
-            self.renderer.update(n)
+            self._render('update', n.id, n)       # on failure the old window stays, with a fresh timer
             self._cancel_timer(n.id)
             if n.id in self.hovered:
                 self.hovered[n.id] = n.timeout
@@ -172,9 +172,21 @@ class Manager:
             self.waiting.append(n.id)
             self.log.emit('waiting', n, reason=f'{len(self.displayed)} on screen')
 
+    def _render(self, what, nid, arg):
+        """renderer.WHAT(ARG); an exception (a bad style value, an unreadable preset) is logged instead
+        of leaving the manager half way through a change. True when it worked."""
+        try:
+            getattr(self.renderer, what)(arg)
+            return True
+        except Exception as exc:   # any renderer failure: the queues must not be left half changed
+            self.log.error(f'#{nid} could not be drawn ({what}): {type(exc).__name__}: {exc}')
+            return False
+
     def _show(self, n):
         self.displayed.insert(0, n.id)
-        self.renderer.show(n)
+        if not self._render('show', n.id, n):
+            self.close(n.id, UNDEFINED)           # into history, NotificationClosed, slot freed
+            return
         self._start_timer(n)
         self.log.emit('shown', n)
         sound = sound_for(n)
@@ -236,7 +248,7 @@ class Manager:
             if nid in queue:
                 queue.remove(nid)
         if shown:
-            self.renderer.close(nid)
+            self._render('close', nid, nid)
         if not quiet:
             self._remember(n, reason)
             self.log.emit(REASON_NAMES.get(reason, 'closed'), n)

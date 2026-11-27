@@ -111,9 +111,32 @@ def format_duration(ms):
     return f'{ms}ms'
 
 
+# settings the renderer reads as whole numbers: (path, may be negative)
+NUMBER_KEYS = ((('width',), False), (('image', 'size'), False), (('image', 'margin-right'), True),
+               (('icon', 'size'), False), (('body', 'max-lines'), False), (('position', 'monitor'), False),
+               (('position', 'gap'), True))
+
+
+def _check_numbers(settings, where):
+    for path, negative in NUMBER_KEYS:
+        parent = settings
+        for key in path[:-1]:
+            parent = parent.get(key) if isinstance(parent, dict) else None
+        if not isinstance(parent, dict) or parent.get(path[-1]) is None:
+            continue
+        value = parent[path[-1]]
+        if isinstance(value, str) and value.strip().lstrip('-').isdigit():
+            value = int(value)
+        if isinstance(value, bool) or not isinstance(value, int) or (value < 0 and not negative):
+            kind = 'a whole number' if negative else 'a whole number >= 0'
+            raise ConfigError(f'{where}: {".".join(path)}: expected {kind}, got {parent[path[-1]]!r}')
+        parent[path[-1]] = value
+
+
 def normalize(settings, where='config'):
     """Parse durations and check value shapes in place; returns the list of warnings."""
     warnings = []
+    _check_numbers(settings, where)
     for key in DURATION_KEYS:
         if key in settings:
             settings[key] = parse_duration(settings[key], f'{where}: {key}')
@@ -231,6 +254,8 @@ def load_preset(name):
                 data = yaml.safe_load(path.read_text()) or {}
             except yaml.YAMLError as exc:
                 raise ConfigError(f'preset {name}: {exc}') from exc
+            except (OSError, UnicodeDecodeError) as exc:   # unreadable: a ConfigError, so callers fall back
+                raise ConfigError(f'preset {name}: {path}: {getattr(exc, "strerror", None) or exc}') from exc
             if not isinstance(data, dict) or not isinstance(data.get('style', {}), dict):
                 raise ConfigError(f'preset {name}: expected a mapping with a style mapping')
             preset = {'name': name, 'description': data.get('description', ''), 'style': data.get('style') or {}}

@@ -65,7 +65,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       typed. Upstream: deadd PR#30, deadd#93.
 - [ ] **Leading and trailing newlines draw blank lines.** (p3) [bug] `'line\n\n'` reaches the
       label unchanged. Strip summary and body edges in `manager.notify`. Upstream: dunst#1559.
-- [ ] **A renderer exception leaves the manager inconsistent.** (p2) [bug] `_show`
+- [x] **A renderer exception leaves the manager inconsistent.** (p2) [bug] `_show`
       (`manager.py:175`) adds the id to `displayed` before `renderer.show`; when that raises (a
       non-numeric `width` or `image.margin-right`, an unreadable preset raising `OSError` in
       `style_for`) no timer starts and the id holds a `max-visible` slot forever. Catch, log and

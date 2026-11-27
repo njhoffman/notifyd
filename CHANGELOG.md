@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.4] - 2026-11-26
+
+### Fixed
+
+- A notification the renderer cannot draw no longer holds a `max-visible` slot forever with no
+  timer: the error is logged, and the notification is closed (reason 4, undefined) into history
+  so its sender hears about it. A failed update keeps the old window; a failed close still frees
+  the slot.
+- Numeric settings (`width`, `image.size`, `image.margin-right`, `icon.size`, `body.max-lines`,
+  `position.monitor`, `position.gap`) are checked when the config loads, in rules too, instead of
+  failing when a notification is drawn. An unreadable preset file is a config error, so the
+  default preset is used instead of no window at all.
+
 ## [0.12.3] - 2026-11-26
 
 ### Fixed
