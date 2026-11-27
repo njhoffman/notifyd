@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.13.4] - 2026-11-26
+
+### Fixed
+
+- `notifyd send -w` (and `send` with actions) no longer waits forever when the daemon dies or is
+  replaced before the notification closes: it prints "the notification daemon went away" and exits
+  1. It also only listens to the daemon that owns the bus name, not to look-alike signals from
+  other clients.
+
 ## [0.13.3] - 2026-11-26
 
 ### Fixed

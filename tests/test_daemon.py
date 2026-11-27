@@ -151,6 +151,17 @@ def test_wait_returns_when_closed(bus, daemon):
     assert sender.wait(10) == 0
 
 
+def test_wait_ends_when_the_daemon_dies(bus, daemon):
+    proc = daemon('', '--renderer', 'none')
+    sender = subprocess.Popen([*NOTIFYD, 'send', '-p', '-w', 'waiting'], env=bus, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, text=True)
+    assert sender.stdout.readline().strip()
+    proc.kill()                                   # no NotificationClosed: before, send waited forever
+    proc.wait(5)
+    assert sender.wait(10) == 1
+    assert 'the notification daemon went away' in sender.stderr.read()
+
+
 def test_second_daemon_names_the_owner(bus, daemon, tmp_path):
     daemon('', '--renderer', 'none')
     other = subprocess.run([*NOTIFYD, 'daemon', '--renderer', 'none', '--log-format', 'pretty'], env=bus,

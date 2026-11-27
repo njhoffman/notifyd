@@ -175,12 +175,16 @@ class Waiter:
         self.out = out
         self.nid = None
         self.closed = set()
+        self.owner = None      # the daemon's unique name: only its signals count, and its exit ends the wait
+        self.gone = False
         self.loop = GLib.MainLoop()
         self.subscriptions = [connection.signal_subscribe(None, IFACE, member, OBJECT_PATH, None,
                                                           Gio.DBusSignalFlags.NONE, self.on_signal)
                               for member in ('ActionInvoked', 'NotificationClosed')]
 
-    def on_signal(self, _conn, _sender, _path, _iface, member, params):
+    def on_signal(self, _conn, sender, _path, _iface, member, params):
+        if self.owner and sender != self.owner:
+            return              # another client emitting look-alike signals
         values = params.unpack()
         if member == 'NotificationClosed':
             self.closed.add(values[0])
@@ -189,11 +193,32 @@ class Waiter:
         elif member == 'ActionInvoked' and values[0] == self.nid:
             print(values[1], file=self.out, flush=True)
 
-    def wait(self, nid):
-        """Until NID closes, printing the key of an action chosen meanwhile."""
-        self.nid = nid
+    def on_owner_changed(self, _conn, _sender, _path, _iface, _member, params):
+        name, old, new = params.unpack()
+        if name == BUS_NAME and old == self.owner and new != self.owner:
+            self.gone = True
+            self.loop.quit()
+
+    def name_owner(self):
         try:
-            if nid not in self.closed:
+            return self.connection.call_sync('org.freedesktop.DBus', '/org/freedesktop/DBus', 'org.freedesktop.DBus',
+                                             'GetNameOwner', GLib.Variant('(s)', (BUS_NAME,)),
+                                             GLib.VariantType('(s)'), Gio.DBusCallFlags.NONE, 5000, None).unpack()[0]
+        except GLib.Error:
+            return None
+
+    def wait(self, nid):
+        """Until NID closes, printing the key of an action chosen meanwhile; self.gone when the daemon
+        went away first (it exited or restarted: NID will never close)."""
+        self.nid = nid
+        self.owner = self.name_owner()
+        self.subscriptions.append(self.connection.signal_subscribe(
+            'org.freedesktop.DBus', 'org.freedesktop.DBus', 'NameOwnerChanged', '/org/freedesktop/DBus', BUS_NAME,
+            Gio.DBusSignalFlags.NONE, self.on_owner_changed))
+        try:
+            if self.owner is None or self.name_owner() != self.owner:
+                self.gone = nid not in self.closed      # it went between Notify and here
+            elif nid not in self.closed:
                 self.loop.run()
         finally:
             for sub in self.subscriptions:
@@ -225,6 +250,9 @@ def main(argv=None, out=sys.stdout, err=sys.stderr):
             print(nid, file=out, flush=True)
         if waiter:
             waiter.wait(nid)
+            if waiter.gone:
+                print('notifyd send: the notification daemon went away', file=err)
+                return 1
     except SendError as exc:
         print(f'notifyd send: {exc}', file=err)
         return 2

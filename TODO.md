@@ -92,7 +92,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       (`daemon.py:204`) sets preset, timeout and skip only, so a sample matching song rules fires
       `run:`, buttons and `sound:`, and five samples land in persistent history. Add `run: None,
       sound: False` and no history.
-- [ ] **`notifyd send -w` hangs when the daemon goes away.** (p3) [bug] `send.py` waits for
+- [x] **`notifyd send -w` hangs when the daemon goes away.** (p3) [bug] `send.py` waits for
       signals from any sender and does not watch `NameOwnerChanged`. Quit when the bus name
       vanishes; subscribe to the owner's unique name.
 - [ ] **Advertise `sound`; consider `ActivationToken`.** (p3) [feature] Sound hints are handled but
