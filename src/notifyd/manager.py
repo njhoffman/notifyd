@@ -513,14 +513,8 @@ class Manager:
             self._prune_thumbnails()
         return removed
 
-    def pop(self, nid=0, entry=None):
-        """Show a closed notification again (ENTRY, else the last one with NID, else the last one); its
-        new id, or 0 when none."""
-        if entry is None:
-            entries = [e for e in self.history if not nid or e['id'] == nid]
-            if not entries:
-                return 0
-            entry = entries[-1]
+    def entry_hints(self, entry):
+        """The hints a history entry brings back: urgency, category, its picture and desktop entry."""
         hints = {'urgency': ('low', 'normal', 'critical').index(entry.get('urgency', 'normal'))}
         if entry.get('category'):
             hints['category'] = entry['category']
@@ -529,6 +523,36 @@ class Manager:
             hints['image-path'] = image
         if (entry.get('sender') or {}).get('desktop_entry'):
             hints['desktop-entry'] = entry['sender']['desktop_entry']
+        return hints
+
+    def entry_notification(self, entry):
+        """A history entry as a notification with today's rules applied (not shown, not counted): the
+        center draws its card with the same look, hidden parts and picture sizes as the popup had."""
+        n = Notification(app=entry.get('app', ''), summary=entry.get('summary', ''), body=entry.get('body', ''),
+                         app_icon=entry.get('app_icon', ''), hints=self.entry_hints(entry),
+                         mode=entry.get('mode', self.mode))
+        n.sender = dict(entry.get('sender') or {})
+        n.id = entry.get('id', 0)
+        n.received = entry.get('received', n.received)
+        n.duplicates = entry.get('duplicates', 1)
+        try:
+            resolve(self.config, n, {'run': None, 'sound': False})
+        except Exception as exc:   # an entry the rules cannot take is still drawn, plainly
+            self.log.warn(f'#{n.id} history card: {type(exc).__name__}: {exc}')
+            n.settings = self.config.base()
+        if entry.get('markup'):
+            n.settings['markup'] = entry['markup']
+        return n
+
+    def pop(self, nid=0, entry=None):
+        """Show a closed notification again (ENTRY, else the last one with NID, else the last one); its
+        new id, or 0 when none."""
+        if entry is None:
+            entries = [e for e in self.history if not nid or e['id'] == nid]
+            if not entries:
+                return 0
+            entry = entries[-1]
+        hints = self.entry_hints(entry)
         # a look back, not a new arrival: rules style it again, but their commands and sounds stay quiet
         return self.notify(entry.get('app', ''), 0, entry.get('app_icon', ''), entry.get('summary', ''),
                            entry.get('body', ''), [], hints, extra={'run': None, 'sound': False},

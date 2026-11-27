@@ -11,7 +11,6 @@ Style keys, all optional:
     button: { background, foreground, hover, radius, on },   (on: a center button whose state is on)
     accent: the on-color of center buttons when button.on is not set,
     markup-error: color of the "markup error" mark,
-    center-card: background of a card in the notification center,
     center-selected: outline of the card selected with the keyboard there,
     classes: { name: { Pango span attributes } }   (used by markup, not CSS)
     css: extra raw CSS, appended; `&` in it stands for the style's scope class
@@ -77,11 +76,8 @@ def resolve_style(preset_style, overrides):
     return deep_merge(preset_style or {}, overrides or {})
 
 
-def build_css(style, scope):
-    """The CSS for STYLE under class SCOPE."""
-    s = f'.{scope}'
-    card = f'{s} .notification'
-    css = block(f'window{s}', {'background-color': 'transparent'})
+def card_rules(style, card):
+    """The rules of a notification card (CARD is its selector), the same for popups and center cards."""
     base = {
         'background-color': style.get('background'),
         'color': style.get('foreground'),
@@ -93,7 +89,7 @@ def build_css(style, scope):
         'font-family': font_family(style['font-family']) if 'font-family' in style else None,
         'font-size': px(style['font-size']) if 'font-size' in style else None,
     }
-    css += block(card, base)
+    css = block(card, base)
     if style.get('foreground'):
         css += block(f'{card} label', {'color': style['foreground']})
     if 'spacing' in style:
@@ -111,21 +107,6 @@ def build_css(style, scope):
     css += block(f'{card} .waiting', {'font-weight': 'bold', 'opacity': '0.7'})
     css += block(f'{card} label.markup-error', {
         'color': style.get('markup-error', '#e0af68'), 'font-size': '80%', 'font-weight': 'bold'})
-    # the notification center: cards inside the panel
-    center_card = f'{card}.center .center-card'
-    css += block(center_card, {'padding': '8px 10px', 'border-radius': px(style.get('radius', 4) or 4),
-                               'background-color': style.get('center-card', 'rgba(255, 255, 255, 0.06)')})
-    for urgency in ('low', 'critical'):
-        part = style.get(urgency) or {}
-        css += block(f'{center_card}.{urgency}', {'background-color': part.get('background')})
-        if part.get('foreground'):
-            css += block(f'{center_card}.{urgency} label', {'color': part['foreground']})
-    css += block(f'{center_card}.selected', {
-        'box-shadow': f"inset 0 0 0 2px {style.get('center-selected', 'rgba(255, 255, 255, 0.45)')}"})
-    css += block(f'{card}.center .center-time', {'font-size': '28px', 'font-weight': 'bold'})
-    css += block(f'{card}.center .center-group', {'margin-top': '6px', 'opacity': '0.85'})
-    css += block(f'{card}.center-help', {'padding': '12px 16px', 'border-radius': px(style.get('radius', 4) or 4)})
-    css += block(f'{card}.center-help .help-key', {'font-family': 'monospace'})
     for name in ('title', 'body', 'appname', 'time', 'count'):
         css += block(f'{card} .{name}', part_props(style.get(name)))
     progress = style.get('progress') or {}
@@ -146,6 +127,25 @@ def build_css(style, scope):
     css += block(f'{card} button:hover', {'background-color': button.get('hover', 'rgba(255, 255, 255, 0.18)')})
     css += block(f'{card} button.center-button.on', {
         'background-color': button.get('on', style.get('accent', 'rgba(122, 162, 247, 0.45)'))})
+    return css
+
+
+def build_css(style, scope):
+    """The CSS for STYLE under class SCOPE."""
+    s = f'.{scope}'
+    card = f'{s} .notification'
+    css = block(f'window{s}', {'background-color': 'transparent'})
+    css += card_rules(style, card)
+    # a card in the notification center carries its own scope inside the center's: the same rules,
+    # one class more specific, so its style wins over the center's
+    css += card_rules(style, f'.center {s} .notification')
+    css += block(f'.center {s}.center-card', {'border-radius': px(style.get('radius', 4) or 4), 'margin': '2px'})
+    css += block(f'.center {s}.center-card.selected', {
+        'box-shadow': f"0 0 0 2px {style.get('center-selected', 'rgba(255, 255, 255, 0.45)')}"})
+    css += block(f'{card}.center .center-time', {'font-size': '28px', 'font-weight': 'bold'})
+    css += block(f'{card}.center .center-group', {'margin-top': '6px', 'opacity': '0.85'})
+    css += block(f'{card}.center-help', {'padding': '12px 16px', 'border-radius': px(style.get('radius', 4) or 4)})
+    css += block(f'{card}.center-help .help-key', {'font-family': 'monospace'})
     if style.get('css'):
         css += str(style['css']).replace('&', s) + '\n'
     return css

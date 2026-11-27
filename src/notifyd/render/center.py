@@ -23,8 +23,6 @@ from gi.repository import Gdk, Gio, GLib, Gtk, Pango
 
 from notifyd import art, mpris, volume
 from notifyd.config import ConfigError, load_preset
-from notifyd.images import IMAGE_HINTS, desktop_icon
-from notifyd.markup import cap_lines, prepare
 from notifyd.model import DISMISSED
 from notifyd.render.css import build_css, resolve_style, style_class
 from notifyd.rules import known_modes
@@ -111,7 +109,6 @@ class Center:
         renderer.log.listeners.append(self.on_event)
         self.bus = None
         self.players = None
-        self.card_color = None     # the text color symbolic icons on the card being built take
         self.expanded = set()      # (opened, id) of cards whose whole body shows (`e`)
         self.button_widgets = []   # (button, spec) of center.buttons
         self.expanded_groups = set()   # apps whose history group shows every card (center.group)
@@ -582,75 +579,31 @@ class Center:
         slot.pack_start(self.renderer.picture_widget(pixbuf, scale), False, False, 0)
         slot.show_all()
 
-    CARD_PICTURE = 32
     CARD_LINES = 3      # body lines on a card until `e` shows it all
 
-    def card_picture(self, entry, opened):
-        """A card's picture: an open one's image-data, else the kept thumbnail, image path or app icon."""
-        n = self.manager.active.get(entry['id']) if opened else None
-        if n is not None:
-            for hint in IMAGE_HINTS:
-                if isinstance(n.hints.get(hint), tuple):
-                    picture = self.renderer.image_from_data(n, hint, self.CARD_PICTURE * self.renderer.scale())
-                    if picture is not None:
-                        return picture
-        sources = [entry.get(key) for key in ('thumb', 'image', 'app_icon')]
-        sources.append(desktop_icon((entry.get('sender') or {}).get('desktop_entry')))
-        for source in sources:
-            picture = self.renderer.load_image(source, self.CARD_PICTURE * self.renderer.scale(), self.card_color)
-            if picture is not None:
-                return picture
-        return None
-
     def card(self, entry, style, opened):
-        classes = style.get('classes') or {}
+        """ENTRY's card, built as its popup is (its own style, preset, hidden parts and picture sizes),
+        with a close button, the body capped at CARD_LINES until `e`, and a click that shows it again."""
         n = self.manager.active.get(entry['id']) if opened else None
-        mode = (n.settings.get('markup') if n is not None else entry.get('markup')) or 'full'
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        context = box.get_style_context()
-        context.add_class('center-card')
-        context.add_class(entry.get('urgency', 'normal'))
-        top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        top.pack_start(self.renderer.label(GLib.markup_escape_text(entry.get('app') or ''), 'appname', wrap=False),
-                       True, True, 0)
-        stamp = time.strftime('%H:%M', time.localtime(entry.get('received', time.time())))
-        top.pack_start(self.renderer.label(stamp, 'time', wrap=False), False, False, 0)
-        flag = self.renderer.markup_flag(entry.get('summary'), entry.get('body'), mode, classes)
-        if flag is not None:
-            top.pack_start(flag, False, False, 0)
+        if n is None:
+            n = self.manager.entry_notification(entry)
+        scope, card_style = self.renderer.style_for(n)
         close = Gtk.Button(label='×')
         close.set_relief(Gtk.ReliefStyle.NONE)
+        close.get_style_context().add_class('center-close')
         nid = entry['id']
         if opened:
             close.connect('clicked', lambda _b: self.manager.close(nid, DISMISSED))
         else:
             close.connect('clicked', lambda _b: self.forget(entry))
-        top.pack_end(close, False, False, 0)
-        box.pack_start(top, False, False, 0)
-        text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        if entry.get('summary'):
-            text.pack_start(self.renderer.label(prepare(entry['summary'], mode, classes), 'title'), False, False, 0)
-        if entry.get('body'):
-            full = prepare(entry['body'], mode, classes)
-            if card_key(entry, opened) in self.expanded:
-                body = self.renderer.label(full, 'body')
-            else:
-                body = self.renderer.label(cap_lines(full, self.CARD_LINES) or full, 'body')
-                body.set_lines(self.CARD_LINES)
-                body.set_ellipsize(Pango.EllipsizeMode.END)
-            text.pack_start(body, False, False, 0)
-        self.card_color = (style.get(entry.get('urgency', 'normal')) or {}).get('foreground') or style.get('foreground')
-        picture = self.card_picture(entry, opened)
-        if picture is not None:
-            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-            image = self.renderer.picture_widget(picture, self.renderer.scale())
-            image.get_style_context().add_class('card-picture')
-            image.set_valign(Gtk.Align.START)
-            row.pack_start(image, False, False, 0)
-            row.pack_start(text, True, True, 0)
-            box.pack_start(row, False, False, 0)
-        else:
-            box.pack_start(text, False, False, 0)
+        lines = 0 if card_key(entry, opened) in self.expanded else self.CARD_LINES
+        card, _parts = self.renderer.build_card(n, card_style, body_lines=lines, header_end=close, actions=opened)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)       # carries the card's own style scope
+        context = box.get_style_context()
+        context.add_class(scope)
+        context.add_class('center-card')
+        context.add_class(n.urgency_name)
+        box.pack_start(card, False, False, 0)
         events = Gtk.EventBox()
         events.set_visible_window(False)
         events.add(box)

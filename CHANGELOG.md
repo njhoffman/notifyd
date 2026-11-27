@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-11-27
+
+### Changed
+
+- Notification center cards are built by the same code as the popups: each has its own style,
+  preset, hidden parts (`hide:`), picture sizes, icon and urgency colors, so a notification looks
+  the same in the center as on screen. History entries get the rules applied again to draw them.
+  The center keeps its close button and its three-line body until `e`.
+
+### Removed
+
+- The style key `center-card` (the background of center cards): they now take their own style.
+
 ## [0.27.0] - 2026-11-27
 
 ### Added

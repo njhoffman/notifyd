@@ -514,6 +514,25 @@ assert [e['app'] for e in manager.history] == ['chat'] and history_summaries() =
 manager.config.settings['center']['group'] = False
 manager.config.settings['center']['cards'] = 3
 
+# a center card is the popup's card: its own style scope and the rule's hidden parts, open or closed
+manager.config.settings['rules'] = load_config(
+    text='rules:\n- match: {app: songs}\n  hide: [app-name]\n  style: {background: "#102030"}\n').settings['rules']
+song = manager.notify('songs', summary='a song', body='an artist')
+popup_scope = renderer.window_scopes[song]
+assert wait_for(lambda: any(c[1]['id'] == song and c[2] for c in center.cards))
+def card_of(nid, opened):
+    return [c for c in center.cards if c[1]['id'] == nid and c[2] == opened][0][0]
+wrapper = card_of(song, True).get_child()
+assert popup_scope in wrapper.get_style_context().list_classes()          # same look as the popup
+assert not [l for l in widgets(wrapper, Gtk.Label) if l.get_text() == 'songs']   # app-name hidden
+manager.close(song)
+center.refresh()
+assert wait_for(lambda: any(c[1]['id'] == song and not c[2] for c in center.cards))
+closed_wrapper = card_of(song, False).get_child()
+assert popup_scope in closed_wrapper.get_style_context().list_classes()   # rules applied again
+assert not [l for l in widgets(closed_wrapper, Gtk.Label) if l.get_text() == 'songs']
+manager.config.settings['rules'] = []
+
 # a history card shows the kept thumbnail of an image-data picture, and its markup mode
 import tempfile
 from pathlib import Path

@@ -349,9 +349,6 @@ class GtkRenderer:
         width = int(settings.get('width') or 350)
         window.set_size_request(width, -1)
         window.set_default_size(width, -1)
-        hide = set(settings.get('hide') or [])
-        classes = style.get('classes') or {}
-        mode = settings.get('markup', 'full')
 
         events = Gtk.EventBox()
         events.set_visible_window(False)
@@ -360,14 +357,42 @@ class GtkRenderer:
         events.connect('enter-notify-event', self.on_enter, n.id)
         events.connect('leave-notify-event', self.on_leave, n.id)
         events.connect('button-release-event', self.on_click, n.id)
+        card, parts = self.build_card(n, style)
+        events.add(card)
+        waiting = self.label('', 'waiting', wrap=False)    # +N on the last popup while some wait
+        waiting.set_no_show_all(True)
+        parts['header'].pack_end(waiting, False, False, 0)
+        if parts['header'].get_parent() is None:
+            card.pack_start(parts['header'], False, False, 0)
+            card.reorder_child(parts['header'], 0)
+        self.waiting_labels[n.id] = waiting
+        if parts['body'] is not None and parts['body'][1]:
+            self.bodies[n.id] = parts['body']             # hovering shows the rest (expand)
+        self.stop_timeout_bar(n.id)
+        if settings.get('timeout-bar') and n.timeout > 0:
+            look = {**TIMEOUT_BAR_DEFAULTS, **(style.get('timeout-bar') or {})}
+            bar = TimeoutBar(look['color'], look['background'], look['height'])
+            bar.set_margin_top(6)
+            card.pack_end(bar, False, False, 0)
+            self.timeout_bars[n.id] = (bar, n.timeout, GLib.timeout_add(TIMEOUT_BAR_TICK, self.tick_timeout_bar, n.id))
+            self.tick_timeout_bar(n.id)
+        window.add(events)
+
+    def build_card(self, n, style, body_lines=None, header_end=None, actions=True):
+        """N's card, the same in a popup and in the center: header (icon, app, count, time, markup
+        flag, HEADER_END such as the center's close button), picture, title, body capped at
+        BODY_LINES (default: its max-lines; 0 for all of it), progress and action buttons.
+        Returns (card, {'header': box, 'body': (label, lines, full, capped) or None})."""
+        settings = n.settings
+        hide = set(settings.get('hide') or [])
+        classes = style.get('classes') or {}
+        mode = settings.get('markup', 'full')
         card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         card_context = card.get_style_context()
         card_context.add_class('notification')
         card_context.add_class(n.urgency_name)
         if settings.get('class'):
             card_context.add_class(str(settings['class']))
-        events.add(card)
-
         # image: image-data, image-path, a rule's image.path, else an app icon that is a file
         image_settings = settings.get('image') or {}
         scale = self.scale()
@@ -406,13 +431,11 @@ class GtkRenderer:
         if 'time' not in hide:
             header.pack_end(self.label(time.strftime('%H:%M', time.localtime(n.received)), 'time', wrap=False),
                             False, False, 0)
-        waiting = self.label('', 'waiting', wrap=False)    # +N on the last popup while some wait
-        waiting.set_no_show_all(True)
-        header.pack_end(waiting, False, False, 0)
-        self.waiting_labels[n.id] = waiting
         flag = self.markup_flag(n.summary, n.body, mode, classes)
         if flag is not None:
             header.pack_end(flag, False, False, 0)
+        if header_end is not None:
+            header.pack_end(header_end, False, False, 0)
         if header.get_children():
             card.pack_start(header, False, False, 0)
 
@@ -432,15 +455,16 @@ class GtkRenderer:
                 title.set_lines(title_lines)
                 title.set_ellipsize(Pango.EllipsizeMode.END)
             text.pack_start(title, False, False, 0)
+        body_part = None
         if 'body' not in hide and n.body:
             full = prepare(n.body, mode, classes)
-            lines = int((settings.get('body') or {}).get('max-lines') or 0)
+            lines = int((settings.get('body') or {}).get('max-lines') or 0) if body_lines is None else body_lines
             capped = cap_lines(full, lines)
             body = self.label(capped or full, 'body')
             if lines:
                 body.set_lines(lines)             # a long paragraph: Pango caps it (per paragraph)
                 body.set_ellipsize(Pango.EllipsizeMode.END)
-                self.bodies[n.id] = (body, lines, full, capped)   # hovering shows the rest (expand)
+            body_part = (body, lines, full, capped)
             text.pack_start(body, False, False, 0)
         if 'progress' not in hide and n.progress is not None:
             bar = Gtk.ProgressBar()
@@ -449,16 +473,8 @@ class GtkRenderer:
             text.pack_start(bar, False, False, 0)
         content.pack_start(text, True, True, 0)
         card.pack_start(content, False, False, 0)
-        self.stop_timeout_bar(n.id)
-        if settings.get('timeout-bar') and n.timeout > 0:
-            look = {**TIMEOUT_BAR_DEFAULTS, **(style.get('timeout-bar') or {})}
-            bar = TimeoutBar(look['color'], look['background'], look['height'])
-            bar.set_margin_top(6)
-            card.pack_end(bar, False, False, 0)
-            self.timeout_bars[n.id] = (bar, n.timeout, GLib.timeout_add(TIMEOUT_BAR_TICK, self.tick_timeout_bar, n.id))
-            self.tick_timeout_bar(n.id)
 
-        buttons = [(key, label) for key, label in n.actions if key != 'default']
+        buttons = [(key, label) for key, label in n.actions if key != 'default'] if actions else []
         if buttons and 'actions' not in hide:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6, homogeneous=True)
             row.set_margin_top(8)
@@ -467,7 +483,8 @@ class GtkRenderer:
                 button.connect('clicked', lambda _b, k=key, nid=n.id: self.manager.invoke(nid, k))
                 row.pack_start(button, True, True, 0)
             card.pack_start(row, False, False, 0)
-        window.add(events)
+        return card, {'header': header, 'body': body_part}
+
 
     def markup_flag(self, summary, body, mode, classes):
         """A "markup error" label when SUMMARY or BODY is invalid markup (shown as typed), else None."""
