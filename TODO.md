@@ -48,7 +48,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       to `<span>` but give the label the original; `activate-link` with an http/https/mailto
       allowlist (GTK opens `file://` too), and keep the click from dismissing the card. Tests in
       popup and center. Upstream: mako#116, swaync#755, deadd PR#94.
-- [ ] **Malformed `image-data` segfaults the daemon.** (p1) [bug] `pixbuf_from_data`
+- [x] **Malformed `image-data` segfaults the daemon.** (p1) [bug] `pixbuf_from_data`
       (`render/gtk.py:56`) hands the sender's rowstride to `Pixbuf.new_from_bytes`, which only
       checks `len >= w*h*channels`; a 10x10 image with a huge rowstride crashed python (exit 139).
       Any session client can kill the daemon. Require `bits == 8`, `channels == 3 + has_alpha`,

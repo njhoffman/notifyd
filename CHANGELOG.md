@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-11-26
+
+### Fixed
+
+- A malformed `image-data` (or `icon_data`) hint can no longer crash the daemon. GdkPixbuf only
+  checked the buffer against width x height x channels, so a sender with a large rowstride made it
+  read past the buffer. The hint is now checked first (8 bits, 3 or 4 channels to match the alpha
+  flag, at most 4096 px a side, a rowstride of at least one row, enough bytes for every row); a bad
+  one is not drawn, with a `warn` log line, and the notification still shows.
+
 ## [0.12.1] - 2026-11-26
 
 ### Fixed

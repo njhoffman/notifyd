@@ -53,7 +53,37 @@ def scale_to(pixbuf, size):
                                GdkPixbuf.InterpType.BILINEAR)
 
 
+MAX_IMAGE_SIDE = 4096
+
+
+def image_data_problem(data):
+    """Why an image-data hint (width, height, rowstride, has_alpha, bits, channels, pixels) cannot be
+    drawn safely, or ''. GdkPixbuf only checks the buffer against width*height*channels, so a large
+    rowstride would make it read past the buffer in C (a crash, not an exception)."""
+    try:
+        width, height, rowstride, has_alpha, bits, channels, pixels = data
+    except (TypeError, ValueError):
+        return 'not (iiibiiay)'
+    if not all(isinstance(v, int) for v in (width, height, rowstride, bits, channels)):
+        return 'not (iiibiiay)'
+    if bits != 8:
+        return f'{bits} bits per sample (only 8)'
+    if channels != (4 if has_alpha else 3):
+        return f'{channels} channels with has_alpha={bool(has_alpha)}'
+    if not (0 < width <= MAX_IMAGE_SIDE and 0 < height <= MAX_IMAGE_SIDE):
+        return f'size {width}x{height} (1..{MAX_IMAGE_SIDE})'
+    if rowstride < width * channels:
+        return f'rowstride {rowstride} < {width * channels}'
+    need = rowstride * (height - 1) + width * channels
+    if not isinstance(pixels, (bytes, bytearray)) or len(pixels) < need:
+        return f'{len(pixels) if isinstance(pixels, (bytes, bytearray)) else "no"} bytes of pixels, {need} needed'
+    return ''
+
+
 def pixbuf_from_data(data, size):
+    problem = image_data_problem(data)
+    if problem:
+        raise ValueError(f'image-data: {problem}')
     width, height, rowstride, has_alpha, bits, _channels, pixels = data
     pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(GLib.Bytes.new(pixels), GdkPixbuf.Colorspace.RGB, has_alpha,
                                              bits, width, height, rowstride)
@@ -234,10 +264,7 @@ class GtkRenderer:
                 picture = load_pixbuf(image_settings['path'], image_size)
             for hint in IMAGE_HINTS:
                 if picture is None and isinstance(n.hints.get(hint), tuple):
-                    try:
-                        picture = pixbuf_from_data(n.hints[hint], image_size)
-                    except (GLib.Error, TypeError, ValueError):
-                        picture = None
+                    picture = self.image_from_data(n, hint, image_size)
             for hint in IMAGE_PATH_HINTS:
                 if picture is None and n.hints.get(hint):
                     picture = load_pixbuf(str(n.hints[hint]), image_size)
@@ -245,10 +272,7 @@ class GtkRenderer:
                 picture = load_pixbuf(icon_source, image_size)
                 icon_source = None
             if picture is None and isinstance(n.hints.get('icon_data'), tuple):
-                try:
-                    picture = pixbuf_from_data(n.hints['icon_data'], image_size)
-                except (GLib.Error, TypeError, ValueError):
-                    picture = None
+                picture = self.image_from_data(n, 'icon_data', image_size)
 
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         header.get_style_context().add_class('header')
@@ -319,6 +343,14 @@ class GtkRenderer:
         flag.set_ellipsize(Pango.EllipsizeMode.NONE)
         flag.set_tooltip_text('\n'.join(errors) + '\nshown as typed')
         return flag
+
+    def image_from_data(self, n, hint, size):
+        """The pixbuf of N's image-data HINT, or None (with a warning) when it is malformed."""
+        try:
+            return pixbuf_from_data(n.hints[hint], size)
+        except (GLib.Error, TypeError, ValueError) as exc:
+            self.log.warn(f'#{n.id} {hint} not drawn: {getattr(exc, "message", None) or exc}')
+            return None
 
     def on_link(self, _label, uri):
         """A link in a label was clicked: open http(s) and mailto, refuse the rest; never dismiss."""

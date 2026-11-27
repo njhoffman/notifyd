@@ -311,6 +311,11 @@ assert linked in manager.displayed                       # the click that opened
 broken = manager.notify('a', summary='s', body='<agent-message>x</agent-message>')
 assert [l for l in labels(renderer.windows[broken]) if l.get_text() == 'markup error']
 
+# a malformed image-data hint is refused with a warning instead of crashing GdkPixbuf
+bad = manager.notify('a', summary='bad image', hints={'image-data': (10, 10, 4000000, False, 8, 3, bytes(400))})
+assert bad in renderer.windows
+assert f'#{bad} image-data not drawn: image-data: 400 bytes of pixels' in stream.getvalue()
+
 manager.close_all()
 assert renderer.area is None and renderer.windows == {}
 print('ok', x1, y1)
