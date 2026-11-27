@@ -80,7 +80,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [x] **`history.jsonl` is world-readable.** (p2) [bug] `history.py` creates it 0644 under the
       default umask, and it holds full bodies (one-time codes, messages). Create it 0600 and its
       directory 0700.
-- [ ] **`replaces_id` of a gone notification gets a new id.** (p2) [bug] The spec returns a
+- [x] **`replaces_id` of a gone notification gets a new id.** (p2) [bug] The spec returns a
       non-zero `replaces_id` as is (dunst does); `manager._replace_target` issues a new id, so
       scripts that keep a fixed id (`notify-send.sh -r 100`) lose track. Reuse the id when it is
       free; test `replaces_id` and a stack tag pointing at different open notifications

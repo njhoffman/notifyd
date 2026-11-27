@@ -45,11 +45,32 @@ def test_replaces_id_keeps_the_id_and_restarts_the_clock(make_manager):
     assert kinds(events) == ['shown', 'replaced', 'expired']
 
 
-def test_replaces_id_of_a_closed_notification_gets_a_new_id(make_manager):
-    m, *_ = make_manager()
+def test_replaces_id_of_a_closed_notification_is_kept(make_manager):
+    m, _s, renderer, events, _c, _a = make_manager()
     nid = m.notify('a', summary='one')
+    other = m.notify('a', summary='other')
     m.close(nid)
-    assert m.notify('a', replaces_id=nid, summary='two') != nid
+    assert m.notify('a', replaces_id=nid, summary='two') == nid       # as the spec (and dunst) return it
+    assert m.active[nid].summary == 'two' and m.displayed == [nid, other]
+    assert renderer.calls[-1] == ('show', nid)
+    assert kinds(events)[-1] == 'shown'
+    assert m.notify('a', summary='new') == other + 1                  # the counter is not disturbed
+
+
+def test_replaces_id_that_was_never_issued_gets_a_new_id(make_manager):
+    m, *_ = make_manager()
+    first = m.notify('a', summary='one')
+    assert m.notify('a', replaces_id=500, summary='two') == first + 1   # 500 would collide with a later id
+    assert m.notify('a', replaces_id=-3, summary='three') == first + 2
+
+
+def test_replaces_id_and_stack_tag_pointing_at_different_ones(make_manager):
+    m, *_ = make_manager()
+    tagged = m.notify('a', summary='vol', hints={'x-dunst-stack-tag': 'vol'})
+    plain = m.notify('a', summary='plain')
+    assert m.notify('a', replaces_id=plain, summary='both', hints={'x-dunst-stack-tag': 'vol'}) == plain
+    assert m.active[plain].summary == 'both' and m.active[tagged].summary == 'vol'
+    assert sorted(m.displayed) == sorted([tagged, plain])
 
 
 def test_stack_tag_replaces_within_the_same_app(make_manager):

@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.8] - 2026-11-26
+
+### Fixed
+
+- A notification sent with the `replaces_id` of one that is already gone keeps that id, as the
+  spec says and dunst does, instead of getting a new one; scripts that send with a fixed id
+  (`notify-send -r 100`) keep track of it. An id that was never issued still gets a new one, so it
+  cannot collide with a later notification.
+
 ## [0.12.7] - 2026-11-26
 
 ### Fixed

@@ -97,7 +97,7 @@ class Manager:
             n.actions.append((key, button['label']))
             n.commands[key] = button['run']
         target = self._replace_target(n)
-        n.id = target or self._new_id()
+        n.id = target or self._free_replaces_id(n) or self._new_id()
         for part, text in (('summary', n.summary), ('body', n.body)):
             error = markup_error(text, n.settings.get('markup', 'full'))
             if error:
@@ -123,6 +123,15 @@ class Manager:
             self.active[n.id] = n
             self._place(n)
         return n.id
+
+    def _free_replaces_id(self, n):
+        """The spec returns a non-zero replaces_id as it is, also when that notification is gone (a
+        script keeping a fixed id, notify-send -r 100): reuse it when it is free, that is, nothing
+        open has it and it was issued before (so the counter does not hand it out again soon)."""
+        nid = n.replaces_id
+        if isinstance(nid, int) and 0 < nid < self.next_id and nid not in self.active:
+            return nid
+        return 0
 
     def _new_id(self):
         nid = self.next_id
