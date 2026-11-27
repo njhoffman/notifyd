@@ -7,7 +7,7 @@ test *ARGS:
 
 # lint with ruff
 lint:
-    ruff check src tests tools bin/notifyd
+    ruff check src tests tools bin/notifyd bin/notifyd-send
 
 # run the daemon from the checkout, log only (no windows): `just run --renderer gtk` to draw
 run *ARGS:
@@ -20,7 +20,7 @@ preview:
       echo "$preset"; bin/notifyd ctl preview "$preset"; sleep 4
     done
 
-# symlink bin/notifyd and the man page into ~/.local (never over a real file) and write the completions
+# symlink bin/notifyd, bin/notifyd-send and the man pages into ~/.local (never over a real file) and write the completions
 install:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -35,7 +35,9 @@ install:
     }
     data="${XDG_DATA_HOME:-$HOME/.local/share}"
     link "$(pwd -P)/bin/notifyd" "${XDG_BIN_HOME:-$HOME/.local/bin}/notifyd"
+    link "$(pwd -P)/bin/notifyd-send" "${XDG_BIN_HOME:-$HOME/.local/bin}/notifyd-send"
     link "$(pwd -P)/share/man/man1/notifyd.1" "$data/man/man1/notifyd.1"
+    link "$(pwd -P)/share/man/man1/notifyd-send.1" "$data/man/man1/notifyd-send.1"
     # the user unit, linked (not enabled: `notify-daemon use notifyd`, or `systemctl --user enable`)
     link "$(pwd -P)/share/systemd/notifyd.service" "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/notifyd.service"
     if command -v systemctl >/dev/null && systemctl --user show-environment >/dev/null 2>&1; then
@@ -48,16 +50,24 @@ completions:
     #!/usr/bin/env bash
     set -euo pipefail
     data="${XDG_DATA_HOME:-$HOME/.local/share}"
-    write() { mkdir -p "${2%/*}"; bin/notifyd completion "$1" > "$2"; echo "$2"; }
-    write zsh "$data/zsh/site-functions/_notifyd"
-    write bash "$data/bash-completion/completions/notifyd"
-    if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/fish" ]]; then
-      write fish "${XDG_CONFIG_HOME:-$HOME/.config}/fish/completions/notifyd.fish"
+    write() { mkdir -p "${3%/*}"; $1 "$2" > "$3"; echo "$3"; }   # $1 split: the generator command
+    fish="${XDG_CONFIG_HOME:-$HOME/.config}/fish"
+    write 'bin/notifyd completion' zsh "$data/zsh/site-functions/_notifyd"
+    write 'bin/notifyd completion' bash "$data/bash-completion/completions/notifyd"
+    write 'bin/notifyd-send --completion' zsh "$data/zsh/site-functions/_notifyd-send"
+    write 'bin/notifyd-send --completion' bash "$data/bash-completion/completions/notifyd-send"
+    if [[ -d "$fish" ]]; then
+      write 'bin/notifyd completion' fish "$fish/completions/notifyd.fish"
+      write 'bin/notifyd-send --completion' fish "$fish/completions/notifyd-send.fish"
     fi
 
 # protocol checks against notifyd, dunst and deadd side by side (private buses, Xvfb)
 compliance:
     tools/compare.sh
+
+# a tour of notifyd's fields, styles and rules on a private daemon (`just demo --help`)
+demo *ARGS:
+    tools/demo.sh {{ ARGS }}
 
 # render the man page
 man:

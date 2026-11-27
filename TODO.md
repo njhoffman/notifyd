@@ -31,6 +31,15 @@ Reviewed: 2026-11-26
 - [x] **Process name.** (p2) [bug] The daemon ran as `python3` in `/proc/PID/comm`, so a second
       daemon reported "owned by python3" and `pgrep notifyd` found nothing; it now sets its name
       with `prctl(PR_SET_NAME)`.
+- [x] **notifyd-send and a demo.** (p2) [feature] `bin/notifyd-send`: notify-send and
+      notify-send.py in one (their spellings, several values per `--hint`/`--action`, escapes),
+      flags for notifyd's hints, `--completion`, a `sources.tsv` row in `~/.shell`; `just demo`
+      tours fields, styles and rules on a private daemon (`examples/demo.yaml`). Done in 0.34.0.
+- [ ] **deadd's control hints.** (p3) [feature] `~/.shell/scripts/notify-daemon` pauses deadd
+      with `notify-send -h int:deadd-notification-center:1 -h string:type:pausePopups` (and
+      `unpausePopups`); notifyd shows these as ordinary notifications. Treat a notification with
+      the `deadd-notification-center` hint as a control message (pause/resume, never shown or
+      kept), or drop it with a built-in rule, so scripts written for deadd keep working.
 
 ## 12. Markup, spec and robustness
 
@@ -157,6 +166,13 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [ ] **Accessibility.** (p3) [feature] Set an ATK role and accessible name and description on
       popups so Orca announces them; there is no `get_accessible` call today. Upstream: wired#20,
       swaync#48.
+- [ ] **`fgcolor` leaves the title and header in the preset's colors.** (p3) [bug] dunst's
+      `fgcolor` hint (`notifyd-send --fg`) maps to the style key `foreground` only
+      (`rules.py:38`), but presets give `title`, `appname` and `time` their own `color`, which
+      win: `--fg '#1a1b26' --bg '#e0af68'` draws a dark body under a light title and a cyan app
+      name, both unreadable on the orange. dunst colors all the text. Set `title.color`,
+      `appname.color` and `time.color` from it too (the latter two dimmed by opacity), keeping
+      a rule's explicit colors on top.
 
 ## 14. Behavior and scripting
 

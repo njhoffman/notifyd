@@ -6,6 +6,31 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-11-27
+
+### Added
+
+- `notifyd-send`, the sender as its own command (`notifyd send` stays): notify-send and notify-send.py
+  in one, for any notification daemon. `just install` links it and its man page.
+- notify-send.py's forms: `--replaces-id`, `--dontQuitOnAction`, several values after one `--hint`
+  or `--action` (`--action yes:Yes no:No`), and `\n`, `\t` in the summary and body; notify-send's
+  `-v/--version`.
+- Flags for the hints notifyd and dunst understand: `--title-end`, `--desktop-entry`, `--sound-name`,
+  `--sound-file`, `--suppress-sound`, `--resident`, and `--fg`, `--bg`, `--frame`, `--highlight`
+  (dunst's color hints). `-h variant:NAME:TEXT` sends any GVariant.
+- `notifyd-send --completion zsh|bash|fish`; `just completions` writes them next to notifyd's.
+- `just demo` (`tools/demo.sh`): a tour of the fields, urgency, markup, pictures, progress, actions,
+  replacing, stacking, styles, rules, presets and the center, sent with `notifyd-send` to a private
+  daemon running `examples/demo.yaml` on your display; `--step`, `--section NAME`, `--live`.
+
+### Changed
+
+- With actions, `notifyd send` exits after the first action chosen, as notify-send and notify-send.py
+  do; it used to wait until the notification closed, forever for a resident one.
+  `--dont-quit-on-action` waits as before.
+- `--image` takes an icon name too (a value with no slash that is not a file), instead of making a
+  `file://` URI of it.
+
 ## [0.33.0] - 2026-11-27
 
 ### Added

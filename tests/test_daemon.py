@@ -170,6 +170,51 @@ def test_wait_ends_when_the_daemon_dies(bus, daemon):
     assert 'the notification daemon went away' in sender.stderr.read()
 
 
+NOTIFYD_SEND = [sys.executable, str(ROOT / 'bin' / 'notifyd-send')]
+
+
+def test_notifyd_send_takes_notify_send_py_forms(bus, daemon, tmp_path):
+    daemon("rules:\n  - name: hinted\n    match: {hint: {x-b: '2', x-c: 'true'}}\n", '--renderer', 'none')
+    nid = subprocess.run([*NOTIFYD_SEND, '-p', '-a', 'py', '--title-end', '★ 4', '--fg', '#fff', 'Two\\nlines',
+                          'a\\tb', '--hint', 'string:x-a:1', 'int:x-b:2', 'boolean:x-c:true'],
+                         env=bus, capture_output=True, text=True, check=True).stdout.strip()
+    shown = [e['n'] for e in events(tmp_path) if e['event'] == 'shown']
+    assert shown[-1]['id'] == int(nid) and shown[-1]['rules'] == ['hinted']     # all three hints arrived
+    assert shown[-1]['summary'] == 'Two\nlines' and shown[-1]['body'] == 'a\tb' and shown[-1]['title_end'] == '★ 4'
+    # --replaces-id, and --action with several KEY:NAME values: the first chosen ends the wait
+    sender = subprocess.Popen([*NOTIFYD_SEND, '-p', '--replaces-id', nid, 'Pick', '--action', 'yes:Yes', 'no:No'],
+                              env=bus, stdout=subprocess.PIPE, text=True)
+    assert sender.stdout.readline().strip() == nid
+    listed = json.loads(run(bus, 'ctl', 'list', '--json').stdout)
+    assert [n['actions'] for n in listed if n['id'] == int(nid)] == [['yes', 'no']]
+    run(bus, 'ctl', 'action', nid, 'no')
+    assert sender.wait(10) == 0 and sender.stdout.read().strip() == 'no'
+
+
+def test_notifyd_send_dont_quit_on_action(bus, daemon):
+    daemon('', '--renderer', 'none')
+    sender = subprocess.Popen([*NOTIFYD_SEND, '-p', '--resident', '--dont-quit-on-action', '-A', 'a=A', '-A', 'b=B',
+                               'Resident'], env=bus, stdout=subprocess.PIPE, text=True)
+    nid = sender.stdout.readline().strip()
+    run(bus, 'ctl', 'action', nid, 'a')
+    assert sender.stdout.readline().strip() == 'a'
+    assert sender.poll() is None                    # resident: still open, still waiting
+    run(bus, 'ctl', 'action', nid, 'b')
+    assert sender.stdout.readline().strip() == 'b'
+    run(bus, 'ctl', 'close', nid)
+    assert sender.wait(10) == 0
+
+
+def test_notifyd_send_quits_on_the_first_action_of_a_resident_one(bus, daemon):
+    daemon('', '--renderer', 'none')
+    sender = subprocess.Popen([*NOTIFYD_SEND, '-p', '--resident', '-A', 'a=A', 'Resident'], env=bus,
+                              stdout=subprocess.PIPE, text=True)
+    nid = sender.stdout.readline().strip()
+    run(bus, 'ctl', 'action', nid, 'a')
+    assert sender.wait(10) == 0 and sender.stdout.read().strip() == 'a'
+    assert [n['id'] for n in json.loads(run(bus, 'ctl', 'list', '--json').stdout)] == [int(nid)]   # still open
+
+
 def test_second_daemon_names_the_owner(bus, daemon, tmp_path):
     daemon('', '--renderer', 'none')
     other = subprocess.run([*NOTIFYD, 'daemon', '--renderer', 'none', '--log-format', 'pretty'], env=bus,

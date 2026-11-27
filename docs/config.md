@@ -180,10 +180,32 @@ the event log has a `warn` line for it.
 
 ## Sending
 
-`notifyd send` takes notify-send's flags (`-a -u -t -i -c -h TYPE:NAME:VALUE -A [NAME=]Text -r -p -e -w`)
-and adds `--replace-name NAME` (`--replaces-process`, as notify-send.py), `--tag TAG`, `--image PATH`,
-`--progress N` and `--close ID`. With actions it waits and prints the key chosen. It works with any
-notification daemon.
+`notifyd-send` (or `notifyd send`) works with any notification daemon. It takes notify-send's flags
+(`-a -u -t -i -c -e -h TYPE:NAME:VALUE -A [NAME=]Text -r -p -w -v`) and notify-send.py's
+(`--replaces-id`, `--replaces-process NAME`, `--dontQuitOnAction`, `--close ID`, several values after
+one `--hint` or `--action`, `\n` and `\t` in the summary and body). `-h` is `--hint`, as in
+notify-send. With actions it waits, prints the key of the one chosen and exits;
+`--dont-quit-on-action` keeps it waiting (and printing) until the notification closes.
+
+Flags for hints that otherwise take `-h TYPE:NAME:VALUE`:
+
+| Flag | Hint |
+|---|---|
+| `--replace-name NAME` | replaces the last notification sent with NAME (ids in `$XDG_RUNTIME_DIR/notifyd/send-ids.json`) |
+| `--tag TAG` | `x-dunst-stack-tag` |
+| `--image PATH` | `image-path`: a file (sent as a `file://` URI), a URI or an icon name |
+| `--progress N` | `value` |
+| `--title-end MARKUP` | `x-notifyd-title-end` (see Markup) |
+| `--desktop-entry NAME` | `desktop-entry` |
+| `--sound-name NAME`, `--sound-file PATH`, `--suppress-sound` | `sound-name`, `sound-file`, `suppress-sound` |
+| `--resident` | `resident`: stays open after an action |
+| `--fg`, `--bg`, `--frame`, `--highlight COLOR` | dunst's `fgcolor`, `bgcolor`, `frcolor`, `hlcolor` |
+
+`-h variant:NAME:TEXT` sends any GVariant (`-h 'variant:x-list:[1, 2]'`).
+`notifyd-send --completion zsh|bash|fish` prints its completion script.
+
+`tools/demo.sh` (`just demo`) sends a tour of all of this with `notifyd-send` to a private daemon
+running `examples/demo.yaml`, whose rules are commented with the step each one shows.
 
 ## Control
 

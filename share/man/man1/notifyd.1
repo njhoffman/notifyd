@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.33.0" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.34.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -15,6 +15,11 @@ notifyd \- desktop notification daemon for X11 with rules, presets and a colorfu
 .RB [ \-v | \-q ]
 .br
 .B notifyd send
+.RI [ options ]
+.I summary
+.RI [ body ]
+.br
+.B notifyd\-send
 .RI [ options ]
 .I summary
 .RI [ body ]
@@ -125,12 +130,28 @@ Log debug events too.
 .BR \-q ", " \-\-quiet
 Log only warnings and errors.
 .SS send
-Send a notification through whichever daemon owns the notification name, with
+.B notifyd send
+and
+.B notifyd\-send
+(the same, as its own command) send a notification through whichever daemon owns the notification
+name. They take
 .BR notify\-send (1)'s
-flags and some of notify\-send.py's. With actions it waits and prints the key of the action chosen.
+flags and notify\-send.py's, plus flags for the hints notifyd and dunst understand. With actions
+they wait, print the key of the action chosen and exit.
+.B \-h
+is
+.BR \-\-hint ,
+as in notify\-send; help is
+.B \-\-help
+only. In the summary and body,
+.BR \(rsn ,
+.B \(rst
+and
+.B \(rs\(rs
+become a line break, a tab and a backslash, as notify\-send.py does.
 .TP
 .BR \-a ", " \-\-app\-name " \fIname\fR"
-The sending application; rules match on it.
+The sending application; rules match on it. Default notifyd\-send.
 .TP
 .BR \-u ", " \-\-urgency " low|normal|critical"
 Urgency.
@@ -144,15 +165,60 @@ App icon: an icon name or a path.
 .BR \-c ", " \-\-category " \fItype\fR"
 The category hint, e.g. email.arrived.
 .TP
+.BR \-e ", " \-\-transient
+Keep it out of history.
+.TP
 .BR \-h ", " \-\-hint " \fItype\fB:\fIname\fB:\fIvalue\fR"
-An extra hint; type is int, double, string, byte or boolean. Repeatable.
+An extra hint; type is int, double, string, byte, boolean or variant (GVariant text, e.g.
+.BR "variant:x:<int32 5>" ).
+Repeatable;
+.B \-\-hint
+also takes several values, as in notify\-send.py.
+.TP
+.BR \-\-tag " \fItag\fR"
+Stack tag: replaces the last notification with this app and tag.
+.TP
+.BR \-\-image " \fIpath\fR"
+A picture shown in the notification: a file (sent as a file:// image\-path hint), a URI or an icon
+name.
+.TP
+.BR \-\-progress " \fIn\fR"
+A progress bar at
+.I n
+percent.
+.TP
+.BR \-\-title\-end " \fImarkup\fR"
+The x\-notifyd\-title\-end hint, shown at the right end of the title (notifyd only).
+.TP
+.BR \-\-desktop\-entry " \fIname\fR"
+The sender's .desktop file, without .desktop: gives the icon, and rules match it.
+.TP
+.BR \-\-sound\-name " \fIname\fR" ", " \-\-sound\-file " \fIpath\fR" ", " \-\-suppress\-sound
+A freedesktop sound name or a sound file to play, or ask for no sound.
+.TP
+.B \-\-resident
+It stays open after an action is chosen.
+.TP
+.BR \-\-fg ", " \-\-bg ", " \-\-frame ", " \-\-highlight " \fIcolor\fR"
+dunst's fgcolor, bgcolor, frcolor and hlcolor hints: the text, background, border and progress bar
+color of this notification.
 .TP
 .BR \-A ", " \-\-action " [\fIname\fB=\fR]\fItext\fR"
 A button (also
 .IB name : text\fR);
-waits and prints the name chosen. Repeatable.
+waits and prints the name chosen. Repeatable;
+.B \-\-action
+also takes several
+.IB name : text
+values.
 .TP
-.BR \-r ", " \-\-replace\-id " \fIid\fR"
+.BR \-\-dont\-quit\-on\-action ", " \-\-dontQuitOnAction
+After an action, keep waiting (printing each one chosen) until the notification closes.
+.TP
+.BR \-w ", " \-\-wait
+Wait until it is closed.
+.TP
+.BR \-r ", " \-\-replace\-id ", " \-\-replaces\-id " \fIid\fR"
 Replace notification
 .IR id .
 .TP
@@ -165,27 +231,17 @@ ids are kept in
 .BR \-p ", " \-\-print\-id
 Print the notification id.
 .TP
-.BR \-e ", " \-\-transient
-Keep it out of history.
-.TP
-.BR \-w ", " \-\-wait
-Wait until it is closed.
-.TP
-.BR \-\-tag " \fItag\fR"
-Stack tag: replaces the last notification with this app and tag.
-.TP
-.BR \-\-image " \fIpath\fR"
-A picture shown in the notification (sent as a file:// image\-path hint).
-.TP
-.BR \-\-progress " \fIn\fR"
-A progress bar at
-.I n
-percent.
-.TP
 .BR \-\-close " \fIid\fR"
 Close notification
 .I id
 and exit.
+.TP
+.BR \-v ", " \-\-version
+Print the version.
+.TP
+.BR \-\-completion " zsh|bash|fish"
+.RB ( notifyd\-send
+only) Print its completion script.
 .TP
 .B \-\-help
 Show help.

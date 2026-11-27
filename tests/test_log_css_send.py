@@ -7,7 +7,17 @@ from notifyd.config import load_preset
 from notifyd.log import EventLog, format_pretty, one_line
 from notifyd.model import Notification
 from notifyd.render.css import build_css, style_class
-from notifyd.send import SendError, build_hints, build_parser, image_uri, parse_actions, parse_hint
+from notifyd.send import (
+    SendError,
+    build_hints,
+    build_parser,
+    expand_multi,
+    image_uri,
+    parse_actions,
+    parse_hint,
+    standalone_main,
+    unescape,
+)
 
 # -- log -------------------------------------------------------------------
 
@@ -156,3 +166,70 @@ def test_build_hints_from_flags(tmp_path):
 def test_image_uri_keeps_uris():
     assert image_uri('file:///x.png') == 'file:///x.png'
 
+
+
+def test_image_uri_takes_icon_names_and_relative_files(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert image_uri('dialog-information') == 'dialog-information'     # no slash, no such file: an icon name
+    (tmp_path / 'cover.png').write_bytes(b'')
+    assert image_uri('cover.png') == (tmp_path / 'cover.png').as_uri()
+    assert image_uri('./missing.png') == (tmp_path / 'missing.png').as_uri()
+
+
+def test_parse_hint_variant():
+    name, variant = parse_hint('variant:x-list:[1, 2]')
+    assert name == 'x-list' and variant.get_type_string() == 'ai' and variant.unpack() == [1, 2]
+    assert parse_hint('variant:x:<int32 5>')[1].unpack() == 5
+    with pytest.raises(SendError, match='GVariant'):
+        parse_hint('variant:x:[1,')
+
+
+@pytest.mark.parametrize('argv, expected', [
+    # notify-send.py: several values after one --hint / --action
+    (['--hint', 'int:a:1', 'string:b:x y', 'Sum'], ['--hint', 'int:a:1', '--hint', 'string:b:x y', 'Sum']),
+    (['Sum', 'Body', '--action', 'yes:Yes', 'no:No'], ['Sum', 'Body', '--action', 'yes:Yes', '--action', 'no:No']),
+    # the first value is taken as is; later ones must look like one
+    (['--action', 'keep=Keep', 'Monitors'], ['--action', 'keep=Keep', 'Monitors']),
+    (['--action', 'a:A', 'Build: done'], ['--action', 'a:A', 'Build: done']),     # space after the colon
+    (['--hint', 'int:a:1', 'float:b:1'], ['--hint', 'int:a:1', 'float:b:1']),      # not a hint type
+    (['--hint', 'int:a:1', '--', 'string:b:c'], ['--hint', 'int:a:1', '--', 'string:b:c']),
+    (['-h', 'int:a:1', 'string:b:c'], ['-h', 'int:a:1', 'string:b:c']),             # short flags take one
+    (['--hint'], ['--hint']),
+])
+def test_expand_multi(argv, expected):
+    assert expand_multi(argv) == expected
+
+
+def test_unescape():
+    assert unescape(r'a\nb\tc') == 'a\nb\tc'
+    assert unescape(r'C:\\new') == 'C:\\new'                 # \\ is one backslash, and the n stays an n
+    assert unescape(r'trailing\\') == 'trailing\\'
+    assert unescape('no escapes') == 'no escapes'
+
+
+def test_build_hints_from_notifyd_flags(tmp_path):
+    args = build_parser().parse_args(['s', '--title-end', '★ 4', '--desktop-entry', 'mpv', '--sound-name', 'bell',
+                                      '--sound-file', str(tmp_path / 'a.oga'), '--suppress-sound', '--resident',
+                                      '--fg', '#fff', '--bg', '#000', '--frame', '#f00', '--highlight', '#0f0'])
+    hints = {k: v.unpack() for k, v in build_hints(args).items()}
+    assert hints == {'x-notifyd-title-end': '★ 4', 'desktop-entry': 'mpv', 'sound-name': 'bell',
+                     'sound-file': str(tmp_path / 'a.oga'), 'suppress-sound': True, 'resident': True,
+                     'fgcolor': '#fff', 'bgcolor': '#000', 'frcolor': '#f00', 'hlcolor': '#0f0'}
+    assert build_hints(build_parser().parse_args(['s'])) == {}
+
+
+def test_notify_send_py_spellings():
+    args = build_parser().parse_args(['s', '--replaces-id', '7', '--replaces-process', 'job', '--dontQuitOnAction'])
+    assert args.replace_id == 7 and args.replace_name == 'job' and args.dont_quit
+
+
+def test_standalone_parser(capsys):
+    flags = {f for a in build_parser('notifyd-send', standalone=True)._actions for f in a.option_strings}
+    assert '--completion' in flags
+    assert '--completion' not in {f for a in build_parser()._actions for f in a.option_strings}
+    with pytest.raises(SystemExit):
+        standalone_main(['--version'])
+    assert capsys.readouterr().out.startswith('notifyd-send ')
+    assert standalone_main(['--completion', 'zsh']) == 0
+    out = capsys.readouterr().out
+    assert out.startswith('#compdef notifyd-send') and 'compdef _notifyd-send notifyd-send' in out

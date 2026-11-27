@@ -12,6 +12,7 @@ dependencies = ["PyYAML>=6", "PyGObject>=3.42"]
 
 [project.scripts]
 notifyd = "notifyd.cli:main"
+notifyd-send = "notifyd.send:standalone_main"
 
 [tool.setuptools.dynamic]
 version = { attr = "notifyd.__version__" }

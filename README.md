@@ -8,7 +8,8 @@ combines the best parts of deadd-notification-center and dunst:
 - rules that restyle, retime, re-icon, rewrite or hide notifications as they arrive
 - preset styles you can switch between and preview live
 - full Pango markup, plus named styles (`<span class="accent">`) that follow the preset
-- `notifyd send`, a notify-send replacement with notify-send.py's extras
+- `notifyd-send` (also `notifyd send`), notify-send and notify-send.py in one, with flags for notifyd's hints;
+  it works with any notification daemon
 - a colorful, structured log of every notification and what the rules did to it
 
 ## Install
@@ -20,7 +21,8 @@ Needs Python 3.11+, PyGObject with GTK 3, and PyYAML (all from the distribution 
 add `pip install --no-build-isolation` offline), else pip tries to build PyGObject from source.
 
 ```sh
-just install                 # links bin/notifyd, the man page and the systemd user unit, writes completions
+just install                 # links bin/notifyd, bin/notifyd-send, the man pages and the systemd user unit,
+                             # writes completions
 just import-deadd            # writes ~/.config/notifyd/config.yaml from ~/.config/deadd
 notifyd daemon --replace     # try it in the foreground, taking over from the running daemon
                              # (Ctrl-C hands nothing back: restart the old one yourself)
@@ -37,9 +39,11 @@ starts with `xsession.target`, which the X session (the i3 config here) has to s
 ## Use
 
 ```sh
-notifyd send -a backdrop --image ~/pic.jpg 'New wallpaper' '<span class="muted">ocean, waves</span>'
-notifyd send --tag volume --progress 60 -a Volume 'Volume 60%'
-notifyd send -A 'change=Change layout' 'Monitors changed'     # prints "change" when clicked
+notifyd-send -a backdrop --image ~/pic.jpg 'New wallpaper' '<span class="muted">ocean, waves</span>'
+notifyd-send --tag volume --progress 60 -a Volume 'Volume 60%'
+notifyd-send -A 'change=Change layout' 'Monitors changed'     # prints "change" when clicked
+notifyd-send 'Monitors changed' --action change:Change keep:Keep   # notify-send.py's form works too
+notifyd-send --title-end '★ 4.5' --fg '#ffd7d7' --bg '#5a1d1d' 'Song' 'Artist'
 notifyd ctl watch            # the live, colored event log
 notifyd ctl history
 notifyd presets --pick       # browse presets with a live preview
@@ -47,7 +51,9 @@ notifyd rules --app MPD --summary 'Song'   # which rules match, and the result
 ```
 
 `notifyd help [COMMAND]` and `man notifyd` cover every command; `notifyd completion zsh|bash|fish`
-prints a completion script. `docs/config.md` describes the config, rules, styles and markup;
+and `notifyd-send --completion zsh|bash|fish` print completion scripts. `just demo` tours the
+fields, markup, styles, rules and presets on a private daemon (its own bus and history, shown on your
+display); `just demo --step` waits for Enter between sections, `--section NAME` runs one. `docs/config.md` describes the config, rules, styles and markup;
 `docs/presets.md` shows the presets; `examples/config.yaml` is this desktop's deadd setup with longer song and wallpaper notifications.
 
 ## Development
