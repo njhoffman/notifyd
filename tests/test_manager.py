@@ -755,3 +755,19 @@ def test_repeated_ids_keep_separate_entries_and_thumbnails(make_manager, tmp_pat
     assert m.active[m.pop(entry=one)].summary == 'one'          # the entry asked for, not the newest
     assert m.forget(entry=one) == 1 and [e['summary'] for e in m.history][:1] == ['two']
     assert len(list(thumbs.iterdir())) == 1
+
+
+def test_reload_restyles_open_notifications_but_keeps_their_clock(make_manager):
+    m, s, _r, _e, _c, _a = make_manager('timeout: 5s\nrules:\n- match: {app: chat, summary: "/(?P<s>.*)/"}\n'
+                                          '  run: hook\n  hide: [app-icon]\n  summary: "> {s}"\n')
+    nid = m.notify('chat', summary='hi')
+    n = m.active[nid]
+    assert n.summary == '> hi' and n.settings['hide'] == ['app-icon'] and m.ran == [('run', 'hook', nid)]
+    s.advance(2000)
+    m.reload(load_config(text='timeout: 30s\nstyle: {background: red}\nrules:\n'
+                              '- match: {app: chat, summary: "/(?P<s>.*)/"}\n  run: hook\n  hide: [time]\n'
+                              '  summary: "> {s}"\n'))
+    assert n.settings['hide'] == ['time'] and n.settings['style'] == {'background': 'red'}
+    assert n.summary == '> hi'                                         # not rewritten twice
+    assert m.ran == [('run', 'hook', nid)]                             # run: does not fire again
+    assert m.remaining(nid) == 3000                                    # the clock goes on as it was

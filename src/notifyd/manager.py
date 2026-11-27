@@ -97,6 +97,7 @@ class Manager:
                          actions=actions_from_list(actions), hints=dict(hints or {}),
                          requested_timeout=timeout, replaces_id=replaces_id, mode=self.mode)
         n.sender = dict(sender or {})
+        n.sent = {'app': app, 'summary': summary, 'body': body, 'hints': dict(n.hints), 'extra': extra}
         if n.hints.get('desktop-entry'):
             n.sender['desktop_entry'] = str(n.hints['desktop-entry'])
         n.fullscreen = self._fullscreen()
@@ -533,10 +534,36 @@ class Manager:
                            entry.get('body', ''), [], hints, extra={'run': None, 'sound': False},
                            sender=entry.get('sender'))
 
+    # settings a reload carries over to open notifications: their look, not their clock or actions
+    RELOAD_LOOK = ('preset', 'style', 'hide', 'markup', 'image', 'icon', 'title', 'body', 'width',
+                   'timeout-bar', 'fade', 'class')
+
     def reload(self, config):
         self.config = config
         self.history.resize(config.settings['history']['size'])
+        for n in self.active.values():
+            self._restyle(n)
         self.log.emit('reload', message=str(config.path or 'defaults'))
+
+    def _restyle(self, n):
+        """Apply the (new) rules to what N was sent and take over their look; its text, timer, actions
+        and commands stay as they are, and `run:` does not fire again."""
+        if not n.sent:
+            return
+        fresh = Notification(app=n.sent['app'], summary=n.sent['summary'], body=n.sent['body'],
+                             app_icon=n.app_icon, hints=dict(n.sent['hints']), mode=n.mode)
+        fresh.sender, fresh.fullscreen = n.sender, n.fullscreen
+        try:
+            resolve(self.config, fresh, n.sent.get('extra'))
+        except Exception as exc:   # a rule that cannot apply keeps the old look
+            self.log.warn(f'#{n.id} reload: {type(exc).__name__}: {exc}')
+            return
+        for key in self.RELOAD_LOOK:
+            if key in fresh.settings:
+                n.settings[key] = fresh.settings[key]
+            else:
+                n.settings.pop(key, None)
+        n.rules = fresh.rules
 
     def _remember(self, n, reason=None):
         if n.transient or not n.settings.get('history', {}).get('keep', True):

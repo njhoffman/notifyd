@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-11-27
+
+### Added
+
+- Live style tuning: open popups take the new look as soon as the config is saved (their rules are
+  applied again to what they were sent; their timers, text and actions stay and `run:` does not
+  fire again), the center follows, and editing a preset in `~/.config/notifyd/presets/` reloads too.
+- A config that does not load is shown as a notification that stays until it is fixed (the last
+  good config stays in use), and the next good save says "config reloaded".
+
 ## [0.26.0] - 2026-11-27
 
 ### Added

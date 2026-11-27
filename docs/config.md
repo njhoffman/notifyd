@@ -1,8 +1,11 @@
 # Configuration
 
 `~/.config/notifyd/config.yaml` (or `notifyd daemon -c PATH`). Every key is optional; an empty or
-missing file gives the deadd look. The daemon reloads the file when it changes (or on SIGHUP, or
-`notifyd ctl reload`); a broken file is reported and the old config kept. `notifyd check` validates it.
+missing file gives the deadd look. The daemon reloads the file when it changes, and when a preset in
+`~/.config/notifyd/presets/` does (or on SIGHUP, or `notifyd ctl reload`): open popups and the
+notification center take the new look at once, so styles can be tuned with them on screen (their
+timers, text and actions stay; `run:` does not fire again). A broken file is shown as a notification
+that stays until it is fixed, and the old config is kept. `notifyd check` validates it.
 
 `notifyd import deadd -o config` writes it from `~/.config/deadd/deadd.yml` and `deadd.css`;
 `notifyd import dunst` converts a dunstrc (rule sections included) on top of the dunst preset.

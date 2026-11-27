@@ -31,6 +31,8 @@ class Notification:
     received: float = field(default_factory=time.time)
     sender: dict = field(default_factory=dict)       # {pid, process, parent, desktop_entry}: who sent it
     fullscreen: bool = False                         # a fullscreen window had the focus when it arrived
+    sent: dict = field(default_factory=dict)         # app, summary, body, hints and extra as they came,
+                                                     # so a reload applies the rules to them again
     # filled in by the rules
     settings: dict = field(default_factory=dict)
     rules: list = field(default_factory=list)        # names of the rules that matched

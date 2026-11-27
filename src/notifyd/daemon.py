@@ -5,7 +5,7 @@ import signal
 from gi.repository import Gio, GLib
 
 from notifyd import __version__, art
-from notifyd.config import ConfigError, default_path, load_config, load_preset
+from notifyd.config import ConfigError, default_path, load_config, load_preset, preset_dirs
 from notifyd.effects import LockState, Runner, SoundPlayer, XIdle
 from notifyd.history import default_path as history_default_path
 from notifyd.log import EventLog
@@ -56,6 +56,8 @@ class Daemon:
         self.exit_code = 0
         self.loop = None
         self.lock_state = None   # (processes, LockState) while lock.pause is on
+        self.manager = None
+        self.config_broken = False   # the last reload failed: the next good one says so
         self.acquired = set()
 
     def configure_log(self, config):
@@ -69,7 +71,12 @@ class Daemon:
             config = load_config(self.config_path)
         except ConfigError as exc:
             self.log.error(f'reload failed, keeping the old config: {exc}')
+            self.config_notice('config error, kept the last good one', str(exc), timeout=0)
+            self.config_broken = True
             return f'error: {exc}'
+        if self.config_broken:
+            self.config_broken = False
+            self.config_notice('config reloaded', str(self.config_path), timeout=3000)
         self.configure_log(config)
         for warning in config.warnings:
             self.log.warn(warning)
@@ -77,6 +84,15 @@ class Daemon:
         if self.renderer is not None and hasattr(self.renderer, 'reload'):
             self.renderer.reload()
         return 'reloaded' + (f' with {len(config.warnings)} warning(s)' if config.warnings else '')
+
+    def config_notice(self, summary, body, timeout):
+        """A notification about the config, replacing the last one: an error stays until it is fixed."""
+        if self.manager is None:
+            return
+        self.manager.notify('notifyd', summary=summary, body=GLib.markup_escape_text(body),
+                            hints={'x-dunst-stack-tag': 'notifyd-config', 'urgency': 1},
+                            extra={'timeout': timeout, 'skip': False, 'run': None, 'sound': False,
+                                   'history': {'keep': False}})
 
     def set_preset(self, name):
         try:
@@ -134,15 +150,24 @@ class Daemon:
         return Gio.bus_own_name_on_connection(connection, name, flags, acquired, lost)
 
     def watch_config(self):
-        path = Gio.File.new_for_path(str(self.config_path))
-        monitor = path.monitor_file(Gio.FileMonitorFlags.WATCH_MOVES, None)
+        """Reload when the config file or one of the user's preset files changes, so styles can be
+        tuned with the center and popups open (they follow at once)."""
+        events = (Gio.FileMonitorEvent.CHANGES_DONE_HINT, Gio.FileMonitorEvent.CREATED,
+                  Gio.FileMonitorEvent.MOVED_IN, Gio.FileMonitorEvent.RENAMED, Gio.FileMonitorEvent.DELETED)
 
-        def changed(_monitor, _file, _other, event):
-            if event in (Gio.FileMonitorEvent.CHANGES_DONE_HINT, Gio.FileMonitorEvent.CREATED,
-                         Gio.FileMonitorEvent.MOVED_IN, Gio.FileMonitorEvent.RENAMED):
+        def changed(source, file, other, event):
+            names = [f.get_basename() for f in (file, other) if f is not None]
+            if event in events and (source is config or any(n.endswith('.yaml') for n in names)):
                 self.reload()
-        monitor.connect('changed', changed)
-        return monitor
+        config = Gio.File.new_for_path(str(self.config_path)).monitor_file(Gio.FileMonitorFlags.WATCH_MOVES, None)
+        config.connect('changed', changed)
+        monitors = [config]
+        presets = preset_dirs()[0]
+        if presets.is_dir():
+            monitor = Gio.File.new_for_path(str(presets)).monitor_directory(Gio.FileMonitorFlags.WATCH_MOVES, None)
+            monitor.connect('changed', changed)
+            monitors.append(monitor)
+        return monitors
 
     def run(self, connection=None):
         set_process_name()

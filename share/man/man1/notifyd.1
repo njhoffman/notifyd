@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.26.0" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.27.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -91,9 +91,11 @@ as in
 .BR notify\-send (1).
 .SH COMMANDS
 .SS daemon
-Run the daemon in the foreground. It reloads its config when the file changes, on SIGHUP, or on
+Run the daemon in the foreground. It reloads its config when the file or a user preset changes, on
+SIGHUP, or on
 .BR "notifyd ctl reload" ;
-a broken file is reported and the previous config kept.
+open popups and the center take the new look at once. A broken file is shown as a notification until
+it is fixed, and the previous config kept.
 .TP
 .BR \-c ", " \-\-config " \fIpath\fR"
 Config file (default

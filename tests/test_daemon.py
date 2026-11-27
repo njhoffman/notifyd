@@ -3,6 +3,7 @@ notifyd send, notifyd ctl and gdbus as the clients."""
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -126,9 +127,15 @@ def test_close_history_pause_and_reload(bus, daemon, tmp_path):
     (tmp_path / 'notifyd.yaml').write_text('timeout: [broken\n')
     result = run(bus, 'ctl', 'reload', check=False)
     assert result.returncode == 1 and result.stdout.startswith('error')
+    notices = [n for n in json.loads(run(bus, 'ctl', 'list', '--json').stdout) if n['stack_tag'] == 'notifyd-config']
+    assert [n['summary'] for n in notices] == ['config error, kept the last good one']   # one, replaced
     (tmp_path / 'notifyd.yaml').write_text('preset: card\n')
     assert run(bus, 'ctl', 'reload').stdout.startswith('reloaded')
     assert 'card' in run(bus, 'ctl', 'status').stdout
+    # it shows for 3 s (and the file watcher may have reloaded first), so look in the log, not on screen
+    said = [e['n']['summary'] for e in events(tmp_path)
+            if e['event'] in ('shown', 'replaced') and e.get('n', {}).get('stack_tag') == 'notifyd-config']
+    assert said[-1] == 'config reloaded' and 'config error, kept the last good one' in said
 
 
 def test_actions_print_the_chosen_key(bus, daemon, tmp_path):
@@ -168,7 +175,9 @@ def test_second_daemon_names_the_owner(bus, daemon, tmp_path):
     other = subprocess.run([*NOTIFYD, 'daemon', '--renderer', 'none', '--log-format', 'pretty'], env=bus,
                            capture_output=True, text=True, timeout=20)
     assert other.returncode == 1
-    assert 'cannot own org.freedesktop.Notifications: owned by notifyd' in other.stderr
+    # it asks for two names; whichever refusal comes back first is the one it reports
+    assert re.search(r'cannot own (org\.freedesktop\.Notifications|io\.github\.njhoffman\.Notifyd): '
+                     r'owned by notifyd', other.stderr), other.stderr
 
 
 def test_list_mode_log_file_and_persistent_history(bus, daemon, tmp_path):
@@ -680,3 +689,19 @@ def test_players_follow_the_bus_without_blocking(bus):
         for proc in players:
             proc.terminate()
             proc.wait(5)
+
+
+def test_editing_the_config_or_a_preset_reloads(bus, daemon, tmp_path):
+    presets = Path(bus['XDG_CONFIG_HOME']) / 'notifyd' / 'presets'
+    presets.mkdir(parents=True)
+    (presets / 'mine.yaml').write_text('description: mine\nstyle: {background: "#000"}\n')
+    daemon('preset: mine\n', '--renderer', 'none')
+
+    def reloads():
+        return sum(e['event'] == 'reload' for e in events(tmp_path))
+    before = reloads()
+    (presets / 'mine.yaml').write_text('description: mine\nstyle: {background: "#123"}\n')
+    assert wait_until(lambda: reloads() > before), 'a preset edit reloads'
+    before = reloads()
+    (tmp_path / 'notifyd.yaml').write_text('preset: mine\ntimeout: 3s\n')
+    assert wait_until(lambda: reloads() > before), 'a config edit reloads'
