@@ -149,7 +149,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       waiting on the last card; optionally `position.order: newest-first|oldest-first`.
 - [ ] **Group by app in the center.** (p3) [feature] Collapsible per-app groups with a count and
       "clear group". Upstream: swaync#61, mako#234.
-- [ ] **Filter MPRIS players.** (p3) [feature] `center.mpris-ignore: [firefox, chromium]`, so
+- [x] **Filter MPRIS players.** (p3) [feature] `center.mpris-ignore: [firefox, chromium]`, so
       browser tabs do not take the now-playing row. Upstream: swaync PR#324.
 - [ ] **Center buttons that run commands.** (p3) [feature] A configured row of buttons or toggles
       (with a state command), e.g. wifi, bluetooth, displayd layouts. Upstream: swaync

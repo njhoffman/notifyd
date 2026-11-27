@@ -50,7 +50,7 @@ DEFAULTS = {
     'log': {'format': 'pretty', 'color': 'auto', 'level': 'info', 'file': None},
     'click': {'left': 'dismiss', 'middle': 'dismiss-all', 'right': 'default-action'},
     'center': {'width': 400, 'side': 'right', 'hide-on-leave': True, 'mpris': True, 'volume': True, 'modes': True,
-               'cards': 20, 'keyboard': True, 'remote-art': True,
+               'cards': 20, 'keyboard': True, 'remote-art': True, 'mpris-ignore': [],
                'toggle-key': '<Super>grave'},   # the WM's toggle binding, which the grab swallows
     'fade': {'in': 0, 'out': 150},   # ms; picom fades windows in, but not translucent ones out
     'style': {},
@@ -180,6 +180,12 @@ def normalize(settings, where='config'):
         raise ConfigError(f'{where}: run: expected a shell command')
     if settings.get('sound') not in (None, False) and not isinstance(settings['sound'], str):
         raise ConfigError(f'{where}: sound: expected a file, a sound name, or false')
+    center = settings.get('center')
+    if isinstance(center, dict) and 'mpris-ignore' in center:
+        ignore = center['mpris-ignore'] or []
+        if not isinstance(ignore, list) or not all(isinstance(name, str) for name in ignore):
+            raise ConfigError(f'{where}: center.mpris-ignore: expected a list of player names')
+        center['mpris-ignore'] = ignore
     if isinstance(settings.get('lock'), dict):
         lock = settings['lock']
         if not isinstance(lock.get('pause', False), bool):

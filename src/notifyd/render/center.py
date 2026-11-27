@@ -222,7 +222,7 @@ class Center:
     def now_playing(self):
         if self.players is None or not self.settings().get('mpris', True):
             return None
-        return self.players.now_playing()
+        return self.players.now_playing(self.settings().get('mpris-ignore') or ())
 
     def volume_wanted(self):
         return self.settings().get('volume', True) and volume.available()

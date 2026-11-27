@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.22.0" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.23.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -409,6 +409,8 @@ open one and is counted),
 (no expiry while the user is away that long),
 .BR center.width / side / hide\-on\-leave / mpris / volume ,
 .BR center.modes / cards / keyboard / remote\-art / toggle\-key ,
+.B center.mpris\-ignore
+(player names the now-playing row passes over),
 .BR fade.in / out
 (ms; out defaults to 150, since picom does not fade translucent windows out),
 .BR history.size / keep / persist ,

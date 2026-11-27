@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-11-27
+
+### Added
+
+- `center.mpris-ignore: [firefox, chromium]`: the now-playing row passes over those players (by
+  the name after `org.mpris.MediaPlayer2.`, any case), so a browser tab does not take it.
+
 ## [0.22.0] - 2026-11-27
 
 ### Added

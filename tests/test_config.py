@@ -173,3 +173,9 @@ def test_ignore_close_is_a_boolean():
     assert load_config(text='').settings['ignore-close'] is False
     with pytest.raises(ConfigError, match='ignore-close'):
         load_config(text='ignore-close: sometimes')
+
+
+def test_mpris_ignore_is_a_list_of_names():
+    assert load_config(text='center: {mpris-ignore: [firefox]}').settings['center']['mpris-ignore'] == ['firefox']
+    with pytest.raises(ConfigError, match=r'center\.mpris-ignore'):
+        load_config(text='center: {mpris-ignore: firefox}')

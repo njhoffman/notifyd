@@ -57,9 +57,12 @@ def _state(name, props):
     }
 
 
-def pick(states):
-    """The playing player (else a paused one) with a title, or None."""
-    states = [s for s in states if s and s['title'] and s['status'] in ('Playing', 'Paused')]
+def pick(states, ignore=()):
+    """The playing player (else a paused one) with a title, or None; players named in IGNORE (the part
+    after org.mpris.MediaPlayer2., such as firefox or chromium; any case) are passed over."""
+    ignored = {str(name).lower() for name in ignore}
+    states = [s for s in states if s and s['title'] and s['status'] in ('Playing', 'Paused')
+              and s['player'].lower() not in ignored]
     if not states:
         return None
     return min(states, key=lambda s: STATUS_ORDER.get(s['status'], 3))
@@ -82,8 +85,8 @@ class Players:
         connection.call('org.freedesktop.DBus', '/org/freedesktop/DBus', 'org.freedesktop.DBus', 'ListNames', None,
                         GLib.VariantType('(as)'), Gio.DBusCallFlags.NONE, 2000, None, self._on_names)
 
-    def now_playing(self):
-        return pick(_state(name, props) for name, props in sorted(self.props.items()))
+    def now_playing(self, ignore=()):
+        return pick((_state(name, props) for name, props in sorted(self.props.items())), ignore)
 
     def _on_names(self, connection, result):
         try:

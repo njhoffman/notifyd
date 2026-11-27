@@ -635,3 +635,41 @@ def test_pictures_are_sharp_at_scale_2():
     finally:
         xvfb.terminate()
         xvfb.wait(5)
+
+
+def test_players_follow_the_bus_without_blocking(bus):
+    from gi.repository import Gio, GLib
+
+    from notifyd import mpris
+    players = []
+    try:
+        for status, title, name in (('Playing', 'Tab audio', 'firefox'), ('Paused', 'Song', 'spotify')):
+            proc = subprocess.Popen([sys.executable, str(ROOT / 'tests' / 'fake_mpris.py'), status, title, name],
+                                    env=bus, stdout=subprocess.PIPE, text=True)
+            players.append(proc)
+            assert proc.stdout.readline().strip() == 'ready'
+        connection = Gio.DBusConnection.new_for_address_sync(
+            bus['DBUS_SESSION_BUS_ADDRESS'],
+            Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION, None, None)
+        changes = []
+        cache = mpris.Players(connection, on_change=lambda: changes.append(1))
+        assert cache.now_playing() is None                       # nothing is waited for
+        context = GLib.MainContext.default()
+        end = time.monotonic() + 5
+        while len(cache.props) < 2 and time.monotonic() < end:
+            context.iteration(False)
+            time.sleep(0.01)
+        assert cache.now_playing()['player'] == 'firefox'          # playing beats paused
+        assert cache.now_playing(ignore=['Firefox'])['title'] == 'Song'
+        assert cache.now_playing(ignore=['firefox', 'spotify']) is None
+        players[0].terminate()
+        players[0].wait(5)
+        end = time.monotonic() + 5
+        while 'org.mpris.MediaPlayer2.firefox' in cache.props and time.monotonic() < end:
+            context.iteration(False)
+            time.sleep(0.01)
+        assert cache.now_playing()['player'] == 'spotify' and changes
+    finally:
+        for proc in players:
+            proc.terminate()
+            proc.wait(5)
