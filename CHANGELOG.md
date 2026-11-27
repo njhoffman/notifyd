@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-11-26
+
+### Fixed
+
+- docs/config.md and the man page now list every key a rule cannot set (`position`, `max-visible`,
+  `log`, `click`, `center`, `lock`, `rules`); the man page said a rule takes any of them.
+
 ## [0.18.0] - 2026-11-26
 
 ### Added

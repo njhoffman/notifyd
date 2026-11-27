@@ -46,8 +46,9 @@ missing file gives the deadd look. The daemon reloads the file when it changes (
 
 ## Rules
 
-Each rule has an optional `name`, a `match`, and any of the keys above (except `position`,
-`max-visible`, `log`, `click`, `rules`). Rules apply in order; each sees what earlier rules rewrote,
+Each rule has an optional `name`, a `match`, and any of the keys above except the daemon-wide ones
+(`position`, `max-visible`, `log`, `click`, `center`, `lock`, `rules`), which a rule refuses as
+unknown. Rules apply in order; each sees what earlier rules rewrote,
 and later ones override earlier ones. A rule's `timeout` wins over the one the sender asked for.
 
 ```yaml

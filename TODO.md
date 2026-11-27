@@ -101,7 +101,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [x] **Option to ignore an app's own CloseNotification.** (p3) [feature] dunst's
       `ignore_dbusclose` as a rule key `ignore-close: true` (`server.py`, manager). Upstream:
       mako#561.
-- [ ] **Docs misstate which keys a rule can set.** (p3) [docs] docs/config.md leaves `center` out
+- [x] **Docs misstate which keys a rule can set.** (p3) [docs] docs/config.md leaves `center` out
       of the keys rules cannot set; the man page says a rule takes "any of those keys", but
       `position`, `max-visible`, `log`, `click` and `center` are refused (`rules.py:39`).
 
