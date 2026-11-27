@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.13.6] - 2026-11-26
+
+### Fixed
+
+- Remote cover art keeps to its 3 s limit for the whole download: a server that sends a byte now
+  and then could hold the download thread for minutes, since the timeout applied to each read. (A
+  server that stalls while sending its headers is still bounded per read only.)
+- The art cache keeps the 200 most recently used covers instead of the most recently downloaded:
+  a cache hit counts as use.
+
 ## [0.13.5] - 2026-11-26
 
 ### Fixed

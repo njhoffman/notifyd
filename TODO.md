@@ -137,7 +137,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [ ] **HiDPI images are blurry.** (p3) [perf] Pixbufs load at logical size and ignore
       `get_scale_factor()`; load at size x scale and draw via a cairo surface. Upstream:
       dunst#1470, dunst PR#1566.
-- [ ] **Remote art timeout and eviction.** (p3) [bug] The 3 s timeout in `art.py` is per socket
+- [x] **Remote art timeout and eviction.** (p3) [bug] The 3 s timeout in `art.py` is per socket
       operation, so a slow server holds the thread for minutes; cache hits do not touch mtime, so
       the prune evicts oldest-written, not least-used. Total deadline; `os.utime` on hit.
 - [ ] **Read a cut-off notification in full.** (p3) [feature] Bodies stop at `max-lines` (3 in the

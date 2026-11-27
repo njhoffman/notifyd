@@ -31,6 +31,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         Handler.hits.append((self.path, self.headers.get('User-Agent')))
+        if self.path == '/drip':                       # headers at once, then a byte every 0.1 s
+            self.send_response(200)
+            self.send_header('Content-Length', str(len(PNG)))
+            self.end_headers()
+            try:
+                for byte in PNG:
+                    self.wfile.write(bytes([byte]))
+                    self.wfile.flush()
+                    time.sleep(0.1)
+            except OSError:
+                pass
+            return
         if self.path.startswith('/slow'):
             time.sleep(0.6)
         if self.path.startswith(('/ok', '/slow')):
@@ -93,6 +105,13 @@ def test_a_slow_server_times_out(server, monkeypatch):
     assert path is None
 
 
+def test_a_server_that_drips_meets_the_total_deadline(server, monkeypatch):
+    monkeypatch.setattr(art, 'TIMEOUT', 0.5)               # each byte comes well within it
+    start = time.monotonic()
+    _now, path = fetched(f'{server}/drip')
+    assert path is None and time.monotonic() - start < 1.5
+
+
 def test_one_download_per_url_at_a_time(server):
     calls = []
     done = threading.Event()
@@ -118,3 +137,15 @@ def test_only_http_urls(server):
     for url in ('file:///etc/passwd', '/tmp/x.png', 'ftp://example.org/a.png', '', None):
         assert art.fetch(url, lambda _p: pytest.fail('fetched')) is None
     assert Handler.hits == []
+
+
+def test_cache_hits_count_as_use(server, monkeypatch):
+    monkeypatch.setattr(art, 'KEEP', 2)
+    for name in ('a', 'b'):
+        fetched(f'{server}/ok-{name}')
+        time.sleep(0.02)
+    assert fetched(f'{server}/ok-a')[0] == art.cache_path(f'{server}/ok-a')   # a hit: a is used again
+    time.sleep(0.02)
+    fetched(f'{server}/ok-c')
+    assert sorted(p.name for p in art.cache_dir().iterdir()) == sorted(
+        art.cache_path(f'{server}/ok-{name}').name for name in ('a', 'c'))     # b, least used, went
