@@ -115,6 +115,10 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       of the keys rules cannot set; the man page says a rule takes "any of those keys", but
       `position`, `max-visible`, `log`, `click` and `center` are refused (`rules.py:39`).
 
+- [ ] **`GLib.unix_signal_add` is deprecated in PyGObject 3.56.** (p3) [chore] Ubuntu 26.04's
+      PyGObject warns `use GLibUnix.signal_add_full instead` (`daemon.py:199-203`, SIGINT, SIGTERM,
+      SIGHUP, SIGUSR1). Use `GLibUnix.signal_add` when `gi.repository.GLibUnix` imports, else the old
+      call (24.04 has no GLibUnix), before a later PyGObject removes it.
 ## 13. Rendering and the center
 
 - [x] **The stack can run off the screen.** (p2) [bug] `GtkRenderer.layout` sums heights without
