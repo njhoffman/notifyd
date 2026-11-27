@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.19.1] - 2026-11-27
+
+### Fixed
+
+- Icons and images are sharp on HiDPI screens (`GDK_SCALE=2`, or a monitor with a scale factor):
+  they are loaded at the scale factor and drawn at it, in popups, center cards and the
+  now-playing row, instead of being drawn at their pixel size. At scale 1 nothing changes.
+
 ## [0.19.0] - 2026-11-27
 
 ### Added

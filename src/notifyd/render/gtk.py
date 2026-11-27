@@ -316,7 +316,8 @@ class GtkRenderer:
 
         # image: image-data, image-path, a rule's image.path, else an app icon that is a file
         image_settings = settings.get('image') or {}
-        image_size = int(image_settings.get('size') or 0)
+        scale = self.scale()
+        image_size = int(image_settings.get('size') or 0) * scale      # device pixels, drawn at SCALE
         icon_settings = settings.get('icon') or {}
         icon_source = icon_settings.get('name') or n.app_icon or desktop_icon(n.desktop_entry)
         picture = None
@@ -338,10 +339,10 @@ class GtkRenderer:
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         header.get_style_context().add_class('header')
         if 'app-icon' not in hide:
-            icon = load_pixbuf(icon_source, int(icon_settings.get('size') or 0),
+            icon = load_pixbuf(icon_source, int(icon_settings.get('size') or 0) * scale,
                                rgba(self.text_color(n, style))) if icon_source else None
             if icon is not None:
-                widget = Gtk.Image.new_from_pixbuf(icon)
+                widget = self.picture_widget(icon, scale)
                 widget.get_style_context().add_class('appicon')
                 header.pack_start(widget, False, False, 0)
         if 'app-name' not in hide and n.app:
@@ -360,7 +361,7 @@ class GtkRenderer:
         content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         content.get_style_context().add_class('content')
         if picture is not None:
-            image = Gtk.Image.new_from_pixbuf(picture)
+            image = self.picture_widget(picture, scale)
             image.get_style_context().add_class('image')
             image.set_valign(Gtk.Align.START)
             image.set_margin_end(int(image_settings.get('margin-right', 0)) + 12)
@@ -452,6 +453,20 @@ class GtkRenderer:
         """A pixbuf from a path, file:// URI or icon name (no network), or None; COLOR is a CSS color
         for symbolic icons."""
         return load_pixbuf(source, size, rgba(color))
+
+    def scale(self):
+        """The scale factor of the monitor the stack is on (2 under GDK_SCALE=2 or a HiDPI screen)."""
+        display = Gdk.Display.get_default()
+        monitor = display.get_primary_monitor() or display.get_monitor(0)
+        return max(int(monitor.get_scale_factor()), 1) if monitor is not None else 1
+
+    @staticmethod
+    def picture_widget(pixbuf, scale=1):
+        """An image of PIXBUF, loaded at SCALE times its logical size, drawn at that scale so it stays
+        sharp on a HiDPI screen (a plain pixbuf image would be drawn at its pixel size)."""
+        if scale <= 1:
+            return Gtk.Image.new_from_pixbuf(pixbuf)
+        return Gtk.Image.new_from_surface(Gdk.cairo_surface_create_from_pixbuf(pixbuf, scale, None))
 
     @staticmethod
     def text_color(n, style):

@@ -114,6 +114,14 @@ def spin(ms):
         GLib.MainContext.default().iteration(False)
         time.sleep(0.005)
 
+def wait_for(condition, ms=3000):
+    # spin until CONDITION() holds (async reads such as pactl land a little later), at most MS
+    end = time.monotonic() + ms / 1000
+    while not condition() and time.monotonic() < end:
+        GLib.MainContext.default().iteration(False)
+        time.sleep(0.005)
+    return condition()
+
 def rebuilt(old, kind):
     # the center rebuilds at idle priority, behind GTK's own drawing: wait for new widgets
     end = time.monotonic() + 3
@@ -179,12 +187,12 @@ center.toggle('show')
 spin(50)
 assert builds == [], builds
 scale, = widgets(center.window, Gtk.Scale)
-assert scale.get_value() == 65
+assert wait_for(lambda: scale.get_value() == 65), scale.get_value()   # re-read from pactl on opening
 center.hide()
 open(sys.argv[3] + '/volume', 'w').write('20')
 center.toggle('show')
-spin(300)                                        # pactl is read without blocking: it lands shortly after
-assert builds == [] and scale.get_value() == 20
+assert wait_for(lambda: scale.get_value() == 20), scale.get_value()   # pactl is read without blocking
+assert builds == []
 center.hide()
 first = manager.notify('a', summary='new')       # a change while hidden: rebuilt on opening
 spin(50)

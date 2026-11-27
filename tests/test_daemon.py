@@ -527,3 +527,52 @@ def test_activation_token_comes_before_action_invoked():
     (first, (nid, token)), second = server.sent
     assert first == 'ActivationToken' and nid == 7 and token.startswith('notifyd-') and token.endswith('_TIME0')
     assert second == ('ActionInvoked', (7, 'open'))
+
+
+HIDPI_SCRIPT = r"""
+import io, sys
+sys.path.insert(0, sys.argv[1])
+from notifyd.config import load_config
+from notifyd.log import EventLog
+from notifyd.manager import Manager
+from notifyd.render.gtk import GtkRenderer
+from gi.repository import Gtk
+sys.path.insert(0, sys.argv[2])
+from conftest import FakeScheduler
+
+log = EventLog(stream=io.StringIO(), color='never')
+manager = Manager(load_config(text='position: {follow: none}\nimage: {size: 60}'), log, FakeScheduler())
+renderer = GtkRenderer(manager, log)
+manager.renderer = renderer
+assert renderer.scale() == 2, renderer.scale()
+picture = (120, 120, 360, False, 8, 3, bytes(120 * 120 * 3))
+nid = manager.notify('a', summary='s', body='b', hints={'image-data': picture})
+
+def images(widget):
+    found = [widget] if isinstance(widget, Gtk.Image) else []
+    for child in (widget.get_children() if isinstance(widget, Gtk.Container) else []):
+        found += images(child)
+    return found
+image, = images(renderer.windows[nid])
+assert image.get_storage_type() == Gtk.ImageType.SURFACE, image.get_storage_type()
+width = image.get_preferred_width()[1] - image.get_margin_start() - image.get_margin_end()
+assert 58 <= width <= 62, width                 # 60 logical px, from 120 device px
+print('ok')
+"""
+
+
+@pytest.mark.skipif(not shutil.which('Xvfb'), reason='needs Xvfb')
+def test_pictures_are_sharp_at_scale_2():
+    display = f':{60 + os.getpid() % 9}'
+    xvfb = subprocess.Popen(['Xvfb', display, '-screen', '0', '1280x720x24'], stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL)
+    try:
+        time.sleep(0.7)
+        result = subprocess.run([sys.executable, '-c', HIDPI_SCRIPT, str(ROOT / 'src'), str(ROOT / 'tests')],
+                                env={**os.environ, 'DISPLAY': display, 'GDK_SCALE': '2', 'GIO_USE_VFS': 'local'},
+                                capture_output=True, text=True, timeout=30, check=False)
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == 'ok'
+    finally:
+        xvfb.terminate()
+        xvfb.wait(5)

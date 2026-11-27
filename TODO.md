@@ -134,7 +134,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [x] **Symbolic icons are not recolored.** (p3) [feature] `load_pixbuf` uses `load_icon`, so
       `*-symbolic` icons keep their dark SVG color on dark cards, and no `GENERIC_FALLBACK`
       (`audio-volume-high-foo`). Use `lookup_icon(...).load_symbolic(fg)`. Upstream: dunst#1481.
-- [ ] **HiDPI images are blurry.** (p3) [perf] Pixbufs load at logical size and ignore
+- [x] **HiDPI images are blurry.** (p3) [perf] Pixbufs load at logical size and ignore
       `get_scale_factor()`; load at size x scale and draw via a cairo surface. Upstream:
       dunst#1470, dunst PR#1566.
 - [x] **Remote art timeout and eviction.** (p3) [bug] The 3 s timeout in `art.py` is per socket

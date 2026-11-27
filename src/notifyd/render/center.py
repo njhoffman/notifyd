@@ -447,12 +447,13 @@ class Center:
         self.place_art(slot, str(source))
 
     def place_art(self, slot, source):
-        pixbuf = self.renderer.load_image(source, self.ART_SIZE)
+        scale = self.renderer.scale()
+        pixbuf = self.renderer.load_image(source, self.ART_SIZE * scale)
         if pixbuf is None or slot.get_parent() is None:   # unreadable, or the row was rebuilt meanwhile
             return
         for child in slot.get_children():
             slot.remove(child)
-        slot.pack_start(Gtk.Image.new_from_pixbuf(pixbuf), False, False, 0)
+        slot.pack_start(self.renderer.picture_widget(pixbuf, scale), False, False, 0)
         slot.show_all()
 
     CARD_PICTURE = 32
@@ -463,13 +464,13 @@ class Center:
         if n is not None:
             for hint in IMAGE_HINTS:
                 if isinstance(n.hints.get(hint), tuple):
-                    picture = self.renderer.image_from_data(n, hint, self.CARD_PICTURE)
+                    picture = self.renderer.image_from_data(n, hint, self.CARD_PICTURE * self.renderer.scale())
                     if picture is not None:
                         return picture
         sources = [entry.get(key) for key in ('thumb', 'image', 'app_icon')]
         sources.append(desktop_icon((entry.get('sender') or {}).get('desktop_entry')))
         for source in sources:
-            picture = self.renderer.load_image(source, self.CARD_PICTURE, self.card_color)
+            picture = self.renderer.load_image(source, self.CARD_PICTURE * self.renderer.scale(), self.card_color)
             if picture is not None:
                 return picture
         return None
@@ -511,7 +512,7 @@ class Center:
         picture = self.card_picture(entry, opened)
         if picture is not None:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-            image = Gtk.Image.new_from_pixbuf(picture)
+            image = self.renderer.picture_widget(picture, self.renderer.scale())
             image.get_style_context().add_class('card-picture')
             image.set_valign(Gtk.Align.START)
             row.pack_start(image, False, False, 0)
