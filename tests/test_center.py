@@ -403,6 +403,24 @@ center.toggle('show')
 spin(100)
 assert center.visible and not center.grabbed
 
+# `e` shows the selected card's whole body
+manager.config.settings['center']['keyboard'] = True
+center.hide()
+manager.close(manager.notify('long', summary='long body', body='\n'.join(f'line {i}' for i in range(8))))
+center.toggle('show')
+spin(150)
+press('g')
+assert selected() == 'long body'
+def body_text():
+    card = center.cards[center.index()][0]
+    return [l.get_text() for l in widgets(card, Gtk.Label) if 'line 0' in l.get_text()]
+assert body_text() == ['line 0\nline 1\nline 2…']
+press('e')
+assert body_text() == ['\n'.join(f'line {i}' for i in range(8))] and selected() == 'long body'
+press('e')
+assert body_text() == ['line 0\nline 1\nline 2…']
+manager.config.settings['center']['keyboard'] = False
+
 # a history card shows the kept thumbnail of an image-data picture, and its markup mode
 import tempfile
 from pathlib import Path

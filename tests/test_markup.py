@@ -1,6 +1,6 @@
 import pytest
 
-from notifyd.markup import expand_classes, markup_error, plain_text, prepare, safe_link
+from notifyd.markup import cap_lines, expand_classes, markup_error, plain_text, prepare, safe_link
 
 CLASSES = {'accent': {'foreground': '#7aa2f7', 'weight': 'bold'}, 'muted': {'alpha': '60%'},
            'odd': {'onclick': 'x', 'font-size': '10pt'}}
@@ -134,3 +134,16 @@ def test_block_tags_become_line_breaks(text, expected):
 def test_other_unknown_tags_still_show_as_typed():
     assert prepare('<p>x</p><pre>y</pre>') == 'x\n&lt;pre&gt;y&lt;/pre&gt;'
     assert markup_error('<p>x</p><pre>y</pre>')
+
+
+@pytest.mark.parametrize('text, lines, expected', [
+    ('a\nb\nc\nd', 2, 'a\nb…'),
+    ('a\nb', 2, None),                                            # within the limit
+    ('one long paragraph', 1, None),                               # wrapping is Pango's to cap
+    ('<b>a\nb</b>\nc', 1, '<b>a…</b>'),                          # open tags are closed
+    ('<span foreground="red"><i>a\nb</i></span>', 1, '<span foreground="red"><i>a…</i></span>'),
+    ('<a href="u">x\ny</a>\nz', 1, '<a href="u">x…</a>'),
+    ('a\nb', 0, None),
+])
+def test_cap_lines(text, lines, expected):
+    assert cap_lines(text, lines) == expected

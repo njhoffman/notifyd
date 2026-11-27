@@ -31,7 +31,7 @@ from notifyd.images import (  # noqa: E402, F401
     image_data_problem,
     pixbuf_from_image_data,
 )
-from notifyd.markup import markup_error, prepare, safe_link  # noqa: E402
+from notifyd.markup import cap_lines, markup_error, prepare, safe_link  # noqa: E402
 from notifyd.render.center import Center  # noqa: E402
 from notifyd.render.css import build_css, resolve_style, style_class  # noqa: E402
 
@@ -101,6 +101,8 @@ class GtkRenderer:
         self.link_clicked = None   # the event time of the last link click, which must not dismiss
         self.measured = None       # (notification, window) built by fits() for show()
         self.fades = {}            # window -> its running fade's GLib source
+        self.bodies = {}           # notification id -> (body label, max-lines) when its body is capped
+        self.expanded = set()      # ids whose capped body is shown in full while hovered
         self.fade_out = {}         # notification id -> its fade.out (ms), from its own settings
         self.screen = Gdk.Screen.get_default()
         self.visual = self.screen.get_rgba_visual()
@@ -191,6 +193,7 @@ class GtkRenderer:
             n, window = self.measured
             if n.id not in self.windows:
                 self.window_scopes.pop(n.id, None)
+                self.bodies.pop(n.id, None)
             window.destroy()
             self.measured = None
 
@@ -245,6 +248,8 @@ class GtkRenderer:
         window = self.windows.pop(nid, None)
         fade_out = self.fade_out.pop(nid, 0)
         self.window_scopes.pop(nid, None)
+        self.bodies.pop(nid, None)
+        self.expanded.discard(nid)
         self.prune_styles()
         if window is not None:
             if fade_out and window.get_visible():
@@ -285,6 +290,8 @@ class GtkRenderer:
         self.layout()
 
     def fill(self, window, n):
+        self.bodies.pop(n.id, None)
+        self.expanded.discard(n.id)
         settings = n.settings
         scope, style = self.style_for(n)
         context = window.get_style_context()
@@ -375,11 +382,14 @@ class GtkRenderer:
                 title.set_ellipsize(Pango.EllipsizeMode.END)
             text.pack_start(title, False, False, 0)
         if 'body' not in hide and n.body:
-            body = self.label(prepare(n.body, mode, classes), 'body')
+            full = prepare(n.body, mode, classes)
             lines = int((settings.get('body') or {}).get('max-lines') or 0)
+            capped = cap_lines(full, lines)
+            body = self.label(capped or full, 'body')
             if lines:
-                body.set_lines(lines)
+                body.set_lines(lines)             # a long paragraph: Pango caps it (per paragraph)
                 body.set_ellipsize(Pango.EllipsizeMode.END)
+                self.bodies[n.id] = (body, lines, full, capped)   # hovering shows the rest (expand)
             text.pack_start(body, False, False, 0)
         if 'progress' not in hide and n.progress is not None:
             bar = Gtk.ProgressBar()
@@ -545,10 +555,36 @@ class GtkRenderer:
     def on_enter(self, _widget, event, nid):
         if event.detail != Gdk.NotifyType.INFERIOR:
             self.manager.hold(nid)
+            self.expand(nid, True)
 
     def on_leave(self, _widget, event, nid):
         if event.detail != Gdk.NotifyType.INFERIOR:
             self.manager.release(nid)
+            self.expand(nid, False)
+
+    def expand(self, nid, on):
+        """Show all of NID's body while it is hovered, when max-lines cut it; back to max-lines after."""
+        found = self.bodies.get(nid)
+        window = self.windows.get(nid)
+        if found is None or window is None:
+            return
+        label, lines, full, capped = found
+        if on and nid not in self.expanded and (capped is not None or label.get_layout().is_ellipsized()):
+            self.expanded.add(nid)
+            if capped is not None:
+                label.set_markup(full)
+            label.set_lines(-1)
+            label.set_ellipsize(Pango.EllipsizeMode.NONE)
+        elif not on and nid in self.expanded:
+            self.expanded.discard(nid)
+            if capped is not None:
+                label.set_markup(capped)
+            label.set_lines(lines)
+            label.set_ellipsize(Pango.EllipsizeMode.END)
+            window.resize(1, 1)                    # shrink back to the capped body
+        else:
+            return
+        self.layout()
 
     def on_click(self, _widget, event, nid):
         if self.link_clicked == event.time:     # the label opened a link with this click

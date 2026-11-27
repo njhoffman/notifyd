@@ -140,7 +140,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [x] **Remote art timeout and eviction.** (p3) [bug] The 3 s timeout in `art.py` is per socket
       operation, so a slow server holds the thread for minutes; cache hits do not touch mtime, so
       the prune evicts oldest-written, not least-used. Total deadline; `os.utime` on hit.
-- [ ] **Read a cut-off notification in full.** (p3) [feature] Bodies stop at `max-lines` (3 in the
+- [x] **Read a cut-off notification in full.** (p3) [feature] Bodies stop at `max-lines` (3 in the
       center). Expand on hover, a `click.*: expand` value, and Enter in the center. Upstream:
       dunst#514.
 - [ ] **Timeout bar.** (p3) [feature] A thin bar that drains with the timer and freezes on hover;

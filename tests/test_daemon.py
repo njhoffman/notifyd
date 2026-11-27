@@ -426,6 +426,29 @@ if plain:
     assert load_pixbuf(plain[0] + '-nosuchvariant', 24) is not None
 assert load_pixbuf('zzz-no-such-icon', 24) is None
 
+# hovering a popup whose body max-lines cut shows all of it, and it shrinks back on leave
+manager.close_all()
+spin(50)
+manager.config.settings['body'] = {'max-lines': 2}
+long_one = manager.notify('a', summary='long', body='\n'.join(f'line {i}' for i in range(10)))
+short_one = manager.notify('a', summary='short', body='one line')
+spin(150)
+label, lines, _full, _capped = renderer.bodies[long_one]
+assert label.get_text() == 'line 0\nline 1…'                    # many short lines are capped too
+before = renderer.windows[long_one].get_preferred_size()[1].height
+renderer.expand(long_one, True)
+spin(100)
+assert label.get_lines() == -1 and long_one in renderer.expanded and 'line 9' in label.get_text()
+assert renderer.windows[long_one].get_preferred_size()[1].height > before
+renderer.expand(long_one, False)
+spin(100)
+assert label.get_lines() == 2 and long_one not in renderer.expanded and label.get_text().endswith('…')
+renderer.expand(short_one, True)                   # nothing cut: nothing to expand
+assert short_one not in renderer.expanded
+manager.close(long_one)
+assert long_one not in renderer.bodies
+manager.config.settings['body'] = {'max-lines': 6}
+
 manager.close_all()
 assert renderer.area is None and renderer.windows == {}
 print('ok', x1, y1)

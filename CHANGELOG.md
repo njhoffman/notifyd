@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-27
+
+### Added
+
+- Hovering a popup whose body `body.max-lines` cut shows all of it (the stack makes room); it
+  shrinks back when the pointer leaves. In the center, `e` shows the whole body of the selected
+  card, or cuts it back to three lines.
+
+### Fixed
+
+- `body.max-lines` (and the center's three lines) now cap bodies made of many short lines too:
+  Pango counts its line limit per paragraph, so ten one-line paragraphs all showed.
+
 ## [0.19.1] - 2026-11-27
 
 ### Fixed

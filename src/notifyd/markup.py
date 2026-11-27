@@ -171,3 +171,28 @@ def prepare(text, mode='full', classes=None):
     if mode == 'strip':
         return escape(plain_text(text))
     return text
+
+
+_OPEN_OR_CLOSE = re.compile(r'<(/?)([a-zA-Z]+)\b[^>]*?(/?)>')
+
+
+def cap_lines(markup, lines):
+    """MARKUP cut to its first LINES lines (paragraphs) with an ellipsis, open tags closed, or None
+    when it has no more than that. Pango's line limit counts per paragraph, so a body of many short
+    lines would otherwise show them all."""
+    if lines <= 0 or markup.count('\n') < lines:
+        return None
+    kept = '\n'.join(markup.split('\n')[:lines])
+    stack = []
+    for found in _OPEN_OR_CLOSE.finditer(kept):
+        closing, name, empty = found.groups()
+        if empty:
+            continue
+        if closing:
+            if stack and stack[-1] == name:
+                stack.pop()
+        else:
+            stack.append(name)
+    capped = kept + '…' + ''.join(f'</{name}>' for name in reversed(stack))
+    return capped if parses(capped) else escape(plain_text(kept)) + '…'
+

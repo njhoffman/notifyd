@@ -24,7 +24,7 @@ from gi.repository import Gdk, Gio, GLib, Gtk, Pango
 from notifyd import art, mpris, volume
 from notifyd.config import ConfigError, load_preset
 from notifyd.images import IMAGE_HINTS, desktop_icon
-from notifyd.markup import prepare
+from notifyd.markup import cap_lines, prepare
 from notifyd.model import DISMISSED
 from notifyd.render.css import build_css, resolve_style, style_class
 from notifyd.rules import known_modes
@@ -49,7 +49,7 @@ KEYS = {
     'g': ('move_to', 0), 'Home': ('move_to', 0), 'G': ('move_to', -1), 'End': ('move_to', -1),
     'Return': ('activate',), 'KP_Enter': ('activate',),
     'd': ('remove',), 'Delete': ('remove',),
-    'C': ('clear',), 'p': ('toggle_pause',), 'm': ('next_mode',),
+    'C': ('clear',), 'p': ('toggle_pause',), 'm': ('next_mode',), 'e': ('toggle_expand',),
     'space': ('player', 'PlayPause'), 'n': ('player', 'Next'), 'N': ('player', 'Previous'),
     'plus': ('step_volume', VOLUME_STEP), 'equal': ('step_volume', VOLUME_STEP),
     'KP_Add': ('step_volume', VOLUME_STEP), 'minus': ('step_volume', -VOLUME_STEP),
@@ -96,6 +96,7 @@ class Center:
         self.bus = None
         self.players = None
         self.card_color = None     # the text color symbolic icons on the card being built take
+        self.expanded = set()      # (opened, id) of cards whose whole body shows (`e`)
         self.volume_level = None   # the last level read (reads are async, so the center never waits on pactl)
         try:
             self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
@@ -457,6 +458,7 @@ class Center:
         slot.show_all()
 
     CARD_PICTURE = 32
+    CARD_LINES = 3      # body lines on a card until `e` shows it all
 
     def card_picture(self, entry, opened):
         """A card's picture: an open one's image-data, else the kept thumbnail, image path or app icon."""
@@ -504,9 +506,13 @@ class Center:
         if entry.get('summary'):
             text.pack_start(self.renderer.label(prepare(entry['summary'], mode, classes), 'title'), False, False, 0)
         if entry.get('body'):
-            body = self.renderer.label(prepare(entry['body'], mode, classes), 'body')
-            body.set_lines(3)
-            body.set_ellipsize(Pango.EllipsizeMode.END)
+            full = prepare(entry['body'], mode, classes)
+            if (opened, entry['id']) in self.expanded:
+                body = self.renderer.label(full, 'body')
+            else:
+                body = self.renderer.label(cap_lines(full, self.CARD_LINES) or full, 'body')
+                body.set_lines(self.CARD_LINES)
+                body.set_ellipsize(Pango.EllipsizeMode.END)
             text.pack_start(body, False, False, 0)
         self.card_color = (style.get(entry.get('urgency', 'normal')) or {}).get('foreground') or style.get('foreground')
         picture = self.card_picture(entry, opened)
@@ -616,6 +622,14 @@ class Center:
             self.manager.close(entry['id'], DISMISSED)
         else:
             self.forget(entry['id'])
+
+    def toggle_expand(self):
+        """`e`: the selected card's whole body, or back to three lines."""
+        if self.selected is None:
+            return
+        self.expanded ^= {self.selected}
+        self.dirty = True
+        self.refresh()
 
     def toggle_pause(self):
         self.manager.pause(not self.manager.paused)
