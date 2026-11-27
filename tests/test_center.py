@@ -433,6 +433,23 @@ spin(100)
 assert [e['summary'] for e in manager.history] == ['w1', 'w2', 'w3']
 manager.config.settings['center']['keyboard'] = False
 
+# ? and ctrl+/ open the key help, built from the same table as the keys; any key closes it, unused
+from notifyd.render.center import BINDINGS
+manager.config.settings['center']['keyboard'] = True
+before = selected()
+assert press('question') and center.help_window is not None and center.help_window.get_visible()
+texts = [l.get_text() for l in widgets(center.help_window, Gtk.Label)]
+assert all(label in texts and what in texts for _n, label, what, _a in BINDINGS), texts
+assert press('j') and center.help_window is None and selected() == before   # closed, j did not move
+assert press('slash', Gdk.ModifierType.CONTROL_MASK) and center.help_window is not None
+assert press('slash', Gdk.ModifierType.CONTROL_MASK) and center.help_window is None
+press('question')
+center.hide()
+assert center.help_window is None
+center.toggle('show')
+spin(100)
+manager.config.settings['center']['keyboard'] = False
+
 # `e` shows the selected card's whole body
 manager.config.settings['center']['keyboard'] = True
 center.hide()
@@ -527,7 +544,7 @@ def test_center_keyboard(pactl):
         result = subprocess.run([sys.executable, '-c', KEYS_SCRIPT, str(ROOT / 'src'), str(ROOT / 'tests')],
                                 env={**os.environ, 'DISPLAY': display, 'GIO_USE_VFS': 'local',
                                      'DBUS_SESSION_BUS_ADDRESS': 'disabled:'},
-                                capture_output=True, text=True, timeout=30, check=False)
+                                capture_output=True, text=True, timeout=90, check=False)
         assert result.returncode == 0, result.stderr
         assert result.stdout.strip() == 'ok'
         changes = [line for line in log_lines(pactl) if line.startswith('set-')]

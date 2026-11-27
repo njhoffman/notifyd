@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-11-27
+
+### Added
+
+- `?` or `Ctrl+/` in the notification center shows a small window listing every key and what it
+  does (built from the same table the keys use); any key closes it.
+
 ## [0.25.2] - 2026-11-27
 
 ### Fixed

@@ -124,6 +124,8 @@ def build_css(style, scope):
         'box-shadow': f"inset 0 0 0 2px {style.get('center-selected', 'rgba(255, 255, 255, 0.45)')}"})
     css += block(f'{card}.center .center-time', {'font-size': '28px', 'font-weight': 'bold'})
     css += block(f'{card}.center .center-group', {'margin-top': '6px', 'opacity': '0.85'})
+    css += block(f'{card}.center-help', {'padding': '12px 16px', 'border-radius': px(style.get('radius', 4) or 4)})
+    css += block(f'{card}.center-help .help-key', {'font-family': 'monospace'})
     for name in ('title', 'body', 'appname', 'time', 'count'):
         css += block(f'{card} .{name}', part_props(style.get(name)))
     progress = style.get('progress') or {}

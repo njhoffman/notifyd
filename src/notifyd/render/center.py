@@ -43,18 +43,28 @@ GRAB_TRIES, GRAB_RETRY = 10, 50   # i3 can still hold the keyboard right after i
 VOLUME_STEP = 5
 
 # key name -> Center method name (and argument)
-KEYS = {
-    'Escape': ('hide',), 'q': ('hide',),
-    'j': ('move', 1), 'Down': ('move', 1), 'k': ('move', -1), 'Up': ('move', -1),
-    'g': ('move_to', 0), 'Home': ('move_to', 0), 'G': ('move_to', -1), 'End': ('move_to', -1),
-    'Return': ('activate',), 'KP_Enter': ('activate',),
-    'd': ('remove',), 'Delete': ('remove',),
-    'C': ('clear',), 'p': ('toggle_pause',), 'm': ('next_mode',), 'e': ('toggle_expand',),
-    'space': ('player', 'PlayPause'), 'n': ('player', 'Next'), 'N': ('player', 'Previous'),
-    'plus': ('step_volume', VOLUME_STEP), 'equal': ('step_volume', VOLUME_STEP),
-    'KP_Add': ('step_volume', VOLUME_STEP), 'minus': ('step_volume', -VOLUME_STEP),
-    'KP_Subtract': ('step_volume', -VOLUME_STEP),
-}
+# the center's keys: (key names, what they read as in the help, method and arguments); the help
+# window (? or ctrl+/) is built from the same table, so it cannot drift from what the keys do
+BINDINGS = [
+    (('j', 'Down'), 'j / down', 'next card', ('move', 1)),
+    (('k', 'Up'), 'k / up', 'previous card', ('move', -1)),
+    (('g', 'Home'), 'g / home', 'first card', ('move_to', 0)),
+    (('G', 'End'), 'G / end', 'last card', ('move_to', -1)),
+    (('Return', 'KP_Enter'), 'enter', 'act on the card (shows a closed one again)', ('activate',)),
+    (('d', 'Delete'), 'd / delete', 'close it, or forget it from history', ('remove',)),
+    (('e',), 'e', 'whole body of the card, or three lines', ('toggle_expand',)),
+    (('C',), 'C', 'clear everything', ('clear',)),
+    (('p',), 'p', 'do not disturb on or off', ('toggle_pause',)),
+    (('m',), 'm', 'next mode', ('next_mode',)),
+    (('space',), 'space', 'play / pause', ('player', 'PlayPause')),
+    (('n',), 'n', 'next track', ('player', 'Next')),
+    (('N',), 'N', 'previous track', ('player', 'Previous')),
+    (('plus', 'equal', 'KP_Add'), '+', 'volume up', ('step_volume', VOLUME_STEP)),
+    (('minus', 'KP_Subtract'), '-', 'volume down', ('step_volume', -VOLUME_STEP)),
+    (('question',), '? / ctrl+/', 'this help', ('toggle_help',)),
+    (('Escape', 'q'), 'esc / q', 'close the center', ('hide',)),
+]
+KEYS = {name: action for names, _label, _what, action in BINDINGS for name in names}
 
 _MODS = Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK | Gdk.ModifierType.MOD1_MASK \
     | Gdk.ModifierType.SUPER_MASK
@@ -105,6 +115,7 @@ class Center:
         self.expanded = set()      # (opened, id) of cards whose whole body shows (`e`)
         self.button_widgets = []   # (button, spec) of center.buttons
         self.expanded_groups = set()   # apps whose history group shows every card (center.group)
+        self.help_window = None        # the key help (? or ctrl+/) while it is open
         self.volume_level = None   # the last level read (reads are async, so the center never waits on pactl)
         try:
             self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
@@ -154,6 +165,7 @@ class Center:
         self.renderer.log.emit('info', message='center shown')
 
     def hide(self):
+        self.hide_help()
         self.ungrab_keyboard()
         if self.window is not None:
             self.window.hide()
@@ -654,7 +666,15 @@ class Center:
         if toggle_key_matches(self.settings().get('toggle-key'), event.keyval, event.state):
             self.hide()
             return True
-        found = KEYS.get(Gdk.keyval_name(event.keyval))
+        name = Gdk.keyval_name(event.keyval)
+        help_key = name == 'question' or (name == 'slash' and event.state & Gdk.ModifierType.CONTROL_MASK)
+        if self.help_window is not None:           # any key closes the help (and does nothing else)
+            self.hide_help()
+            return True
+        if help_key:
+            self.toggle_help()
+            return True
+        found = KEYS.get(name)
         if found is None or event.state & (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK):
             return False
         getattr(self, found[0])(*found[1:])
@@ -736,6 +756,50 @@ class Center:
             self.manager.close(entry['id'], DISMISSED)
         else:
             self.forget(entry)
+
+    # -- help (? or ctrl+/) -----------------------------------------------------
+    def toggle_help(self):
+        if self.help_window is not None:
+            self.hide_help()
+        else:
+            self.show_help()
+
+    def show_help(self):
+        """A small window over the center listing every key, like which-key; any key closes it."""
+        if self.window is None:
+            return
+        window = Gtk.Window(type=Gtk.WindowType.POPUP)
+        window.set_title('notifyd keys')
+        window.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
+        if self.renderer.visual is not None:
+            window.set_visual(self.renderer.visual)
+        window.set_app_paintable(True)
+        context = window.get_style_context()
+        context.add_class('notifyd')
+        context.add_class(self.scope()[0])
+        frame = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        frame.get_style_context().add_class('notification')
+        frame.get_style_context().add_class('center-help')
+        frame.pack_start(self.renderer.label('<b>keys</b>', 'title', wrap=False), False, False, 0)
+        grid = Gtk.Grid(column_spacing=14, row_spacing=2)
+        for row, (_names, label, what, _action) in enumerate(BINDINGS):
+            key = self.renderer.label(f'<b>{GLib.markup_escape_text(label)}</b>', 'help-key', wrap=False)
+            grid.attach(key, 0, row, 1, 1)
+            grid.attach(self.renderer.label(GLib.markup_escape_text(what), 'body', wrap=False), 1, row, 1, 1)
+        frame.pack_start(grid, False, False, 0)
+        frame.pack_start(self.renderer.label('<i>any key closes this</i>', 'time', wrap=False), False, False, 0)
+        window.add(frame)
+        window.show_all()
+        x, y = self.window.get_position()
+        width, height = self.window.get_size()
+        help_width, help_height = window.get_size()
+        window.move(x + max((width - help_width) // 2, 0), y + max((height - help_height) // 3, 0))
+        self.help_window = window
+
+    def hide_help(self):
+        if self.help_window is not None:
+            self.help_window.destroy()
+            self.help_window = None
 
     def toggle_expand(self):
         """`e`: the selected card's whole body, or back to three lines."""
