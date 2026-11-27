@@ -127,7 +127,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [x] **Generated CSS grows until reload.** (p3) [perf] Each distinct style (dunst color hints
       vary per notification) adds a CSS scope that is never pruned, and each one reloads the whole
       provider. Prune to open windows or use per-window providers.
-- [ ] **Center rebuilds block the main loop.** (p3) [perf] Each player PropertiesChanged rebuilds
+- [x] **Center rebuilds block the main loop.** (p3) [perf] Each player PropertiesChanged rebuilds
       the open center with synchronous `ListNames`/`GetAll` per player and two `pactl` runs (1 s
       timeout each); a hung player (or Firefox blocked on a synchronous Notify) freezes popups and
       D-Bus replies. Async calls, cache from signals, debounce. Upstream: astal#204.

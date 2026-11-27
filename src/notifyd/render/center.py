@@ -94,11 +94,12 @@ class Center:
         self.grabbed = False
         renderer.log.listeners.append(self.on_event)
         self.bus = None
+        self.players = None
+        self.volume_level = None   # the last level read (reads are async, so the center never waits on pactl)
         try:
             self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-            # a player changing song or state: the now-playing row follows while the center is open
-            self.bus.signal_subscribe(None, 'org.freedesktop.DBus.Properties', 'PropertiesChanged', mpris.PATH,
-                                      mpris.PLAYER, Gio.DBusSignalFlags.NONE, self.on_player)
+            # players kept from their signals: the now-playing row follows them without a blocking call
+            self.players = mpris.Players(self.bus, on_change=self.on_player)
         except GLib.Error:
             self.bus = None
 
@@ -130,6 +131,7 @@ class Center:
             self.window.add_events(Gdk.EventMask.LEAVE_NOTIFY_MASK | Gdk.EventMask.KEY_PRESS_MASK)
             self.window.connect('leave-notify-event', self.on_leave)
             self.window.connect('key-press-event', self.on_key)
+        self.request_volume()                     # the row updates (or appears) when pactl answers
         playing = self.now_playing()
         if self.dirty or self.built != (self.scope()[0], playing):
             self.rebuild(playing)
@@ -216,13 +218,32 @@ class Center:
         return scope, style
 
     def now_playing(self):
-        return mpris.now_playing(self.bus) if self.bus and self.settings().get('mpris', True) else None
+        if self.players is None or not self.settings().get('mpris', True):
+            return None
+        return self.players.now_playing()
+
+    def volume_wanted(self):
+        return self.settings().get('volume', True) and volume.available()
+
+    def request_volume(self):
+        if self.volume_wanted():
+            volume.get_async(self.on_volume_level)
+
+    def on_volume_level(self, level):
+        appeared = (level is None) != (self.volume_level is None)
+        self.volume_level = level
+        if not self.visible:
+            return
+        if appeared:
+            self.on_event({'event': 'shown'})      # the row comes or goes: rebuild
+        elif not self.dragging:
+            self.update_live()
 
     def update_live(self):
         """What changes without an event, in place: the clock and the volume."""
         self.clock.set_text(time.strftime('%H:%M'))
         if self.volume_widgets:
-            level = volume.get()
+            level = self.volume_level
             if level is not None:
                 mute, scale = self.volume_widgets
                 for widget, handler, set_value in ((mute, self.on_mute, lambda: mute.set_active(level['muted'])),
@@ -275,7 +296,7 @@ class Center:
 
         if playing:
             panel.pack_start(self.player_row(playing), False, False, 0)
-        level = volume.get() if self.settings().get('volume', True) and volume.available() else None
+        level = self.volume_level if self.volume_wanted() else None
         self.volume_widgets = None
         if level is not None:
             panel.pack_start(self.volume_row(level), False, False, 0)
@@ -361,6 +382,8 @@ class Center:
 
     def on_mute(self, button):
         volume.toggle_mute()
+        if self.volume_level is not None:
+            self.volume_level = {**self.volume_level, 'muted': button.get_active()}
         self.set_mute_icon(button)
 
     def on_volume(self, scale):
@@ -372,6 +395,8 @@ class Center:
     def apply_volume(self, value):
         self.volume_timer = None
         volume.set_volume(value)
+        if self.volume_level is not None:
+            self.volume_level = {**self.volume_level, 'volume': round(value)}
         return False
 
     def player_row(self, playing):

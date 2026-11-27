@@ -183,6 +183,7 @@ assert scale.get_value() == 65
 center.hide()
 open(sys.argv[3] + '/volume', 'w').write('20')
 center.toggle('show')
+spin(300)                                        # pactl is read without blocking: it lands shortly after
 assert builds == [] and scale.get_value() == 20
 center.hide()
 first = manager.notify('a', summary='new')       # a change while hidden: rebuilt on opening

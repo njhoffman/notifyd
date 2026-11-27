@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.18.3] - 2026-11-26
+
+### Fixed
+
+- The open notification center no longer blocks the daemon on media players and pactl: players
+  are found and read with async D-Bus calls and followed through their signals (a hung player, or
+  one stuck on a synchronous Notify, used to freeze popups for a second per player on every
+  change), and the volume is read without waiting for pactl; the slider follows as the answer
+  comes in.
+
 ## [0.18.2] - 2026-11-26
 
 ### Fixed
