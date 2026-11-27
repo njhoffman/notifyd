@@ -48,6 +48,7 @@ notifyd-send --title-end '★ 4.5' --fg '#ffd7d7' --bg '#5a1d1d' 'Song' 'Artist'
 notifyd ctl watch            # the live, colored event log
 notifyd ctl history
 notifyd presets --pick       # browse presets with a live preview
+notifyd icons --pick         # browse the icon theme's icons (preview, popup); `notifyd icons volume` lists
 just preview                 # every preset side by side (--each: one at a time; --urgency critical)
 notifyd rules --app MPD --summary 'Song'   # which rules match, and the result
 ```

@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-11-27
+
+### Added
+
+- A warning for an icon or picture that does not load, once per name or path per run (a reload
+  counts again): which part it was (app icon, the image-path hint, an icon.name or image.path setting,
+  a .desktop file's icon) and why: no such file, not an image, a relative path, a remote URI, or an
+  icon the theme lacks, with close names (`firefx`: close: firefox). They used to be left out silently.
+- `notifyd check` flags `icon.name` and `image.path` settings, in the config and its rules, that would
+  not draw.
+- `notifyd icons [PATTERN]`: the icon theme's names with their context (`--context`, `--contexts`,
+  `--theme`, `--names`, a glob); `notifyd icons --pick` browses them in fzf, drawing each in the
+  preview (chafa, on the background the theme is drawn for) and in a popup as you move; enter prints
+  the name, ctrl-y copies it. Works without a display (the theme then comes from GTK's settings.ini
+  or gsettings).
+
 ## [0.37.1] - 2026-11-27
 
 ### Fixed

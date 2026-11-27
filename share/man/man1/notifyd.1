@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.37.1" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.38.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -30,6 +30,15 @@ notifyd \- desktop notification daemon for X11 with rules, presets and a colorfu
 .br
 .B notifyd presets
 .RB [ \-\-pick | \-\-names ]
+.br
+.B notifyd icons
+.RI [ pattern ]
+.RB [ \-\-context
+.IR name ]
+.RB [ \-\-theme
+.IR name ]
+.RB [ \-\-names | \-\-pick | \-\-contexts | \-\-preview
+.IR name ]
 .br
 .B notifyd import
 .BR deadd " [" \-\-yml
@@ -377,6 +386,50 @@ chooses one in
 previewing each as the cursor moves and switching to it on enter;
 .B \-\-names
 prints the names only.
+.SS icons
+List the icons of the icon theme in use (GTK's, as the popups draw them; without a display, from
+.I ~/.config/gtk\-3.0/settings.ini
+or gsettings), each with its context (Status, Devices, Applications, ...). A
+.I pattern
+keeps names containing it, or matching it as a glob
+.RB ( * ,
+.BR ? );
+case is ignored. Any name works as an app icon
+.RB ( \-i ),
+a picture
+.RB ( \-\-image )
+or a rule's
+.BR icon.name .
+.TP
+.BR \-\-context " \fIname\fR"
+Only that context;
+.B \-\-contexts
+lists them with how many icons each has.
+.TP
+.BR \-\-theme " \fIname\fR"
+Another installed theme.
+.TP
+.B \-\-names
+Names only, one per line.
+.TP
+.B \-\-pick
+Browse in
+.BR fzf (1):
+the preview pane draws the icon with
+.BR chafa (1)
+and names its file and sizes, each move also shows it in a popup (when a daemon runs), enter
+prints the name and ctrl\-y copies it.
+.TP
+.BR \-\-preview " \fIname\fR, " \-\-size " \fIpx\fR"
+What the picker's preview shows, for one icon, drawn at
+.I px
+(64).
+.PP
+The daemon logs a warning, once per name or path per run (a reload counts again), for an icon or
+picture that does not load: no such file, not an image, or an icon the theme lacks (with close
+names). An unknown name is usually a different spelling in this theme:
+.B notifyd icons
+finds it.
 .SS import
 .B notifyd import dunst
 converts
@@ -406,7 +459,8 @@ and prints the config, or writes it with
 overwrites). Style values that equal the deadd preset are left out; notes on what has no
 equivalent go to standard error.
 .SS check
-Validate the config. Exits 1 when there are warnings, 2 on errors.
+Validate the config, including icon.name and image.path settings that would not draw (in the
+config and its rules). Exits 1 when there are warnings, 2 on errors.
 .SS rules
 Show which rules match a notification and what it would get:
 .BR \-\-app ,

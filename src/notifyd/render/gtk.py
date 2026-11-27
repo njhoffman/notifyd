@@ -25,6 +25,7 @@ gi.require_version('GdkPixbuf', '2.0')
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
 
 from notifyd.config import ConfigError, load_preset  # noqa: E402
+from notifyd.icons import current_theme_name, why_missing  # noqa: E402
 from notifyd.images import (  # noqa: E402, F401
     MAX_IMAGE_SIDE,
     desktop_icon,
@@ -143,6 +144,7 @@ class GtkRenderer:
         self.link_clicked = None   # the event time of the last link click, which must not dismiss
         self.action_labels = {}    # label -> (notification id, [(action key, start, end)]): its action links
         self.hand = None           # the pointer cursor shown over an action link
+        self.missing_seen = set()  # icons and pictures that did not load, warned about once per run
         self.measured = None       # (notification, window) built by fits() for show()
         self.fades = {}            # window -> its running fade's GLib source
         self.bodies = {}           # notification id -> (body label, max-lines) when its body is capped
@@ -203,6 +205,7 @@ class GtkRenderer:
 
     def reload(self):
         self.styles = {}
+        self.missing_seen.clear()      # a reload is when a fix to the config or the theme shows: warn again
         for nid in list(self.windows):
             n = self.manager.active.get(nid)
             if n:
@@ -403,16 +406,18 @@ class GtkRenderer:
         image_size = int(image_settings.get('size') or 0) * scale      # device pixels, drawn at SCALE
         icon_settings = settings.get('icon') or {}
         icon_source = icon_settings.get('name') or n.app_icon or desktop_icon(n.desktop_entry)
+        icon_what = ('icon (icon.name setting)' if icon_settings.get('name') else 'app icon' if n.app_icon
+                     else f'icon of {n.desktop_entry}.desktop')
         picture = None
         if 'image' not in hide:
             if image_settings.get('path'):
-                picture = load_pixbuf(image_settings['path'], image_size)
+                picture = self.picture(n, image_settings['path'], image_size, 'image (image.path setting)')
             for hint in IMAGE_HINTS:
                 if picture is None and isinstance(n.hints.get(hint), tuple):
                     picture = self.image_from_data(n, hint, image_size)
             for hint in IMAGE_PATH_HINTS:
                 if picture is None and n.hints.get(hint):
-                    picture = load_pixbuf(str(n.hints[hint]), image_size)
+                    picture = self.picture(n, str(n.hints[hint]), image_size, f'image ({hint} hint)')
             if picture is None and file_path(icon_source):
                 picture = load_pixbuf(icon_source, image_size, rgba(self.text_color(n, style)))
                 icon_source = None
@@ -422,8 +427,8 @@ class GtkRenderer:
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         header.get_style_context().add_class('header')
         if 'app-icon' not in hide:
-            icon = load_pixbuf(icon_source, int(icon_settings.get('size') or 0) * scale,
-                               rgba(self.text_color(n, style))) if icon_source else None
+            icon = self.picture(n, icon_source, int(icon_settings.get('size') or 0) * scale, icon_what,
+                                rgba(self.text_color(n, style))) if icon_source else None
             if icon is not None:
                 widget = self.picture_widget(icon, scale)
                 widget.get_style_context().add_class('appicon')
@@ -510,6 +515,18 @@ class GtkRenderer:
             card.pack_start(row, False, False, 0)
         return card, {'header': header, 'body': body_part}
 
+
+    def picture(self, n, source, size, what, color=None):
+        """load_pixbuf(SOURCE), with a warning (once per source per run) when SOURCE was given and does not
+        load. WHAT says where it came from: 'image (image-path hint)', 'app icon', ..."""
+        pixbuf = load_pixbuf(source, size, color)
+        if pixbuf is None and source and size > 0 and source not in self.missing_seen:
+            self.missing_seen.add(source)
+            reason = why_missing(source, Gtk.IconTheme.get_default(), current_theme_name()) or 'could not be drawn'
+            if 'icon theme' in reason:
+                reason += '; `notifyd icons PATTERN` lists the theme\'s icons'
+            self.log.warn(f'#{n.id} {what} {source!r}: {reason}')
+        return pixbuf
 
     def markup_flag(self, summary, body, mode, classes, title_end=None):
         """A "markup error" label when SUMMARY, BODY or TITLE_END (the title-end hint) is invalid markup

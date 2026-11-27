@@ -184,7 +184,7 @@ def bash_complete(tmp_path, *words):
 
 @pytest.mark.skipif(not shutil.which('bash'), reason='needs bash')
 @pytest.mark.parametrize('words, expected', [
-    (['notifyd', ''], ['daemon', 'send', 'ctl', 'presets', 'import', 'check', 'rules', 'completion', 'help',
+    (['notifyd', ''], ['daemon', 'send', 'ctl', 'presets', 'icons', 'import', 'check', 'rules', 'completion', 'help',
                        'version']),
     (['notifyd', 'ctl', 'pr'], ['preset', 'preview']),
     (['notifyd', 'ctl', 'preset', 'de'], ['deadd']),

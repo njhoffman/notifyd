@@ -142,6 +142,12 @@ For anything else, `css` can target the widgets' classes: `.title`, `.title-row`
 The shadow comes from the compositor. The windows are named `notifyd`, class `Notifyd`, so picom
 rules can target them (picom's `! name~=''` shadow exclusion does not hit them).
 
+An icon or picture that does not load (no such file, not an image, an icon name the theme lacks) is
+logged as a `warn` line once per name or path per run, with close names for a misspelled icon;
+`notifyd check` flags `icon.name` and `image.path` settings that would not draw. `notifyd icons
+[PATTERN]` lists the current icon theme's names with their context, and `notifyd icons --pick`
+browses them in fzf, drawing each in the preview (chafa) and in a popup as you move.
+
 `notifyd ctl preview [PRESET]` shows sample notifications in a preset; `notifyd ctl preset NAME`
 switches until the next reload; `notifyd presets --pick` does both from fzf as you move. `just preview`
 (`tools/preview.sh`) shows every preset side by side on private daemons, one sample card each, and

@@ -77,3 +77,24 @@ def test_action_icons(display):
         plain = manager.notify('a', summary='plain', actions=['media-skip-forward', 'Next'])
         assert [b.get_label() for b in widgets(renderer.windows[plain], Gtk.Button)] == ['Next']
     """)
+
+
+def test_missing_icons_and_pictures_warn_once_per_source(display):
+    run_gtk(display, """
+        manager, renderer = setup()
+        def warnings():
+            return [line for line in stream.getvalue().splitlines() if 'warn' in line and ' #' in line]
+        manager.notify('a', app_icon='/nonexistent/icon.png', summary='one')
+        manager.notify('a', app_icon='/nonexistent/icon.png', summary='two')     # the same source: once
+        manager.notify('a', summary='three', hints={'image-path': 'no-such-icon-qq'})
+        manager.notify('a', app_icon='dialog-information', summary='fine')        # in every theme: no warning
+        found = warnings()
+        assert len(found) == 2, found
+        assert "app icon '/nonexistent/icon.png': no such file" in found[0], found
+        assert "image (image-path hint) 'no-such-icon-qq': not in icon theme" in found[1], found
+        assert '`notifyd icons PATTERN`' in found[1]
+        renderer.reload()             # a reload redraws the open ones, and what is still missing warns again
+        assert len(warnings()) == 4, warnings()
+        manager.notify('a', app_icon='/nonexistent/icon.png', summary='four')   # already said since the reload
+        assert len(warnings()) == 4, warnings()
+    """)

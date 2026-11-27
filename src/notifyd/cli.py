@@ -252,6 +252,105 @@ def presets(args):
     return ctl(argparse.Namespace(command='preset', name=name))
 
 
+# -- icons -------------------------------------------------------------------------
+
+def copy_command():
+    """A shell command that copies stdin to the clipboard, or None."""
+    for tool, command in (('wl-copy', 'wl-copy'), ('xclip', 'xclip -selection clipboard'),
+                          ('xsel', 'xsel --clipboard --input')):
+        if shutil.which(tool):
+            return command
+    return None
+
+
+def icon_preview(theme, theme_name, name, size):
+    """What `icons --preview NAME` prints: where the icon comes from, then the icon itself (chafa), sized
+    to fzf's preview pane."""
+    from gi.repository import GLib, Gtk
+    info = theme.lookup_icon(name, size, Gtk.IconLookupFlags.FORCE_SIZE | Gtk.IconLookupFlags.GENERIC_FALLBACK)
+    print(f'{name}  ({theme_name})')
+    if info is None:
+        print('not in this theme')
+        return 1
+    print(info.get_filename() or '(built in)')
+    sizes = sorted(s for s in theme.get_icon_sizes(name) if s > 0)
+    scalable = -1 in theme.get_icon_sizes(name)
+    print('sizes: ' + ', '.join(map(str, sizes)) + (' + scalable' if scalable else '') if sizes or scalable else '')
+    if not shutil.which('chafa'):
+        print('(install chafa to see the icon here)')
+        return 0
+    cache = Path(GLib.get_user_cache_dir()) / 'notifyd'
+    cache.mkdir(parents=True, exist_ok=True)
+    target = cache / 'icon-preview.png'
+    try:
+        info.load_icon().savev(str(target), 'png', [], [])
+    except GLib.Error as exc:
+        print(f'cannot draw it: {exc.message}')
+        return 1
+    columns = int(os.environ.get('FZF_PREVIEW_COLUMNS') or 40)
+    lines = max(int(os.environ.get('FZF_PREVIEW_LINES') or 20) - 4, 4)
+    sys.stdout.flush()
+    # on the background the theme is drawn for: most themes' glyphs are dark (breeze), *-dark ones light
+    background = '#2b2b2b' if 'dark' in theme_name.lower() else '#e8e8e8'
+    subprocess.run(['chafa', '--size', f'{columns}x{lines}', '--bg', background, str(target)], check=False)
+    return 0
+
+
+def icons_command(args):
+    import fnmatch
+
+    from notifyd import icons
+    if args.theme and not icons.theme_installed(args.theme):
+        raise SystemExit(f'notifyd icons: no icon theme {args.theme!r} installed')
+    theme, theme_name = icons.icon_theme(args.theme)
+    if args.preview:
+        return icon_preview(theme, theme_name, args.preview, args.size)
+    if args.contexts:
+        for context in sorted(theme.list_contexts()):
+            print(f'{context:<16} {len(theme.list_icons(context))}')
+        return 0
+    rows = icons.list_icons(theme, args.context)
+    if args.pattern:
+        pattern = args.pattern.lower()
+        if any(c in pattern for c in '*?['):
+            rows = [(n, c) for n, c in rows if fnmatch.fnmatch(n.lower(), pattern)]
+        else:
+            rows = [(n, c) for n, c in rows if pattern in n.lower()]
+    if not rows:
+        print(f'notifyd icons: nothing matches in {theme_name!r}', file=sys.stderr)
+        return 1
+    if args.names:
+        print('\n'.join(n for n, _c in rows))
+        return 0
+    if not args.pick:
+        width = max(len(n) for n, _c in rows)
+        for name, context in rows:
+            print(f'{name:<{width}}  {context}')
+        print(f'{len(rows)} icon(s) in {theme_name!r}', file=sys.stderr)
+        return 0
+    if not shutil.which('fzf'):
+        raise SystemExit('notifyd icons --pick needs fzf')
+    me = os.path.realpath(sys.argv[0]) if sys.argv[0].endswith('notifyd') else shutil.which('notifyd') or 'notifyd'
+    sender = os.path.join(os.path.dirname(me), 'notifyd-send')
+    sender = sender if os.path.exists(sender) else 'notifyd-send'
+    theme_option = f' --theme {shlex.quote(args.theme)}' if args.theme else ''
+    binds = ['--bind', f'focus:execute-silent({shlex.quote(sender)} -e -a icons --tag notifyd-icons -t 5000 '
+             f'-i {{1}} --image {{1}} {{1}} {{2}})']
+    copier = copy_command()
+    header = 'moving shows it in a popup too; enter prints the name'
+    if copier:
+        binds += ['--bind', f'ctrl-y:execute-silent(printf %s {{1}} | {copier})']
+        header += '; ctrl-y copies it'
+    result = subprocess.run(
+        ['fzf', '--delimiter', '\t', '--with-nth', '1,2', '--prompt', f'icon ({theme_name})> ', '--header', header,
+         '--preview', f'{shlex.quote(me)} icons{theme_option} --preview {{1}}', '--preview-window', 'right,50%',
+         *binds],
+        input='\n'.join(f'{n}\t{c}' for n, c in rows), text=True, stdout=subprocess.PIPE)
+    if result.returncode == 0 and result.stdout.strip():
+        print(result.stdout.split('\t', 1)[0].strip())
+    return result.returncode
+
+
 # -- import, check, rules -----------------------------------------------------------
 
 def import_command(args):
@@ -294,12 +393,32 @@ def load_or_exit(path):
         raise SystemExit(f'notifyd: {exc}') from exc
 
 
+def picture_warnings(config):
+    """Warnings for icon.name and image.path settings (top level and in rules) that would not draw."""
+    from notifyd.icons import icon_theme, why_missing
+    sources = [('', config.settings)] + [(f'rule {rule.name!r}: ', rule.modify) for rule in config.rules]
+    theme = None
+    found = []
+    for where, settings in sources:
+        for key, part, what in (('icon', 'name', 'icon.name'), ('image', 'path', 'image.path')):
+            value = (settings.get(key) or {}).get(part) if isinstance(settings.get(key), dict) else None
+            if not value:
+                continue
+            if theme is None:
+                theme = icon_theme()
+            reason = why_missing(str(value), *theme)
+            if reason:
+                found.append(f'{where}{what} {value!r}: {reason}')
+    return found
+
+
 def check(args):
     config = load_or_exit(args.config)
-    for warning in config.warnings:
+    warnings = list(config.warnings) + picture_warnings(config)
+    for warning in warnings:
         print(f'warning: {warning}')
     print(f'{config.path}: ok, preset {config.settings["preset"]}, {len(config.rules)} rule(s)')
-    return 1 if config.warnings else 0
+    return 1 if warnings else 0
 
 
 def rules_command(args):
@@ -431,6 +550,25 @@ def build_parser():
     presets_parser.add_argument('--pick', action='store_true', help='choose in fzf; moving previews, enter switches')
     presets_parser.add_argument('--names', action='store_true', help='names only, one per line')
 
+    icons_parser = add_command(
+        sub, 'icons', "list the icon theme's icons, or pick one with a preview",
+        epilog='examples:\n'
+               '  notifyd icons volume              names containing "volume", with their context\n'
+               "  notifyd icons 'battery-*' --names  a glob, names only\n"
+               '  notifyd icons --context Status    one context (--contexts lists them)\n'
+               '  notifyd icons --pick              fzf: the icon drawn in the preview (chafa) and shown\n'
+               '                                    in a popup as you move; enter prints the name\n'
+               '  notifyd icons --theme Papirus-Dark --pick   another installed theme\n\n'
+               'An icon name works as -i (app icon) and --image in notifyd-send, and as icon.name in a rule.')
+    icons_parser.add_argument('pattern', nargs='?', help='a part of the name, or a glob (*, ?)')
+    icons_parser.add_argument('--context', metavar='NAME', help='only this context (Status, Devices, ...)')
+    icons_parser.add_argument('--contexts', action='store_true', help='list the contexts with how many icons each')
+    icons_parser.add_argument('--theme', metavar='NAME', help='another installed theme (default: the current one)')
+    icons_parser.add_argument('--names', action='store_true', help='names only, one per line')
+    icons_parser.add_argument('--pick', action='store_true', help='browse in fzf with a preview; enter prints the name')
+    icons_parser.add_argument('--preview', metavar='NAME', help="print one icon's file and sizes and draw it (chafa)")
+    icons_parser.add_argument('--size', type=int, default=64, metavar='PX', help='the size --preview draws (64)')
+
     importer = add_command(sub, 'import', "convert another daemon's config",
                            epilog='Prints the config unless -o is given; notes on what has no equivalent go to stderr.')
     importer.add_argument('source', choices=('deadd', 'dunst'), help='the daemon to import from')
@@ -493,6 +631,8 @@ def main(argv=None):
         return ctl(args)
     if args.cmd == 'presets':
         return presets(args)
+    if args.cmd == 'icons':
+        return icons_command(args)
     if args.cmd == 'import':
         return import_command(args)
     if args.cmd == 'check':
