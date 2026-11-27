@@ -151,6 +151,7 @@ def build_css(style, scope):
     css += block(f'{card}.center .center-group', {'margin-top': '6px', 'opacity': '0.85'})
     css += block(f'{card}.center-help', {'padding': '12px 16px', 'border-radius': px(style.get('radius', 4) or 4)})
     css += block(f'{card}.center-help .help-key', {'font-family': 'monospace'})
+    css += block(f'{card}.center-help .detail-key', {'opacity': '0.7'})
     if style.get('css'):
         css += str(style['css']).replace('&', s) + '\n'
     return css

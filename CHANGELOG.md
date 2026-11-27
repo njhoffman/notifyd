@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-11-27
+
+### Added
+
+- `i` in the notification center shows the selected card's details in a small window: app,
+  summary, body as sent, app icon, image or thumbnail, urgency, category, stack tag, the rules that
+  matched, timeout, markup, mode, actions, sender (pid, process, parent, desktop entry), when it
+  arrived and, for history, how and when it closed. Any key closes it.
+
 ## [0.30.0] - 2026-11-27
 
 ### Added

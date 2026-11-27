@@ -456,6 +456,24 @@ center.toggle('show')
 spin(100)
 manager.config.settings['center']['keyboard'] = False
 
+# `i` shows the selected card's fields; any key closes it
+manager.config.settings['center']['keyboard'] = True
+manager.close(manager.notify('mailer', summary='Inbox <3', body='two new', app_icon='mail-unread',
+                             hints={'category': 'email.arrived'}, sender={'process': 'thunderbird', 'pid': 7}))
+center.hide()
+center.toggle('show')
+spin(100)
+press('g')
+assert selected() == 'Inbox <3'
+assert press('i') and center.help_window is not None
+texts = [l.get_text() for l in widgets(center.help_window, Gtk.Label)]
+for key, value in (('app', 'mailer'), ('summary', 'Inbox <3'), ('app_icon', 'mail-unread'),
+                   ('category', 'email.arrived'), ('closed', 'closed')):
+    assert key in texts and value in texts, (key, value, texts)
+assert any('process thunderbird' in t for t in texts)
+assert press('j') and center.help_window is None and selected() == 'Inbox <3'   # closed, j unused
+manager.config.settings['center']['keyboard'] = False
+
 # `e` shows the selected card's whole body
 manager.config.settings['center']['keyboard'] = True
 center.hide()

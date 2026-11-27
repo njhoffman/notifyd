@@ -51,6 +51,7 @@ BINDINGS = [
     (('Return', 'KP_Enter'), 'enter', 'act on the card (shows a closed one again)', ('activate',)),
     (('d', 'Delete'), 'd / delete', 'close it, or forget it from history', ('remove',)),
     (('e',), 'e', 'whole body of the card, or three lines', ('toggle_expand',)),
+    (('i',), 'i', 'details of the card: app, icon, sender, rules, times', ('show_details',)),
     (('a',), 'a', 'history by app, or one list', ('toggle_grouping',)),
     (('C',), 'C', 'clear everything', ('clear',)),
     (('p',), 'p', 'do not disturb on or off', ('toggle_pause',)),
@@ -80,6 +81,13 @@ def toggle_key_matches(accelerator, keyval, state):
     if state & Gdk.ModifierType.MOD4_MASK:   # X reports Super as Mod4
         state |= Gdk.ModifierType.SUPER_MASK
     return Gdk.keyval_to_lower(keyval) == Gdk.keyval_to_lower(want) and (state & _MODS) == (mods & _MODS)
+
+
+DETAIL_CHARS = 400   # longest value `i` shows in full
+# what `i` shows of a card, in this order (empty ones are left out)
+DETAIL_FIELDS = ('app', 'summary', 'body', 'app_icon', 'image', 'thumb', 'urgency', 'category', 'stack_tag',
+                 'rules', 'timeout', 'markup', 'mode', 'actions', 'duplicates', 'sender', 'hints', 'state',
+                 'received', 'closed', 'closed_at', 'id')
 
 
 def with_icon(button, icon, tooltip=None):
@@ -767,8 +775,47 @@ class Center:
 
     def show_help(self):
         """A small window over the center listing every key, like which-key; any key closes it."""
+        rows = [(f'<b>{GLib.markup_escape_text(label)}</b>', GLib.markup_escape_text(what))
+                for _names, label, what, _action in BINDINGS]
+        self.show_overlay('keys', rows, 'help-key')
+
+    def show_details(self):
+        """`i`: every field of the selected card, in the same kind of window as the help."""
+        index = self.index()
+        if index is None:
+            return
+        _box, entry, opened = self.cards[index]
+        n = self.manager.active.get(entry['id']) if opened else None
+        fields = dict(entry)
+        if n is not None:
+            fields.update({'app_icon': n.app_icon, 'state': entry.get('state', 'open')})
+            fields.setdefault('image', n.image_path)
+            fields['hints'] = ', '.join(sorted(k for k, v in n.hints.items() if not isinstance(v, tuple))) or None
+        rows = []
+        for key in DETAIL_FIELDS:
+            value = fields.get(key)
+            if value in (None, '', [], {}):
+                continue
+            if key in ('received', 'closed_at'):
+                value = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(value))
+            elif key == 'sender':
+                value = '  '.join(f'{k} {v}' for k, v in value.items())
+            elif isinstance(value, list):
+                value = ', '.join(map(str, value))
+            elif key == 'timeout':
+                value = f'{value} ms' if value else 'never'
+            value = str(value)
+            if len(value) > DETAIL_CHARS:                  # a long body would make the window taller than the screen
+                value = value[:DETAIL_CHARS].rstrip() + '…'
+            rows.append((f'<b>{GLib.markup_escape_text(key)}</b>', GLib.markup_escape_text(value)))
+        self.show_overlay(f'#{entry["id"]}', rows, 'detail-key', wrap=True)
+
+    def show_overlay(self, title, rows, key_class, wrap=False):
+        """A small window over the center: TITLE, then ROWS of (key markup, value markup); any key
+        closes it (the help and the details use it)."""
         if self.window is None:
             return
+        self.hide_help()
         window = Gtk.Window(type=Gtk.WindowType.POPUP)
         window.set_title('notifyd keys')
         window.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
@@ -781,12 +828,18 @@ class Center:
         frame = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         frame.get_style_context().add_class('notification')
         frame.get_style_context().add_class('center-help')
-        frame.pack_start(self.renderer.label('<b>keys</b>', 'title', wrap=False), False, False, 0)
+        frame.pack_start(self.renderer.label(f'<b>{GLib.markup_escape_text(title)}</b>', 'title', wrap=False),
+                         False, False, 0)
         grid = Gtk.Grid(column_spacing=14, row_spacing=2)
-        for row, (_names, label, what, _action) in enumerate(BINDINGS):
-            key = self.renderer.label(f'<b>{GLib.markup_escape_text(label)}</b>', 'help-key', wrap=False)
+        for row, (key_markup, value_markup) in enumerate(rows):
+            key = self.renderer.label(key_markup, key_class, wrap=False)
+            key.set_valign(Gtk.Align.START)
             grid.attach(key, 0, row, 1, 1)
-            grid.attach(self.renderer.label(GLib.markup_escape_text(what), 'body', wrap=False), 1, row, 1, 1)
+            value = self.renderer.label(value_markup, 'body', wrap=wrap)
+            if wrap:
+                value.set_max_width_chars(48)
+                value.set_selectable(False)
+            grid.attach(value, 1, row, 1, 1)
         frame.pack_start(grid, False, False, 0)
         frame.pack_start(self.renderer.label('<i>any key closes this</i>', 'time', wrap=False), False, False, 0)
         window.add(frame)
