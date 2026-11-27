@@ -68,6 +68,8 @@ class Manager:
         self.displayed = []     # ids on screen, newest first
         self.waiting = []       # ids for which there was no room, oldest first
         self.held_back = []     # ids that arrived while paused, oldest first
+        self.deferred = []      # ids waiting for a fullscreen window to go (fullscreen: delay), oldest first
+        self.fullscreen_check = None
         self.timers = {}        # id -> (handle, deadline)
         self.hovered = {}       # id -> remaining ms
         self.paused = False
@@ -96,6 +98,7 @@ class Manager:
         n.sender = dict(sender or {})
         if n.hints.get('desktop-entry'):
             n.sender['desktop_entry'] = str(n.hints['desktop-entry'])
+        n.fullscreen = self._fullscreen()
         resolve(self.config, n, extra)
         for index, button in enumerate(n.settings.get('buttons') or []):
             key = f'notifyd-button-{index}'
@@ -124,6 +127,11 @@ class Manager:
             self.held_back.append(n.id)
             self.log.emit('queued', n, reason='paused')
             self._save_state()                    # held ones outlive a restart (or a crash)
+        elif n.fullscreen and n.urgency < 2 and n.settings.get('fullscreen') == 'delay':
+            self.active[n.id] = n
+            self.deferred.append(n.id)
+            self.log.emit('queued', n, reason='fullscreen')
+            self._watch_fullscreen()
         else:
             self.active[n.id] = n
             self._place(n)
@@ -137,6 +145,40 @@ class Manager:
         if isinstance(nid, int) and 0 < nid < self.next_id and nid not in self.active:
             return nid
         return 0
+
+    def _fullscreen(self):
+        check = getattr(self.renderer, 'fullscreen', None)
+        try:
+            return bool(check and check())
+        except Exception as exc:   # an X error must not lose the notification
+            self.log.warn(f'fullscreen check: {type(exc).__name__}: {exc}')
+            return False
+
+    FULLSCREEN_POLL = 1000   # ms between checks while some wait for fullscreen to end
+
+    def _watch_fullscreen(self):
+        if self.fullscreen_check is None:
+            self.fullscreen_check = self.scheduler.call_later(self.FULLSCREEN_POLL, self._check_fullscreen)
+
+    def _check_fullscreen(self):
+        self.fullscreen_check = None
+        if not self.deferred:
+            return
+        if self._fullscreen():
+            self._watch_fullscreen()
+            return
+        deferred, self.deferred = self.deferred, []
+        for nid in deferred:
+            n = self.active.get(nid)
+            if n is None:
+                continue
+            if self.paused and n.urgency < 2:   # do not disturb came on meanwhile: it waits for that now
+                self.held_back.append(nid)
+                self.log.emit('queued', n, reason='paused')
+            else:
+                self._place(n)
+        if self.paused:
+            self._save_state()
 
     def _new_id(self):
         nid = self.next_id
@@ -268,7 +310,7 @@ class Manager:
         self.hovered.pop(nid, None)
         shown = nid in self.displayed
         held = nid in self.held_back
-        for queue in (self.displayed, self.waiting, self.held_back):
+        for queue in (self.displayed, self.waiting, self.held_back, self.deferred):
             if nid in queue:
                 queue.remove(nid)
         if shown:
@@ -285,7 +327,7 @@ class Manager:
         return True
 
     def close_all(self, reason=DISMISSED):
-        ids = list(self.displayed) + list(self.waiting)
+        ids = list(self.displayed) + list(self.waiting) + list(self.deferred)
         for nid in ids:
             self.close(nid, reason)
         return len(ids)
@@ -468,7 +510,8 @@ class Manager:
     def listing(self):
         """Open notifications: on screen (newest first), waiting, held back."""
         out = []
-        for state, ids in (('shown', self.displayed), ('waiting', self.waiting), ('held', self.held_back)):
+        for state, ids in (('shown', self.displayed), ('waiting', self.waiting), ('held', self.held_back),
+                           ('fullscreen', self.deferred)):
             for nid in ids:
                 out.append({**self.active[nid].summary_dict(), 'state': state})
         return out
@@ -480,6 +523,7 @@ class Manager:
             'displayed': len(self.displayed),
             'waiting': len(self.waiting),
             'held_back': len(self.held_back),
+            'deferred': len(self.deferred),
             'history': len(self.history),
             'preset': self.config.settings['preset'],
             'config': str(self.config.path) if self.config.path else None,

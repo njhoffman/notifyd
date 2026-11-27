@@ -148,3 +148,10 @@ def test_an_unreadable_preset_is_a_config_error(tmp_path, monkeypatch):
     (tmp_path / 'broken.yaml').write_bytes(b'\xff\xfe style: x')
     with pytest.raises(ConfigError, match='preset broken'):
         config_module.load_preset('broken')
+
+
+def test_fullscreen_setting_is_checked():
+    assert load_config(text='fullscreen: delay').settings['fullscreen'] == 'delay'
+    assert load_config().settings['fullscreen'] == 'show'
+    with pytest.raises(ConfigError, match='fullscreen: expected show or delay'):
+        load_config(text='fullscreen: pushback')

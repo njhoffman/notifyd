@@ -609,3 +609,69 @@ def test_invoking_a_key_it_never_offered_does_nothing(make_manager):
     assert actions == [] and closed == [] and nid in m.active and 'action' not in kinds(events)
     assert m.invoke(nid, 'play') is True
     assert actions == [(nid, 'play')]
+
+
+def fullscreen_manager(make_manager, text='fullscreen: delay'):
+    m, s, renderer, events, _closed, _a = make_manager(text)
+    state = [True]
+    renderer.fullscreen = lambda: state[0]
+    return m, s, renderer, events, state
+
+
+def test_fullscreen_delay_waits_then_shows_in_order(make_manager):
+    m, s, _renderer, events, state = fullscreen_manager(make_manager)
+    first = m.notify('a', summary='one')
+    second = m.notify('a', summary='two')
+    urgent = m.notify('a', summary='critical', hints={'urgency': 2})
+    assert m.displayed == [urgent] and m.deferred == [first, second]       # critical ones always show
+    assert [e.get('reason') for e in events if e['event'] == 'queued'] == ['fullscreen', 'fullscreen']
+    assert {e['id']: e['state'] for e in m.listing()}[first] == 'fullscreen'
+    assert m.status()['deferred'] == 2
+    s.advance(3000)                                                       # still fullscreen: still waiting
+    assert m.deferred == [first, second]
+    state[0] = False
+    s.advance(1000)
+    assert m.deferred == [] and m.displayed == [second, first, urgent]   # newest on top, as usual
+
+
+def test_fullscreen_show_is_the_default(make_manager):
+    m, _s, _r, _e, _state = fullscreen_manager(make_manager, '')
+    nid = m.notify('a', summary='one')
+    assert m.displayed == [nid] and m.active[nid].fullscreen is True
+
+
+def test_fullscreen_rule_and_match_field(make_manager):
+    m, _s, _r, _e, state = fullscreen_manager(
+        make_manager, 'rules:\n- match: {app: game-chat}\n  fullscreen: delay\n'
+                      '- match: {fullscreen: true}\n  timeout: 2s\n')
+    chat = m.notify('game-chat', summary='hi')
+    other = m.notify('mail', summary='new')
+    assert m.deferred == [chat] and m.displayed == [other]
+    assert m.active[other].timeout == 2000                               # matched on fullscreen
+    state[0] = False
+    assert m.active[m.notify('mail', summary='later')].timeout != 2000
+
+
+def test_fullscreen_then_paused_moves_to_held_back(make_manager):
+    m, s, _r, _e, state = fullscreen_manager(make_manager)
+    nid = m.notify('a', summary='one')
+    m.pause(True)
+    state[0] = False
+    s.advance(1000)
+    assert m.held_back == [nid] and m.deferred == [] and m.displayed == []
+
+
+def test_fullscreen_deferred_ones_close_with_close_all(make_manager):
+    m, s, _r, _e, state = fullscreen_manager(make_manager)
+    m.notify('a', summary='one')
+    assert m.close_all() == 1 and m.deferred == [] and m.active == {}
+    state[0] = False
+    s.advance(1000)                                                       # the pending check finds nothing
+
+
+def test_fullscreen_check_failure_shows_it(make_manager):
+    m, _s, renderer, events, _c, _a = make_manager('fullscreen: delay')
+    renderer.fullscreen = lambda: 1 / 0
+    nid = m.notify('a', summary='one')
+    assert m.displayed == [nid]
+    assert any(e['event'] == 'warn' and 'fullscreen check' in e['message'] for e in events)

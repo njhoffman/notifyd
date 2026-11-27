@@ -16,6 +16,16 @@ HIDE_WHEN_EMPTY = {'app-icon': 'app-icon', 'app-name': 'app-name', 'title': 'tit
                    'image': 'image'}
 
 
+def _fullscreen(value, where, report):
+    """dunst's fullscreen = show | delay | pushback; notifyd has show and delay (popups are override-
+    redirect windows, so one cannot go under a fullscreen window)."""
+    value = str(value).strip().lower()
+    if value == 'pushback':
+        report.append(f'{where} pushback: not supported, using show')
+        return 'show'
+    return 'delay' if value == 'delay' else 'show'
+
+
 def _get(data, *keys, default=None):
     for key in keys:
         if not isinstance(data, dict) or key not in data:
@@ -202,7 +212,11 @@ HEADER = '''# notifyd config, imported from {source}.
 def dump_config(config, source='deadd-notification-center'):
     rules = config.pop('rules', None)
     text = HEADER.format(source=source) + '\n'
-    text += yaml.safe_dump(config, sort_keys=False, default_flow_style=None, allow_unicode=True)
+    # one key at a time: a mapping of scalars alone would come out as {a: 1, b: 2}, and a block
+    # `rules:` after a flow mapping is not YAML; nested mappings keep the compact flow style
+    for key, value in config.items():
+        flow = None if isinstance(value, (dict, list)) else False
+        text += yaml.safe_dump({key: value}, sort_keys=False, default_flow_style=flow, allow_unicode=True)
     if rules:
         text += '\nrules:\n' + '\n'.join(
             yaml.safe_dump([rule], sort_keys=False, default_flow_style=None, allow_unicode=True, width=110)
@@ -336,6 +350,8 @@ def import_dunst(text):
              for button in ('left', 'middle', 'right') if f'mouse_{button}_click' in g}
     if click:
         out['click'] = {k: v for k, v in click.items() if v}
+    if 'fullscreen' in g:
+        out['fullscreen'] = _fullscreen(g['fullscreen'], 'global.fullscreen', report)
     for key in g:
         handled = {'width', 'origin', 'offset', 'follow', 'font', 'frame_width', 'frame_color', 'corner_radius',
                    'padding', 'horizontal_padding', 'markup', 'notification_limit', 'history_length',
@@ -420,6 +436,8 @@ def import_dunst(text):
                 rule['icon'] = {'name': value}
             elif key == 'set_stack_tag':
                 rule['stack-tag'] = value
+            elif key == 'fullscreen':
+                rule['fullscreen'] = _fullscreen(value, f'[{name}] fullscreen', report)
             elif key == 'script':
                 rule['run'] = value
             elif key == 'set_transient':

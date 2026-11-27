@@ -375,6 +375,27 @@ assert list(renderer.fades) == [window]
 spin(400)
 assert renderer.fades == {} and renderer.fade_out == {}
 
+# fullscreen: the focused window covering the stack's monitor (no window manager here, so it is faked)
+import types
+manager.close_all()
+spin(50)
+real_screen = renderer.screen
+cover = Gtk.Window(type=Gtk.WindowType.POPUP)
+cover.move(0, 0)
+cover.set_size_request(1280, 720)
+cover.show_all()
+spin(100)
+renderer.screen = types.SimpleNamespace(get_active_window=lambda: cover.get_window())
+assert renderer.fullscreen() is True
+cover.resize(1, 1)
+cover.set_size_request(640, 400)
+spin(100)
+assert renderer.fullscreen() is False
+renderer.screen = types.SimpleNamespace(get_active_window=lambda: None)
+assert renderer.fullscreen() is False
+renderer.screen = real_screen
+cover.destroy()
+
 manager.close_all()
 assert renderer.area is None and renderer.windows == {}
 print('ok', x1, y1)

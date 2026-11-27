@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-26 "notifyd 0.14.0" "User Commands"
+.TH NOTIFYD 1 2026-11-26 "notifyd 0.15.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -383,6 +383,8 @@ open one and is counted),
 .BR body.max\-lines ,
 .B markup
 (full, strip, plain),
+.B fullscreen
+(show, delay: wait while the focused window is fullscreen),
 .BR hide ,
 .BR class ,
 .BR skip ,
@@ -424,7 +426,7 @@ rules:
 Match fields are app, summary, body, icon, category, desktop\-entry, stack\-tag, urgency, mode,
 process and parent (the sending process and its parent, as
 .B ctl watch
-shows them after "via") and
+shows them after "via"), fullscreen (true when the focused window was fullscreen) and
 .BI hint: " {name: value}" ;
 a value is an exact string, a
 .BI / regex /

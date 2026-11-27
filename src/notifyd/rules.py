@@ -31,6 +31,8 @@ MATCH_FIELDS = {
     # who sent it (the D-Bus client's process and its parent; empty when unknown)
     'process': lambda n: n.sender.get('process', ''),
     'parent': lambda n: n.sender.get('parent', ''),
+    # the focused window on the stack's monitor was fullscreen when it arrived
+    'fullscreen': lambda n: 'true' if n.fullscreen else 'false',
 }
 # dunst's per-notification color hints, as style keys (rules still override them)
 COLOR_HINTS = {'fgcolor': ('foreground',), 'bgcolor': ('background',), 'frcolor': ('border-color',),

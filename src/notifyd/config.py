@@ -34,6 +34,7 @@ DEFAULTS = {
     'title': {'max-lines': 0},   # 0: as many as it needs
     'body': {'max-lines': 6},
     'markup': 'full',            # full (Pango), strip (text only), plain (shown as typed)
+    'fullscreen': 'show',        # or delay: wait while the focused window is fullscreen (not critical ones)
     'hide': [],                  # parts not shown: app-icon, app-name, time, title, body, image
     'class': None,               # extra CSS class for the notification
     'skip': False,               # true: not shown (still logged, and kept in history)
@@ -175,6 +176,8 @@ def normalize(settings, where='config'):
         raise ConfigError(f'{where}: run: expected a shell command')
     if settings.get('sound') not in (None, False) and not isinstance(settings['sound'], str):
         raise ConfigError(f'{where}: sound: expected a file, a sound name, or false')
+    if 'fullscreen' in settings and settings['fullscreen'] not in ('show', 'delay'):
+        raise ConfigError(f'{where}: fullscreen: expected show or delay, got {settings["fullscreen"]!r}')
     if 'markup' in settings and settings['markup'] not in ('full', 'strip', 'plain'):
         raise ConfigError(f'{where}: markup: expected full, strip or plain, got {settings["markup"]!r}')
     return warnings

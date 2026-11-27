@@ -1,3 +1,3 @@
 """notifyd: a desktop notification daemon (org.freedesktop.Notifications) for X11."""
 
-__version__ = "0.14.0"
+__version__ = "0.15.0"

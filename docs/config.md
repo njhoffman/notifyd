@@ -27,6 +27,7 @@ missing file gives the deadd look. The daemon reloads the file when it changes (
 | `image.size` / `image.path` / `image.margin-right` | `75` / - / `0` | the picture on the left |
 | `title.max-lines` / `body.max-lines` | `0` / `6` | longer summaries and bodies end in … (`0`: no limit) |
 | `markup` | `full` | `full` (Pango), `strip` (text only), `plain` (tags shown as typed) |
+| `fullscreen` | `show` | `delay`: while the focused window covers the stack's monitor (a video, a game), notifications wait and show when it ends (critical ones always show); `match: {fullscreen: true}` matches on that state. dunst's `pushback` is not possible with override-redirect popups |
 | `hide` | `[]` | any of `app-icon app-name time title body image actions progress` |
 | `class` | - | extra CSS class on the card |
 | `skip` | `false` | not shown; still logged and kept in history |
@@ -72,7 +73,8 @@ rules:
 `match` fields: `app`, `summary`, `body`, `icon`, `category`, `desktop-entry`, `stack-tag`,
 `urgency` (`low`/`normal`/`critical`), `mode` (set with `notifyd ctl mode NAME`; `normal` by
 default), `process` and `parent` (the sending process and its parent, as `ctl watch` shows them
-after `via`; process names are cut to 15 characters) and `hint: {name: value}`. A value is an exact string,
+after `via`; process names are cut to 15 characters), `fullscreen` (`true` when the focused window was
+fullscreen as it arrived) and `hint: {name: value}`. A value is an exact string,
 `/regex/` (`/regex/i` ignores case; searched, not anchored), or a list of those (any matches).
 
 Rewrites: `summary`, `body`, `app` are templates with `{summary}`, `{body}`, `{app}`, `{category}`,

@@ -182,3 +182,15 @@ def test_glob_rules_match_like_dunst():
     assert 'mute_chat' in n.rules and n.settings['skip'] is True
     n = resolve(loaded, Notification(app='slack-chat-app', summary='Hi'))
     assert 'mute_chat' not in n.rules
+
+
+def test_dunst_fullscreen():
+    from notifyd.importer import import_dunst
+    config, report = import_dunst('[global]\n    fullscreen = delay\n\n[game]\n    appname = Steam\n'
+                                  '    fullscreen = pushback\n\n[video]\n    appname = mpv\n    fullscreen = show\n')
+    assert config['fullscreen'] == 'delay'
+    rules = {rule['name']: rule for rule in config['rules']}
+    assert rules['game']['fullscreen'] == 'show' and rules['video']['fullscreen'] == 'show'
+    assert '[game] fullscreen pushback: not supported, using show' in report
+    assert not [line for line in report if 'global.fullscreen' in line]
+    load_config(text=dump_config(dict(config), 'dunst'))

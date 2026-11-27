@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-26
+
+### Added
+
+- `fullscreen: delay` (in the config or a rule): while the focused window covers the stack's
+  monitor (a video, a game), non-critical notifications wait and show, in order, when it ends;
+  `ctl list` shows them as `fullscreen`. The default stays `show`. Rules can also
+  `match: {fullscreen: true}`. `notifyd import dunst` carries `fullscreen` over (`pushback` becomes
+  `show`, since an override-redirect popup cannot go under a fullscreen window).
+
+### Fixed
+
+- `notifyd import` wrote an invalid config when every top-level value was a plain value (a flow
+  mapping followed by `rules:`).
+
 ## [0.14.0] - 2026-11-26
 
 ### Added

@@ -432,6 +432,26 @@ class GtkRenderer:
             monitor = display.get_monitor(0)
         return monitor.get_workarea()
 
+    def fullscreen(self):
+        """Whether the focused window (_NET_ACTIVE_WINDOW) covers the whole monitor the stack is on: a
+        fullscreen video or game. Under i3 a tiled or floating window never covers the bar's strip."""
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', DeprecationWarning)
+            active = self.screen.get_active_window()
+        if active is None:
+            return False
+        display = Gdk.Display.get_default()
+        monitor = display.get_monitor_at_window(active)
+        if monitor is None:
+            return False
+        geometry, frame = monitor.get_geometry(), active.get_frame_extents()
+        if not (frame.x <= geometry.x and frame.y <= geometry.y
+                and frame.x + frame.width >= geometry.x + geometry.width
+                and frame.y + frame.height >= geometry.y + geometry.height):
+            return False
+        area = self.area or self.monitor_geometry()
+        return display.get_monitor_at_point(area.x + area.width // 2, area.y + area.height // 2) == monitor
+
     def layout(self):
         if not self.windows:
             return

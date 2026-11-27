@@ -160,7 +160,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 
 ## 14. Behavior and scripting
 
-- [ ] **Fullscreen policy.** (p2) [feature] Override-redirect popups cover fullscreen video and
+- [x] **Fullscreen policy.** (p2) [feature] Override-redirect popups cover fullscreen video and
       games; `importer.py` already reports dunst's `fullscreen` as unsupported. Watch
       `_NET_ACTIVE_WINDOW` for `_NET_WM_STATE_FULLSCREEN` and add a rule key `fullscreen:
       show|delay|pushback` plus a `match: {fullscreen: true}` field. Upstream: dunst#553,
