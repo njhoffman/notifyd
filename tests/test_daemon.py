@@ -412,6 +412,20 @@ assert renderer.window_scopes[kept] in renderer.styles        # an open window k
 manager.close_all()
 assert renderer.window_scopes == {}
 
+# symbolic icons take the given color; a name the theme lacks falls back to a shorter one
+from notifyd.render.gtk import load_pixbuf, rgba
+theme = Gtk.IconTheme.get_default()
+symbolic = sorted(n for n in theme.list_icons(None) if n.endswith('-symbolic'))
+if symbolic:
+    pixbuf = load_pixbuf(symbolic[0], 24, rgba('#ff0000'))
+    data, channels = pixbuf.get_pixels(), pixbuf.get_n_channels()
+    drawn = [data[i:i + channels] for i in range(0, len(data), channels) if channels == 4 and data[i + 3] > 200]
+    assert drawn and all(px[0] > 200 and px[1] < 60 and px[2] < 60 for px in drawn), drawn[:3]
+plain = sorted(n for n in theme.list_icons(None) if '-' in n and not n.endswith('-symbolic'))
+if plain:
+    assert load_pixbuf(plain[0] + '-nosuchvariant', 24) is not None
+assert load_pixbuf('zzz-no-such-icon', 24) is None
+
 manager.close_all()
 assert renderer.area is None and renderer.windows == {}
 print('ok', x1, y1)

@@ -95,6 +95,7 @@ class Center:
         renderer.log.listeners.append(self.on_event)
         self.bus = None
         self.players = None
+        self.card_color = None     # the text color symbolic icons on the card being built take
         self.volume_level = None   # the last level read (reads are async, so the center never waits on pactl)
         try:
             self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
@@ -468,7 +469,7 @@ class Center:
         sources = [entry.get(key) for key in ('thumb', 'image', 'app_icon')]
         sources.append(desktop_icon((entry.get('sender') or {}).get('desktop_entry')))
         for source in sources:
-            picture = self.renderer.load_image(source, self.CARD_PICTURE)
+            picture = self.renderer.load_image(source, self.CARD_PICTURE, self.card_color)
             if picture is not None:
                 return picture
         return None
@@ -506,6 +507,7 @@ class Center:
             body.set_lines(3)
             body.set_ellipsize(Pango.EllipsizeMode.END)
             text.pack_start(body, False, False, 0)
+        self.card_color = (style.get(entry.get('urgency', 'normal')) or {}).get('foreground') or style.get('foreground')
         picture = self.card_picture(entry, opened)
         if picture is not None:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)

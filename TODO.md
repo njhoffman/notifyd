@@ -131,7 +131,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       the open center with synchronous `ListNames`/`GetAll` per player and two `pactl` runs (1 s
       timeout each); a hung player (or Firefox blocked on a synchronous Notify) freezes popups and
       D-Bus replies. Async calls, cache from signals, debounce. Upstream: astal#204.
-- [ ] **Symbolic icons are not recolored.** (p3) [feature] `load_pixbuf` uses `load_icon`, so
+- [x] **Symbolic icons are not recolored.** (p3) [feature] `load_pixbuf` uses `load_icon`, so
       `*-symbolic` icons keep their dark SVG color on dark cards, and no `GENERIC_FALLBACK`
       (`audio-volume-high-foo`). Use `lookup_icon(...).load_symbolic(fg)`. Upstream: dunst#1481.
 - [ ] **HiDPI images are blurry.** (p3) [perf] Pixbufs load at logical size and ignore

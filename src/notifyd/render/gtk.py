@@ -63,20 +63,32 @@ def pixbuf_from_data(data, size):
     return scale_to(pixbuf_from_image_data(data), size)
 
 
-def load_pixbuf(source, size):
-    """A pixbuf at most SIZE px from a file path/URI or an icon name; None when neither works."""
+def rgba(color):
+    """A Gdk.RGBA from a CSS color string, or None."""
+    value = Gdk.RGBA()
+    return value if isinstance(color, str) and value.parse(color) else None
+
+
+def load_pixbuf(source, size, color=None):
+    """A pixbuf at most SIZE px from a file path/URI or an icon name; None when neither works. A
+    `*-symbolic` icon is drawn in COLOR (a Gdk.RGBA: the card's text color), so a dark glyph does
+    not vanish on a dark card; a name the theme lacks falls back to a shorter one
+    (audio-volume-high-foo -> audio-volume-high)."""
     if not source or size <= 0:
         return None
     path = file_path(source)
     try:
         if path:
             return GdkPixbuf.Pixbuf.new_from_file_at_scale(path, size, size, True)
-        theme = Gtk.IconTheme.get_default()
-        if theme.has_icon(source):
-            return scale_to(theme.load_icon(source, size, Gtk.IconLookupFlags.FORCE_SIZE), size)
+        info = Gtk.IconTheme.get_default().lookup_icon(
+            source, size, Gtk.IconLookupFlags.FORCE_SIZE | Gtk.IconLookupFlags.GENERIC_FALLBACK)
+        if info is None:
+            return None
+        if color is not None and info.is_symbolic():
+            return scale_to(info.load_symbolic(color, None, None, None)[0], size)
+        return scale_to(info.load_icon(), size)
     except GLib.Error:
         return None
-    return None
 
 
 class GtkRenderer:
@@ -318,7 +330,7 @@ class GtkRenderer:
                 if picture is None and n.hints.get(hint):
                     picture = load_pixbuf(str(n.hints[hint]), image_size)
             if picture is None and file_path(icon_source):
-                picture = load_pixbuf(icon_source, image_size)
+                picture = load_pixbuf(icon_source, image_size, rgba(self.text_color(n, style)))
                 icon_source = None
             if picture is None and isinstance(n.hints.get('icon_data'), tuple):
                 picture = self.image_from_data(n, 'icon_data', image_size)
@@ -326,7 +338,8 @@ class GtkRenderer:
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         header.get_style_context().add_class('header')
         if 'app-icon' not in hide:
-            icon = load_pixbuf(icon_source, int(icon_settings.get('size') or 0)) if icon_source else None
+            icon = load_pixbuf(icon_source, int(icon_settings.get('size') or 0),
+                               rgba(self.text_color(n, style))) if icon_source else None
             if icon is not None:
                 widget = Gtk.Image.new_from_pixbuf(icon)
                 widget.get_style_context().add_class('appicon')
@@ -435,9 +448,15 @@ class GtkRenderer:
         label.get_style_context().add_class(css_class)
         return label
 
-    def load_image(self, source, size):
-        """A pixbuf from a path, file:// URI or icon name (no network), or None."""
-        return load_pixbuf(source, size)
+    def load_image(self, source, size, color=None):
+        """A pixbuf from a path, file:// URI or icon name (no network), or None; COLOR is a CSS color
+        for symbolic icons."""
+        return load_pixbuf(source, size, rgba(color))
+
+    @staticmethod
+    def text_color(n, style):
+        """The card's text color for N: its urgency's foreground, else the style's."""
+        return (style.get(n.urgency_name) or {}).get('foreground') or style.get('foreground')
 
     # -- placement ------------------------------------------------------
     def monitor_geometry(self):

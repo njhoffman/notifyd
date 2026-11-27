@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-11-27
+
+### Added
+
+- Symbolic icons (`*-symbolic`) are drawn in the card's text color, in the popup and on center
+  cards, so a dark glyph no longer vanishes on a dark card; an icon name the theme lacks falls back
+  to a shorter one (`audio-volume-high-foo` finds `audio-volume-high`).
+
 ## [0.18.3] - 2026-11-26
 
 ### Fixed
