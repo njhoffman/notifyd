@@ -180,6 +180,16 @@ know it ignore it:
 notifyd send -h 'string:x-notifyd-title-end:<span foreground="#ff8fc7">♥</span> 4.5' 'Song' 'Artist'
 ```
 
+A class takes Pango's span attributes (`foreground`, `background`, `weight`, `size`, `rise`, ...), with
+`-` for `_`. `line-height` (a factor, or points) spaces out the lines its text is on, which keeps
+wrapped tags apart, since a span's background has no padding:
+
+```yaml
+rules:
+  - match: { app: [MPD, Spotify, musicman] }
+    style: { classes: { tag: { line-height: 1.3 } } }   # merged into the preset's tag class
+```
+
 Every bundled preset has `accent`, `muted`, `good`, `warn`, `bad` and `tag`. `<br>` and a closing
 `</p>` or `</div>` become a line break (an opening `<p>`/`<div>` goes), `<img>` its alt text, HTML entities Pango lacks (`&nbsp;`, `&hellip;`) become characters, an unknown one
 (`&foo;`) and a bare `&` or `<` (one that cannot start a tag) are escaped, and markup that still does not parse is shown as

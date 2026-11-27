@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-11-27
+
+### Added
+
+- A named class can set `line-height` (Pango's `line_height`, 1.50 and later): the lines its text is
+  on get taller, so tags that wrap to a second line no longer sit on top of each other (a span's
+  background has no padding). In a rule: `style: { classes: { tag: { line-height: 1.3 } } }`.
+
 ## [0.38.0] - 2026-11-27
 
 ### Added

@@ -185,3 +185,11 @@ def test_split_action_links(markup, unwrapped, ranges):
 def test_split_action_links_leaves_markup_that_does_not_parse():
     broken = '<a href="action:x">text</a> <b>unclosed'
     assert split_action_links(broken) == (broken, [])
+
+
+def test_a_class_can_space_out_the_lines_it_is_on():
+    # wrapped tags (a span background each) otherwise sit right on top of each other
+    classes = {'tag': {'background': '#7aa2f7', 'line-height': 1.3}}
+    expanded = expand_classes('<span class="tag">indie</span>', classes)
+    assert expanded == '<span background="#7aa2f7" line_height="1.3">indie</span>'
+    assert markup_error(expanded) == ''                          # Pango takes it

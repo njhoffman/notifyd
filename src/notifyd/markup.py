@@ -38,7 +38,7 @@ SPAN_ATTRS = {
     'foreground', 'fgcolor', 'color', 'background', 'bgcolor', 'alpha', 'fgalpha', 'bgalpha',
     'underline', 'underline_color', 'overline', 'strikethrough', 'strikethrough_color', 'rise',
     'letter_spacing', 'font_features', 'allow_breaks', 'insert_hyphens', 'baseline_shift', 'font_scale',
-    'text_transform',
+    'text_transform', 'line_height',      # line_height (Pango 1.50): a factor or points, for the lines it is on
 }
 
 
