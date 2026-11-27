@@ -83,6 +83,8 @@ class GtkRenderer:
         self.log = log
         self.link_clicked = None   # the event time of the last link click, which must not dismiss
         self.measured = None       # (notification, window) built by fits() for show()
+        self.fades = {}            # window -> its running fade's GLib source
+        self.fade_out = {}         # notification id -> its fade.out (ms), from its own settings
         self.screen = Gdk.Screen.get_default()
         self.visual = self.screen.get_rgba_visual()
         if self.visual is None or not self.screen.is_composited():
@@ -178,6 +180,7 @@ class GtkRenderer:
             self.discard_measured()
             window = self.new_window(n)
         self.windows[n.id] = window
+        self.fade_out[n.id] = (n.settings.get('fade') or {}).get('out') or 0   # a rule's fade.out counts
         fade_in = (n.settings.get('fade') or {}).get('in') or 0
         if fade_in:
             window.set_opacity(0)
@@ -196,24 +199,28 @@ class GtkRenderer:
             window.remove(child)
             child.destroy()
         self.fill(window, n)
+        self.fade_out[n.id] = (n.settings.get('fade') or {}).get('out') or 0
         window.show_all()
         window.resize(1, 1)   # shrink to the new content
         self.layout()
 
     def close(self, nid):
         window = self.windows.pop(nid, None)
+        fade_out = self.fade_out.pop(nid, 0)
         if window is not None:
-            fade_out = (self.manager.config.settings.get('fade') or {}).get('out') or 0
             if fade_out and window.get_visible():
                 self.fade(window, window.get_opacity(), 0.0, fade_out, then=window.destroy)
             else:
+                self.stop_fade(window)         # a fade-in must not touch it once it is destroyed
                 window.destroy()
         if not self.windows:
             self.area = None
         self.layout()
 
     def fade(self, window, start, end, ms, then=None):
-        """Opacity from START to END over MS (about 60 steps a second), then THEN()."""
+        """Opacity from START to END over MS (about 60 steps a second), then THEN(). A new fade of the
+        same window replaces the running one (a close during the fade-in fades out from where it is)."""
+        self.stop_fade(window)
         steps = max(int(ms / 16), 1)
         state = {'step': 0}
 
@@ -221,11 +228,17 @@ class GtkRenderer:
             state['step'] += 1
             window.set_opacity(start + (end - start) * state['step'] / steps)
             if state['step'] >= steps:
+                self.fades.pop(window, None)
                 if then:
                     then()
                 return False
             return True
-        GLib.timeout_add(16, tick)
+        self.fades[window] = GLib.timeout_add(16, tick)
+
+    def stop_fade(self, window):
+        source = self.fades.pop(window, None)
+        if source is not None:
+            GLib.source_remove(source)
 
     def on_monitors_changed(self, _screen):
         self.area = None

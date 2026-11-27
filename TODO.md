@@ -120,7 +120,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       even for `markup: plain` rules, and `pop` brings back a bare notification that misses
       sender rules and reruns `run:`. Store them (optionally a small cached thumbnail of
       image-data) and pass them back on `pop`. Upstream: dunst#1065, mako#542, swaync#163.
-- [ ] **Fade settings are inconsistent.** (p3) [bug] `fade.in` comes from the notification's
+- [x] **Fade settings are inconsistent.** (p3) [bug] `fade.in` comes from the notification's
       settings but `fade.out` from the global config (`render/gtk.py`), so a rule's `fade.out` is
       ignored, and the fade-in timer is not cancelled on close (it sets opacity on a destroyed
       window). Keep per-window fade state.

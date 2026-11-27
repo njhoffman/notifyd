@@ -364,11 +364,11 @@ press('p'); assert manager.paused == paused
 press('m'); assert manager.mode == 'focus'
 press('m'); assert manager.mode == 'normal'
 
-scale = center.volume_widgets[1]
+spin(150)                                        # let the rebuilds the mode changes queued finish
 press('plus'); press('equal')
-assert scale.get_value() == 75
+assert center.volume_widgets[1].get_value() == 75  # read the slider now: a rebuild replaces the widget
 press('minus')
-assert scale.get_value() == 70
+assert center.volume_widgets[1].get_value() == 70
 spin(150)
 
 assert not press('j', Gdk.ModifierType.CONTROL_MASK)   # chords are left alone

@@ -351,6 +351,30 @@ title = [l for l in labels(renderer.windows[capped]) if l.get_text().startswith(
 assert title and title[0].get_lines() == 2 and title[0].get_ellipsize() == Pango.EllipsizeMode.END
 manager.close_all()
 
+# fades: per window, a close during the fade-in replaces it, and a rule's fade.out counts
+import time as _time
+from gi.repository import GLib
+def spin(ms):
+    end = _time.monotonic() + ms / 1000
+    while _time.monotonic() < end:
+        GLib.MainContext.default().iteration(False)
+        _time.sleep(0.005)
+manager.close_all()
+spin(50)
+renderer.fades.clear()
+quick = manager.notify('a', summary='fade in only', extra={'fade': {'in': 300, 'out': 0}})
+window = renderer.windows[quick]
+assert window in renderer.fades
+manager.close(quick)                               # no fade-out: the fade-in stops with the window
+assert window not in renderer.fades and renderer.fades == {}
+slow = manager.notify('a', summary='rule fade out', extra={'fade': {'in': 300, 'out': 120}})
+window = renderer.windows[slow]
+spin(40)
+manager.close(slow)                                # mid fade-in: one fade, now going out
+assert list(renderer.fades) == [window]
+spin(400)
+assert renderer.fades == {} and renderer.fade_out == {}
+
 manager.close_all()
 assert renderer.area is None and renderer.windows == {}
 print('ok', x1, y1)

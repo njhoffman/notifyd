@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.13.5] - 2026-11-26
+
+### Fixed
+
+- A rule's `fade.out` is used when its notification closes (only the global one was), and a close
+  during the fade-in fades out from where it is instead of two fades fighting over the window; the
+  fade-in no longer touches a window that closed without a fade-out.
+
 ## [0.13.4] - 2026-11-26
 
 ### Fixed
