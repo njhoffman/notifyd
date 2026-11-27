@@ -88,7 +88,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [ ] **`ctl action` signals keys that were never offered.** (p3) [bug] Neither `server.py` nor
       `manager.invoke` checks the key is in `n.actions`; a typo signals the app and closes the
       notification. Refuse unknown keys.
-- [ ] **Previews run rule commands, sounds and fill history.** (p3) [bug] `ctl preview`'s `extra`
+- [x] **Previews run rule commands, sounds and fill history.** (p3) [bug] `ctl preview`'s `extra`
       (`daemon.py:204`) sets preset, timeout and skip only, so a sample matching song rules fires
       `run:`, buttons and `sound:`, and five samples land in persistent history. Add `run: None,
       sound: False` and no history.

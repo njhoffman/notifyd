@@ -588,3 +588,15 @@ def test_edge_newlines_and_spaces_are_dropped_inner_ones_kept(make_manager):
     n = m.active[nid]
     assert n.summary == 'Title' and n.body == 'line one\n\nline two'
     assert m.active[m.notify('a', summary='\n', body=' ')].body == ''
+
+
+def test_previews_have_no_side_effects(make_manager):
+    from notifyd.daemon import PREVIEW_EXTRA
+    m, *_ = make_manager('rules:\n- match: {app: musicman}\n  run: hook\n  sound: bell\n'
+                         '  buttons: [{label: Skip, run: skip}]\n')
+    nid = m.notify('musicman', summary='sample', extra={**PREVIEW_EXTRA, 'preset': 'deadd'})
+    n = m.active[nid]
+    assert m.ran == [] and m.sounds == [] and n.actions == []
+    assert n.timeout == 15000 and n.settings['preset'] == 'deadd'
+    m.close(nid)
+    assert len(m.history) == 0

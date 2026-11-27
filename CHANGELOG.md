@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.13.2] - 2026-11-26
+
+### Fixed
+
+- `ctl preview` no longer runs the `run:` commands, buttons and sounds of rules a sample happens to
+  match (the music sample matched song rules), and its samples no longer land in the history.
+
 ## [0.13.1] - 2026-11-26
 
 ### Fixed

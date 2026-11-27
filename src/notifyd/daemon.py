@@ -38,6 +38,12 @@ def set_process_name(name='notifyd'):
         pass
 
 
+# what previews override: shown long enough to look at, never skipped, and no side effects (rule
+# commands, buttons, sounds) or history entries from samples that happen to match the user's rules
+PREVIEW_EXTRA = {'timeout': 15000, 'skip': False, 'run': None, 'sound': False, 'buttons': [],
+                 'history': {'keep': False}}
+
+
 class Daemon:
     def __init__(self, config_path=None, renderer='gtk', replace=False, log_format=None, color=None,
                  level=None):
@@ -93,7 +99,7 @@ class Daemon:
             hints = {**sample.get('hints', {}), 'x-dunst-stack-tag': f'notifyd-preview-{index}'}
             self.manager.notify(sample['app'], 0, sample.get('app_icon', ''), sample['summary'], sample['body'],
                                 sample.get('actions', []), hints, -1,
-                                extra={'preset': preset, 'timeout': 15000, 'skip': False})
+                                extra={**PREVIEW_EXTRA, 'preset': preset})
         return len(SAMPLES)
 
     # -- running --------------------------------------------------------
