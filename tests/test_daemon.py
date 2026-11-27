@@ -173,7 +173,9 @@ def test_second_daemon_names_the_owner(bus, daemon, tmp_path):
 
 def test_list_mode_log_file_and_persistent_history(bus, daemon, tmp_path):
     log_file = tmp_path / 'logs' / 'notifyd.log'
-    config = f'log: {{file: {log_file}}}\nrules:\n  - match: {{mode: dnd, urgency: [low, normal]}}\n    skip: true\n'
+    # timeout never: on a loaded machine the steps below can outlast the 8 s default, and it would expire first
+    config = (f'timeout: never\nlog: {{file: {log_file}}}\n'
+              'rules:\n  - match: {mode: dnd, urgency: [low, normal]}\n    skip: true\n')
     proc = daemon(config, '--renderer', 'none')
     shown = run(bus, 'send', '-p', '-a', 'mail', 'New mail').stdout.strip()
     listing = run(bus, 'ctl', 'list', '--ids').stdout
@@ -396,6 +398,19 @@ renderer.screen = types.SimpleNamespace(get_active_window=lambda: None)
 assert renderer.fullscreen() is False
 renderer.screen = real_screen
 cover.destroy()
+
+# CSS of styles no window uses is pruned once enough of them gathered
+manager.close_all()
+spin(50)
+for i in range(renderer.STYLE_SLACK + 3):
+    manager.close(manager.notify('a', summary=f'c{i}', hints={'fgcolor': f'#0000{i:02x}'}))
+assert len(renderer.styles) <= renderer.STYLE_SLACK + 2, len(renderer.styles)
+kept = manager.notify('a', summary='kept', hints={'fgcolor': '#123456'})
+for i in range(renderer.STYLE_SLACK + 3):
+    manager.close(manager.notify('a', summary=f'd{i}', hints={'fgcolor': f'#00ff{i:02x}'}))
+assert renderer.window_scopes[kept] in renderer.styles        # an open window keeps its style
+manager.close_all()
+assert renderer.window_scopes == {}
 
 manager.close_all()
 assert renderer.area is None and renderer.windows == {}

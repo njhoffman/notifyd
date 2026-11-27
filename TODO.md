@@ -124,7 +124,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       settings but `fade.out` from the global config (`render/gtk.py`), so a rule's `fade.out` is
       ignored, and the fade-in timer is not cancelled on close (it sets opacity on a destroyed
       window). Keep per-window fade state.
-- [ ] **Generated CSS grows until reload.** (p3) [perf] Each distinct style (dunst color hints
+- [x] **Generated CSS grows until reload.** (p3) [perf] Each distinct style (dunst color hints
       vary per notification) adds a CSS scope that is never pruned, and each one reloads the whole
       provider. Prune to open windows or use per-window providers.
 - [ ] **Center rebuilds block the main loop.** (p3) [perf] Each player PropertiesChanged rebuilds

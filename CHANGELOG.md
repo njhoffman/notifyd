@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-11-26
+
+### Fixed
+
+- The generated CSS no longer grows until a reload: styles no open window uses (dunst color hints
+  give each notification its own) are pruned once a few have gathered, instead of each one adding
+  to the provider every window is restyled from.
+
 ## [0.18.1] - 2026-11-26
 
 ### Fixed

@@ -152,7 +152,7 @@ def test_an_unreadable_preset_is_a_config_error(tmp_path, monkeypatch):
 
 def test_fullscreen_setting_is_checked():
     assert load_config(text='fullscreen: delay').settings['fullscreen'] == 'delay'
-    assert load_config().settings['fullscreen'] == 'show'
+    assert load_config(text='').settings['fullscreen'] == 'show'      # not the user's own config
     with pytest.raises(ConfigError, match='fullscreen: expected show or delay'):
         load_config(text='fullscreen: pushback')
 
@@ -170,6 +170,6 @@ def test_lock_settings():
 
 
 def test_ignore_close_is_a_boolean():
-    assert load_config().settings['ignore-close'] is False
+    assert load_config(text='').settings['ignore-close'] is False
     with pytest.raises(ConfigError, match='ignore-close'):
         load_config(text='ignore-close: sometimes')

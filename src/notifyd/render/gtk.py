@@ -98,6 +98,7 @@ class GtkRenderer:
         Gtk.StyleContext.add_provider_for_screen(self.screen, self.provider,
                                                  Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1)
         self.styles = {}     # scope class -> css
+        self.window_scopes = {}   # notification id -> the scope class its window uses
         self.windows = {}    # id -> Gtk.Window
         self.area = None     # the work area the stack is on; chosen when the first one opens
         # displayd (xrandr) changing the layout: lay out again on the new geometry
@@ -117,6 +118,22 @@ class GtkRenderer:
             self.styles[scope] = build_css(style, scope)
             self.load_css()
         return scope, style
+
+    STYLE_SLACK = 8   # unused scopes kept before pruning, so a close does not reload the CSS each time
+
+    def prune_styles(self):
+        """Drop the CSS of styles no open window (or the center) uses. Distinct styles pile up when
+        senders vary them per notification (dunst color hints); each one made the whole provider
+        larger. Pruning reloads it once, so it waits until STYLE_SLACK unused ones gathered."""
+        used = set(self.window_scopes.values())
+        built = getattr(self.center, 'built', None)
+        if built:
+            used.add(built[0])
+        unused = [scope for scope in self.styles if scope not in used]
+        if len(unused) > self.STYLE_SLACK:
+            for scope in unused:
+                del self.styles[scope]
+            self.load_css()
 
     def load_css(self):
         try:
@@ -159,7 +176,10 @@ class GtkRenderer:
 
     def discard_measured(self):
         if self.measured is not None:
-            self.measured[1].destroy()
+            n, window = self.measured
+            if n.id not in self.windows:
+                self.window_scopes.pop(n.id, None)
+            window.destroy()
             self.measured = None
 
     def new_window(self, n):
@@ -212,6 +232,8 @@ class GtkRenderer:
     def close(self, nid):
         window = self.windows.pop(nid, None)
         fade_out = self.fade_out.pop(nid, 0)
+        self.window_scopes.pop(nid, None)
+        self.prune_styles()
         if window is not None:
             if fade_out and window.get_visible():
                 self.fade(window, window.get_opacity(), 0.0, fade_out, then=window.destroy)
@@ -257,6 +279,7 @@ class GtkRenderer:
         for name in [c for c in context.list_classes() if c.startswith('nd-')]:
             context.remove_class(name)
         context.add_class(scope)
+        self.window_scopes[n.id] = scope
         width = int(settings.get('width') or 350)
         window.set_size_request(width, -1)
         window.set_default_size(width, -1)
