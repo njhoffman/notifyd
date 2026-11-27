@@ -102,3 +102,38 @@ def test_xidle_under_xvfb():
     finally:
         xvfb.terminate()
         xvfb.wait(5)
+
+
+def fake_proc(tmp_path, comms):
+    proc = tmp_path / 'proc'
+    for pid, comm in enumerate(comms, start=100):
+        (proc / str(pid)).mkdir(parents=True)
+        (proc / str(pid) / 'comm').write_text(comm + '\n')
+    (proc / 'self').mkdir(parents=True, exist_ok=True)
+    return proc
+
+
+def test_lock_state_finds_a_locker_process(tmp_path):
+    from notifyd.effects import LockState
+    proc = fake_proc(tmp_path, ['zsh', 'i3', 'i3lock'])
+    assert LockState(proc=proc)() is True
+    assert LockState(['xsecurelock'], proc=proc)() is False
+    assert LockState([], proc=proc)() is False
+    long_name = fake_proc(tmp_path / 'b', ['betterlockscree'])         # comm is cut to 15 characters
+    assert LockState(proc=long_name)() is True
+    assert LockState(proc=tmp_path / 'missing')() is False
+
+
+def test_lock_state_reads_logind(tmp_path):
+    from notifyd.effects import LockState
+
+    class Connection:
+        def __init__(self, locked):
+            self.locked = locked
+
+        def call_sync(self, *_args):
+            from gi.repository import GLib
+            return GLib.Variant('(v)', (GLib.Variant('b', self.locked),))
+    proc = fake_proc(tmp_path, ['zsh'])
+    assert LockState(proc=proc, connection=Connection(True))() is True
+    assert LockState(proc=proc, connection=Connection(False))() is False

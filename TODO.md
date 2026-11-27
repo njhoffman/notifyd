@@ -165,7 +165,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       `_NET_ACTIVE_WINDOW` for `_NET_WM_STATE_FULLSCREEN` and add a rule key `fullscreen:
       show|delay|pushback` plus a `match: {fullscreen: true}` field. Upstream: dunst#553,
       dunst PR#1539, mako#535, swaync#256.
-- [ ] **Pause while the screen is locked.** (p2) [feature] Popups can stack above i3lock; hold them
+- [x] **Pause while the screen is locked.** (p2) [feature] Popups can stack above i3lock; hold them
       back while logind `LockedHint` or `org.freedesktop.ScreenSaver` says locked and replay on
       unlock through the pause path (`pause-when-locked`). Upstream: dunst#1495, wired#12,
       swaync#496.

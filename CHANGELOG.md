@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-26
+
+### Added
+
+- `lock.pause: true` holds every notification back while the screen is locked (critical ones too,
+  since popups can stack above an X locker) and shows them on unlock, unless do not disturb is on.
+  Locked means logind's `LockedHint` for the session, or one of `lock.processes` running
+  (default i3lock, xsecurelock, slock, betterlockscreen), checked every 2 s. It is separate from
+  do not disturb: unlocking never turns that off. `ctl status` shows `locked`.
+
 ## [0.15.0] - 2026-11-26
 
 ### Added

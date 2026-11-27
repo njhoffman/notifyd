@@ -73,6 +73,7 @@ class Manager:
         self.timers = {}        # id -> (handle, deadline)
         self.hovered = {}       # id -> remaining ms
         self.paused = False
+        self.locked = False     # the screen is locked (lock.pause): hold back everything, critical too
         self.history = History(config.settings['history']['size'], history_path, log)
         self.runner = runner or (lambda command, n, what='run': None)
         self.sound = sound or (lambda name: None)
@@ -122,10 +123,10 @@ class Manager:
             return n.id
         if target:
             self._replace(n, self.active[target])
-        elif self.paused and n.urgency < 2:
+        elif self.locked or (self.paused and n.urgency < 2):
             self.active[n.id] = n
             self.held_back.append(n.id)
-            self.log.emit('queued', n, reason='paused')
+            self.log.emit('queued', n, reason='locked' if self.locked else 'paused')
             self._save_state()                    # held ones outlive a restart (or a crash)
         elif n.fullscreen and n.urgency < 2 and n.settings.get('fullscreen') == 'delay':
             self.active[n.id] = n
@@ -371,12 +372,37 @@ class Manager:
         self.paused = on
         self.log.emit('paused' if on else 'resumed', message=f'{len(self.held_back)} held back' if not on else '')
         if not on:
-            held, self.held_back = self.held_back, []
-            for nid in held:
-                if nid in self.active:
-                    self._place(self.active[nid])
+            self._release_held()
         self._save_state()
         return self.paused
+
+    def set_locked(self, on):
+        """The screen locked or unlocked (lock.pause): while locked everything is held back, critical
+        ones too, since popups can stack above an X locker. Unlocking shows them unless paused."""
+        on = bool(on)
+        if on == self.locked:
+            return self.locked
+        self.locked = on
+        self.log.emit('locked' if on else 'unlocked', message='' if on else f'{len(self.held_back)} held back')
+        if not on:
+            self._release_held()
+        return self.locked
+
+    def _release_held(self):
+        """Show what was held back, as far as pause and lock allow (critical ones only pause lets through)."""
+        if self.locked:
+            return
+        held, self.held_back = self.held_back, []
+        for nid in held:
+            n = self.active.get(nid)
+            if n is None:
+                continue
+            if self.paused and n.urgency < 2:
+                self.held_back.append(nid)
+            else:
+                self._place(n)
+        if self.paused:
+            self._save_state()
 
     def shutdown(self):
         """The daemon stops: keep the paused state and the held-back queue for the next start (their
@@ -384,7 +410,10 @@ class Manager:
         self._save_state()
         held, self.held_back = self.held_back, []
         for nid in held:
-            if self.active.pop(nid, None) is not None:
+            if not self.paused:                 # held only by the lock: not kept, so into history
+                self.held_back.append(nid)
+                self.close(nid, UNDEFINED)
+            elif self.active.pop(nid, None) is not None:
                 self.on_closed(nid, UNDEFINED)
         return self.close_all(CLOSED)
 
@@ -519,6 +548,7 @@ class Manager:
     def status(self):
         return {
             'paused': self.paused,
+            'locked': self.locked,
             'mode': self.mode,
             'displayed': len(self.displayed),
             'waiting': len(self.waiting),

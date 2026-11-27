@@ -6,7 +6,7 @@ from gi.repository import Gio, GLib
 
 from notifyd import __version__, art
 from notifyd.config import ConfigError, default_path, load_config, load_preset
-from notifyd.effects import Runner, SoundPlayer, XIdle
+from notifyd.effects import LockState, Runner, SoundPlayer, XIdle
 from notifyd.history import default_path as history_default_path
 from notifyd.log import EventLog
 from notifyd.manager import GLibScheduler, Manager
@@ -40,6 +40,7 @@ def set_process_name(name='notifyd'):
 
 # what previews override: shown long enough to look at, never skipped, and no side effects (rule
 # commands, buttons, sounds) or history entries from samples that happen to match the user's rules
+LOCK_POLL = 2   # seconds between screen-lock checks (lock.pause)
 PREVIEW_EXTRA = {'timeout': 15000, 'skip': False, 'run': None, 'sound': False, 'buttons': [],
                  'history': {'keep': False}}
 
@@ -54,6 +55,7 @@ class Daemon:
         self.log = EventLog()
         self.exit_code = 0
         self.loop = None
+        self.lock_state = None   # (processes, LockState) while lock.pause is on
         self.acquired = set()
 
     def configure_log(self, config):
@@ -175,6 +177,7 @@ class Daemon:
         # deadd's i3 binding: kill -USR1 toggles the notification center
         GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, lambda: self.center('toggle') or True)
         self._monitor = self.watch_config()
+        GLib.timeout_add_seconds(LOCK_POLL, self.check_lock)
         try:
             self.loop.run()
         finally:
@@ -183,6 +186,23 @@ class Daemon:
                 Gio.bus_unown_name(owner)
             self.server.unregister()
         return self.exit_code
+
+    def check_lock(self):
+        """Every LOCK_POLL seconds with lock.pause on: hold notifications back while the screen is locked."""
+        lock = self.manager.config.settings.get('lock') or {}
+        if not lock.get('pause'):
+            if self.manager.locked:
+                self.manager.set_locked(False)
+            return True
+        processes = tuple(lock.get('processes') or ())
+        if self.lock_state is None or self.lock_state[0] != processes:
+            try:
+                system = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+            except GLib.Error:
+                system = None                    # no logind: locker processes only
+            self.lock_state = (processes, LockState(list(processes), connection=system))
+        self.manager.set_locked(self.lock_state[1]())
+        return True
 
     def stop(self):
         self.log.info('stopping')

@@ -10,6 +10,9 @@ import os
 import shutil
 import subprocess
 import threading
+from pathlib import Path
+
+from gi.repository import Gio, GLib
 
 
 def notification_env(n):
@@ -137,3 +140,48 @@ class XIdle:
         if not self.xss.XScreenSaverQueryInfo(self.display, self.root, self.info):
             return 0
         return int(self.info.contents.idle)
+
+
+LOCKERS = ['i3lock', 'xsecurelock', 'slock', 'betterlockscreen']
+
+
+class LockState:
+    """Whether the screen is locked: logind's LockedHint for this session (set by lockers started
+    through `loginctl lock-session` or xss-lock), or a locker process running (PROCESSES, matched
+    on /proc/PID/comm, which the kernel cuts to 15 characters)."""
+
+    def __init__(self, processes=None, proc='/proc', connection=None):
+        self.processes = {str(p)[:15] for p in (LOCKERS if processes is None else processes)}
+        self.proc = Path(proc)
+        self.connection = connection
+
+    def logind_locked(self):
+        if self.connection is None:
+            return False
+        try:
+            reply = self.connection.call_sync(
+                'org.freedesktop.login1', '/org/freedesktop/login1/session/auto', 'org.freedesktop.DBus.Properties',
+                'Get', GLib.Variant('(ss)', ('org.freedesktop.login1.Session', 'LockedHint')),
+                GLib.VariantType('(v)'), Gio.DBusCallFlags.NONE, 500, None)
+        except GLib.Error:
+            return False
+        return bool(reply.unpack()[0])
+
+    def locker_running(self):
+        if not self.processes:
+            return False
+        try:
+            entries = [e for e in os.listdir(self.proc) if e.isdigit()]
+        except OSError:
+            return False
+        for pid in entries:
+            try:
+                if (self.proc / pid / 'comm').read_text().strip() in self.processes:
+                    return True
+            except OSError:
+                continue
+        return False
+
+    def __call__(self):
+        return self.logind_locked() or self.locker_running()
+

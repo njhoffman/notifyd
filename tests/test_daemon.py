@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from notifyd import __version__
+from notifyd.config import load_config
 
 ROOT = Path(__file__).resolve().parent.parent
 NOTIFYD = [sys.executable, str(ROOT / 'bin' / 'notifyd')]
@@ -444,3 +445,29 @@ def test_mpris_now_playing_and_commands(bus):
         for proc in players:
             proc.terminate()
             proc.wait(5)
+
+
+def test_check_lock_follows_the_setting():
+    from notifyd.daemon import Daemon
+    calls = []
+
+    class Manager:
+        locked = False
+        config = load_config(text='lock: {pause: true, processes: [mylocker]}')
+
+        def set_locked(self, on):
+            calls.append(on)
+            Manager.locked = on
+    daemon = Daemon()
+    daemon.manager = Manager()
+    state = [True]
+    daemon.lock_state = (('mylocker',), lambda: state[0])
+    assert daemon.check_lock() is True and calls == [True]
+    state[0] = False
+    daemon.check_lock()
+    assert calls == [True, False]
+    state[0] = True
+    daemon.check_lock()
+    daemon.manager.config = load_config(text='')                      # lock.pause off: unlock, stop checking
+    daemon.check_lock()
+    assert calls == [True, False, True, False]

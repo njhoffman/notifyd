@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-26 "notifyd 0.15.0" "User Commands"
+.TH NOTIFYD 1 2026-11-26 "notifyd 0.16.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -385,6 +385,8 @@ open one and is counted),
 (full, strip, plain),
 .B fullscreen
 (show, delay: wait while the focused window is fullscreen),
+.BR lock.pause / processes
+(hold everything back while the screen is locked: logind LockedHint or a locker process),
 .BR hide ,
 .BR class ,
 .BR skip ,

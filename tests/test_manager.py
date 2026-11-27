@@ -675,3 +675,40 @@ def test_fullscreen_check_failure_shows_it(make_manager):
     nid = m.notify('a', summary='one')
     assert m.displayed == [nid]
     assert any(e['event'] == 'warn' and 'fullscreen check' in e['message'] for e in events)
+
+
+def test_locked_holds_everything_and_unlock_shows_it(make_manager):
+    m, _s, _r, events, _c, _a = make_manager()
+    m.set_locked(True)
+    normal = m.notify('a', summary='one')
+    urgent = m.notify('a', summary='two', hints={'urgency': 2})     # critical ones too, unlike pause
+    assert m.displayed == [] and m.held_back == [normal, urgent]
+    assert [e.get('reason') for e in events if e['event'] == 'queued'] == ['locked', 'locked']
+    m.set_locked(False)
+    assert m.held_back == [] and m.displayed == [urgent, normal]
+    assert [e['event'] for e in events if e['event'] in ('locked', 'unlocked')] == ['locked', 'unlocked']
+
+
+def test_unlock_keeps_do_not_disturb(make_manager):
+    m, *_ = make_manager()
+    m.pause(True)
+    m.set_locked(True)
+    normal = m.notify('a', summary='one')
+    urgent = m.notify('a', summary='two', hints={'urgency': 2})
+    m.pause(False)                                                    # still locked: nothing shows
+    assert m.displayed == []
+    m.pause(True)
+    m.set_locked(False)                                               # paused: only the critical one
+    assert m.displayed == [urgent] and m.held_back == [normal] and m.paused
+    m.pause(False)
+    assert m.displayed == [normal, urgent]
+
+
+def test_held_by_the_lock_at_shutdown_goes_to_history(make_manager, tmp_path):
+    m, _s, _r, _e, closed, _a = make_manager(state_path=tmp_path / 'state.json')
+    m.set_locked(True)
+    nid = m.notify('a', summary='one')
+    m.shutdown()
+    assert closed == [(nid, UNDEFINED)] and m.history.entries[-1]['id'] == nid
+    again, *_ = make_manager(state_path=tmp_path / 'state.json')
+    assert again.active == {}

@@ -144,7 +144,7 @@ def pick_history(entries):
     return ctl(argparse.Namespace(command='pop', id=int(result.stdout.split('\t', 1)[0])))
 
 
-BAR_EVENTS = {'paused', 'resumed', 'mode', 'queued', 'shown', 'reload'}
+BAR_EVENTS = {'paused', 'resumed', 'locked', 'unlocked', 'mode', 'queued', 'shown', 'reload'}
 
 
 def bar_line(status, fmt, idle_text):

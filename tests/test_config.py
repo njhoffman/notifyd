@@ -155,3 +155,15 @@ def test_fullscreen_setting_is_checked():
     assert load_config().settings['fullscreen'] == 'show'
     with pytest.raises(ConfigError, match='fullscreen: expected show or delay'):
         load_config(text='fullscreen: pushback')
+
+
+def test_lock_settings():
+    config = load_config(text='lock: {pause: true}')
+    assert config.settings['lock'] == {'pause': True, 'processes': ['i3lock', 'xsecurelock', 'slock',
+                                                                     'betterlockscreen']}
+    with pytest.raises(ConfigError, match=r'lock\.pause'):
+        load_config(text='lock: {pause: maybe}')
+    with pytest.raises(ConfigError, match=r'lock\.processes'):
+        load_config(text='lock: {processes: i3lock}')
+    with pytest.raises(ConfigError, match='lock'):
+        load_config(text='rules:\n- match: {app: a}\n  lock: {pause: true}\n')
