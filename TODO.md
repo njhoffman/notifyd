@@ -77,7 +77,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [x] **Closing a center card sends reason 3.** (p2) [bug] The center's close button and `d`
       (`render/center.py`) call `manager.close(nid)`, default CLOSED (3: the sender closed it);
       a user dismissal is DISMISSED (2), as the center's Clear already sends.
-- [ ] **`history.jsonl` is world-readable.** (p2) [bug] `history.py` creates it 0644 under the
+- [x] **`history.jsonl` is world-readable.** (p2) [bug] `history.py` creates it 0644 under the
       default umask, and it holds full bodies (one-time codes, messages). Create it 0600 and its
       directory 0700.
 - [ ] **`replaces_id` of a gone notification gets a new id.** (p2) [bug] The spec returns a

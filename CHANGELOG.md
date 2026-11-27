@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.7] - 2026-11-26
+
+### Fixed
+
+- `history.jsonl` and `state.json` (which hold whole notification bodies, one-time codes among
+  them) are created readable by you only (0600, their directory 0700) instead of by everyone under
+  the default umask. Files made by an older version are tightened on their next write.
+
 ## [0.12.6] - 2026-11-26
 
 ### Fixed

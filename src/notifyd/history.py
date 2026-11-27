@@ -5,6 +5,8 @@ import os
 from collections import deque
 from pathlib import Path
 
+from notifyd.files import append_private, write_private
+
 
 def default_path():
     state = os.environ.get('XDG_STATE_HOME') or Path.home() / '.local' / 'state'
@@ -43,18 +45,13 @@ class History:
             if self.written >= 2 * max(self.entries.maxlen or 1, 1):
                 self.rewrite()
             else:
-                self.path.parent.mkdir(parents=True, exist_ok=True)
-                with self.path.open('a') as out:
-                    out.write(json.dumps(entry, ensure_ascii=False) + '\n')
+                append_private(self.path, json.dumps(entry, ensure_ascii=False) + '\n')
                 self.written += 1
         except OSError as exc:
             self._warn(f'history {self.path}: {exc.strerror}')
 
     def rewrite(self):
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_suffix('.tmp')
-        tmp.write_text(''.join(json.dumps(e, ensure_ascii=False) + '\n' for e in self.entries))
-        tmp.replace(self.path)
+        write_private(self.path, ''.join(json.dumps(e, ensure_ascii=False) + '\n' for e in self.entries))
         self.written = len(self.entries)
 
     def remove(self, nid=None):

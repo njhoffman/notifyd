@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from notifyd.effects import sound_for
+from notifyd.files import write_private
 from notifyd.history import History
 from notifyd.markup import markup_error
 from notifyd.model import CLOSED, DISMISSED, EXPIRED, REASON_NAMES, UNDEFINED, Notification, actions_from_list
@@ -379,11 +380,8 @@ class Manager:
         if not self.state_path:
             return
         try:
-            self.state_path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = self.state_path.with_suffix('.tmp')
             held = [self._held_record(self.active[nid]) for nid in self.held_back if nid in self.active]
-            tmp.write_text(json.dumps({'mode': self.mode, 'paused': self.paused, 'held': held}))
-            tmp.replace(self.state_path)
+            write_private(self.state_path, json.dumps({'mode': self.mode, 'paused': self.paused, 'held': held}))
         except OSError as exc:
             self.log.warn(f'state {self.state_path}: {exc.strerror}')
 
