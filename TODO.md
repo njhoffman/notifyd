@@ -85,7 +85,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       scripts that keep a fixed id (`notify-send.sh -r 100`) lose track. Reuse the id when it is
       free; test `replaces_id` and a stack tag pointing at different open notifications
       (crashed mako). Upstream: mako#167, mako#653.
-- [ ] **`ctl action` signals keys that were never offered.** (p3) [bug] Neither `server.py` nor
+- [x] **`ctl action` signals keys that were never offered.** (p3) [bug] Neither `server.py` nor
       `manager.invoke` checks the key is in `n.actions`; a typo signals the app and closes the
       notification. Refuse unknown keys.
 - [x] **Previews run rule commands, sounds and fill history.** (p3) [bug] `ctl preview`'s `extra`

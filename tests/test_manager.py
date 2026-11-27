@@ -600,3 +600,12 @@ def test_previews_have_no_side_effects(make_manager):
     assert n.timeout == 15000 and n.settings['preset'] == 'deadd'
     m.close(nid)
     assert len(m.history) == 0
+
+
+def test_invoking_a_key_it_never_offered_does_nothing(make_manager):
+    m, _s, _r, events, closed, actions = make_manager()
+    nid = m.notify('a', summary='x', actions=['play', 'Play'])
+    assert m.invoke(nid, 'typo') is False
+    assert actions == [] and closed == [] and nid in m.active and 'action' not in kinds(events)
+    assert m.invoke(nid, 'play') is True
+    assert actions == [(nid, 'play')]

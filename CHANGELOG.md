@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.13.3] - 2026-11-26
+
+### Fixed
+
+- `ctl action ID KEY` with a key the notification never offered (a typo) no longer signals the app
+  and closes the notification: it does nothing and exits 1.
+
 ## [0.13.2] - 2026-11-26
 
 ### Fixed

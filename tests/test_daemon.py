@@ -135,6 +135,8 @@ def test_actions_print_the_chosen_key(bus, daemon, tmp_path):
     sender = subprocess.Popen([*NOTIFYD, 'send', '-p', '-a', 'displayd', '-A', 'change=Change layout', 'Monitors'],
                               env=bus, stdout=subprocess.PIPE, text=True)
     nid = sender.stdout.readline().strip()
+    typo = subprocess.run([*NOTIFYD, 'ctl', 'action', nid, 'chnage'], env=bus, capture_output=True, text=True)
+    assert typo.returncode == 1 and 'with that action' in typo.stderr   # nothing signalled, still open
     run(bus, 'ctl', 'action', nid, 'change')
     assert sender.wait(10) == 0
     assert sender.stdout.read().strip() == 'change'

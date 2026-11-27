@@ -291,8 +291,9 @@ class Manager:
         return len(ids)
 
     def invoke(self, nid, key):
+        """Invoke action KEY of NID; False (nothing signalled, nothing closed) when it does not offer it."""
         n = self.active.get(nid)
-        if n is None:
+        if n is None or key not in {k for k, _label in n.actions}:
             return False
         self.log.emit('action', n, action=key)
         if key in n.commands:
