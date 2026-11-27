@@ -380,3 +380,18 @@ def test_sender_is_kept_in_the_history(make_manager):
     entries = {e['id']: e for e in manager.history}
     assert entries[nid]['sender'] == {'pid': 7, 'process': 'spotify', 'desktop_entry': 'spotify'}
     assert 'sender' not in entries[plain]
+
+
+def test_invalid_markup_is_logged_as_a_warning(make_manager):
+    m, _s, _r, events, _c, _a = make_manager()
+    m.notify('a', summary='ok', body='<agent-message from="x">report</agent-message>')
+    m.notify('a', summary='<b>fine</b>', body='a < b')
+    warns = [e for e in events if e['event'] == 'warn']
+    assert len(warns) == 1
+    assert warns[0]['message'].startswith('#1 body is not valid markup, shown as typed: ')
+
+
+def test_plain_markup_setting_logs_no_warning(make_manager):
+    m, _s, _r, events, _c, _a = make_manager('markup: plain')
+    m.notify('a', summary='<b>broken')
+    assert 'warn' not in kinds(events)

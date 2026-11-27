@@ -6,7 +6,8 @@ A span can name a style of the preset instead of spelling out its attributes:
     <span class="accent">text</span>   ->  <span foreground="#7aa2f7" weight="bold">text</span>
 
 with `style.classes.accent: {foreground: '#7aa2f7', weight: bold}` in the preset or config.
-Markup that does not parse is shown as plain text rather than dropped.
+Markup that does not parse is shown as typed rather than dropped, and `markup_error` says why, so
+the popup and the center can flag it instead of silently showing tags.
 """
 
 import html
@@ -23,6 +24,7 @@ _BR = re.compile(r'<br\s*/?>', re.I)
 _IMG = re.compile(r'<img\b[^>]*>', re.I)
 _ALT = re.compile(r'''\balt\s*=\s*(["'])(.*?)\1''', re.I | re.S)
 _BARE_AMP = re.compile(r'&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#x[0-9a-fA-F]+);)')
+_BARE_LT = re.compile(r'<(?![A-Za-z/!?])')   # "a < b", "<3": cannot start a tag
 # Pango span attributes (and the short forms) a class may set
 SPAN_ATTRS = {
     'font', 'font_desc', 'font_family', 'face', 'size', 'font_size', 'style', 'weight', 'variant', 'stretch',
@@ -82,17 +84,37 @@ def _alt_text(found):
     return alt.group(2) if alt else ''
 
 
+def _normalize(text, classes):
+    """TEXT with <br>, <img> and span classes turned into Pango, and a bare & fixed when that helps."""
+    text = _BR.sub('\n', text or '')
+    text = _IMG.sub(_alt_text, text)
+    text = expand_classes(text, classes)
+    if not parses(text):
+        fixed = _BARE_LT.sub('&lt;', _BARE_AMP.sub('&amp;', text))   # "Tom & Jerry", "a < b"
+        if parses(fixed):
+            return fixed
+    return text
+
+
+def markup_error(text, mode='full', classes=None):
+    """Why TEXT is not valid markup after the usual fixes ('' when it is, or in plain mode)."""
+    if mode == 'plain' or not text or ('<' not in text and '&' not in text):
+        return ''
+    try:
+        Pango.parse_markup(_normalize(text, classes), -1, '\0')
+        return ''
+    except GLib.Error as exc:
+        return exc.message or 'invalid markup'
+
+
 def prepare(text, mode='full', classes=None):
     """TEXT as Pango markup ready for a label, in MODE: full, strip (text only) or plain (as typed)."""
     text = text or ''
     if mode == 'plain':
         return escape(text)
-    text = _BR.sub('\n', text)
-    text = _IMG.sub(_alt_text, text)
-    text = expand_classes(text, classes)
+    text = _normalize(text, classes)
     if not parses(text):
-        fixed = _BARE_AMP.sub('&amp;', text)   # "Tom & Jerry" is the usual culprit
-        text = fixed if parses(fixed) else escape(text)
+        text = escape(text)
     if mode == 'strip':
         return escape(plain_text(text))
     return text

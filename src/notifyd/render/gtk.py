@@ -25,7 +25,7 @@ gi.require_version('GdkPixbuf', '2.0')
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango  # noqa: E402
 
 from notifyd.config import ConfigError, load_preset  # noqa: E402
-from notifyd.markup import prepare  # noqa: E402
+from notifyd.markup import markup_error, prepare  # noqa: E402
 from notifyd.render.center import Center  # noqa: E402
 from notifyd.render.css import build_css, resolve_style, style_class  # noqa: E402
 
@@ -264,6 +264,9 @@ class GtkRenderer:
         if 'time' not in hide:
             header.pack_end(self.label(time.strftime('%H:%M', time.localtime(n.received)), 'time', wrap=False),
                             False, False, 0)
+        flag = self.markup_flag(n.summary, n.body, mode, classes)
+        if flag is not None:
+            header.pack_end(flag, False, False, 0)
         if header.get_children():
             card.pack_start(header, False, False, 0)
 
@@ -304,6 +307,17 @@ class GtkRenderer:
                 row.pack_start(button, True, True, 0)
             card.pack_start(row, False, False, 0)
         window.add(events)
+
+    def markup_flag(self, summary, body, mode, classes):
+        """A "markup error" label when SUMMARY or BODY is invalid markup (shown as typed), else None."""
+        errors = [f'{part}: {error}' for part, text in (('summary', summary), ('body', body))
+                  if (error := markup_error(text, mode, classes))]
+        if not errors:
+            return None
+        flag = self.label('markup error', 'markup-error', wrap=False)
+        flag.set_ellipsize(Pango.EllipsizeMode.NONE)
+        flag.set_tooltip_text('\n'.join(errors) + '\nshown as typed')
+        return flag
 
     def label(self, markup, css_class, wrap=True):
         label = Gtk.Label()

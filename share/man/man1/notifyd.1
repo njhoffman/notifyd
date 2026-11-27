@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-25 "notifyd 0.11.1" "User Commands"
+.TH NOTIFYD 1 2026-11-26 "notifyd 0.12.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -238,6 +238,9 @@ play\-pause, next and previous,
 .BR + / \-
 change the volume, and
 .BR Esc / q
+(or
+.BR center.toggle\-key ,
+default <Super>grave, the window manager's toggle binding the grab swallows)
 close it.
 .TP
 .BR pop " [\fIid\fR]"
@@ -390,7 +393,7 @@ open one and is counted),
 (a command for each match),
 .B idle\-threshold
 (no expiry while the user is away that long),
-.BR center.width / side / hide\-on\-leave / mpris / volume / modes / cards / keyboard / remote\-art ,
+.BR center.width / side / hide\-on\-leave / mpris / volume / modes / cards / keyboard / remote\-art / toggle\-key ,
 .BR fade.in / out
 (ms; out defaults to 150, since picom does not fade translucent windows out),
 .BR history.size / keep / persist ,

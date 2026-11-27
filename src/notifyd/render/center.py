@@ -54,6 +54,22 @@ KEYS = {
     'KP_Subtract': ('step_volume', -VOLUME_STEP),
 }
 
+_MODS = Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK | Gdk.ModifierType.MOD1_MASK \
+    | Gdk.ModifierType.SUPER_MASK
+
+
+def toggle_key_matches(accelerator, keyval, state):
+    """Whether KEYVAL with STATE is ACCELERATOR ("<Super>grave"): the key the window manager binds to
+    toggle the center, which never reaches it while the center holds the keyboard."""
+    if not accelerator:
+        return False
+    want, mods = Gtk.accelerator_parse(str(accelerator))
+    if not want:
+        return False
+    if state & Gdk.ModifierType.MOD4_MASK:   # X reports Super as Mod4
+        state |= Gdk.ModifierType.SUPER_MASK
+    return Gdk.keyval_to_lower(keyval) == Gdk.keyval_to_lower(want) and (state & _MODS) == (mods & _MODS)
+
 
 class Center:
     def __init__(self, renderer):
@@ -422,6 +438,9 @@ class Center:
                        True, True, 0)
         stamp = time.strftime('%H:%M', time.localtime(entry.get('received', time.time())))
         top.pack_start(self.renderer.label(stamp, 'time', wrap=False), False, False, 0)
+        flag = self.renderer.markup_flag(entry.get('summary'), entry.get('body'), 'full', classes)
+        if flag is not None:
+            top.pack_start(flag, False, False, 0)
         close = Gtk.Button(label='×')
         close.set_relief(Gtk.ReliefStyle.NONE)
         nid = entry['id']
@@ -448,6 +467,9 @@ class Center:
 
     # -- keyboard -------------------------------------------------------------
     def on_key(self, _widget, event):
+        if toggle_key_matches(self.settings().get('toggle-key'), event.keyval, event.state):
+            self.hide()
+            return True
         found = KEYS.get(Gdk.keyval_name(event.keyval))
         if found is None or event.state & (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK):
             return False

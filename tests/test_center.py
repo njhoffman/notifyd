@@ -368,6 +368,19 @@ assert not press('x')
 press('Escape')
 assert not center.visible and not center.grabbed
 
+center.toggle('show')                              # the WM's toggle key, swallowed by the grab, hides it
+spin(100)
+assert center.visible
+assert not press('grave')                         # without Super it is just a key
+assert center.visible
+assert press('grave', Gdk.ModifierType.MOD4_MASK)
+assert not center.visible and not center.grabbed
+manager.config.settings['center']['toggle-key'] = '<Control>F12'
+center.toggle('show')
+spin(100)
+assert not press('grave', Gdk.ModifierType.MOD4_MASK) and center.visible
+assert press('F12', Gdk.ModifierType.CONTROL_MASK) and not center.visible
+
 manager.config.settings['center']['keyboard'] = False
 center.toggle('show')
 spin(100)

@@ -36,7 +36,7 @@ missing file gives the deadd look. The daemon reloads the file when it changes (
 | `idle-threshold` | `0` | notifications do not expire while you have been idle this long (`0`: off) |
 | `history.size` / `history.keep` / `history.persist` | `100` / `true` / `true` | `keep: false` in a rule keeps those out; `persist` keeps it in `$XDG_STATE_HOME/notifyd/history.jsonl` |
 | `log.format` / `log.color` / `log.level` / `log.file` | `pretty` / `auto` / `info` / - | also `--log-format`, `--color`, `-v`/`-q`; `file` gets plain lines too |
-| `center.width` / `side` / `hide-on-leave` / `mpris` / `volume` / `modes` / `cards` / `keyboard` / `remote-art` | `400` / `right` / `true` / `true` / `true` / `true` / `20` / `true` / `true` | the notification center (`notifyd ctl center`, SIGUSR1); `mpris` shows what a media player plays, with buttons; `volume` a slider and mute for the default output (needs `pactl`, PulseAudio or PipeWire); `modes` a picker of `normal` and the modes rules match on by name; `cards` how many history entries it shows before a "show more" button; `keyboard` grabs the keyboard while it is open (keys below); `remote-art` downloads a player's http(s) cover art for the now-playing row (3 s, 2 MB at most, cached in `~/.cache/notifyd/art`; notification images never come from the network) |
+| `center.width` / `side` / `hide-on-leave` / `mpris` / `volume` / `modes` / `cards` / `keyboard` / `remote-art` / `toggle-key` | `400` / `right` / `true` / `true` / `true` / `true` / `20` / `true` / `true` / `<Super>grave` | the notification center (`notifyd ctl center`, SIGUSR1); `mpris` shows what a media player plays, with buttons; `volume` a slider and mute for the default output (needs `pactl`, PulseAudio or PipeWire); `modes` a picker of `normal` and the modes rules match on by name; `cards` how many history entries it shows before a "show more" button; `keyboard` grabs the keyboard while it is open (keys below); `remote-art` downloads a player's http(s) cover art for the now-playing row (3 s, 2 MB at most, cached in `~/.cache/notifyd/art`; notification images never come from the network); `toggle-key` (a GTK accelerator, `''` for none) hides it: the key your window manager binds to `notifyd ctl center` never reaches it while the center holds the keyboard |
 | `fade.in` / `fade.out` | `0` / `150ms` | opacity fades; picom fades windows in but not translucent ones out |
 | `click.left` / `middle` / `right` | `dismiss` / `dismiss-all` / `default-action` | or `none` |
 | `rules` | `[]` | see Rules |
@@ -138,8 +138,10 @@ notifyd send 'Song' '<b>Artist</b> · Album
 ```
 
 Every bundled preset has `accent`, `muted`, `good`, `warn`, `bad` and `tag`. `<br>` becomes a line
-break, `<img>` its alt text, a bare `&` is escaped, and markup that still does not parse is shown as
-plain text.
+break, `<img>` its alt text, a bare `&` or `<` (one that cannot start a tag) is escaped, and markup that still does not parse is shown as
+typed, tags and all: nothing is stripped. The popup and the center card then show a `markup error`
+mark in the header (its tooltip has Pango's reason; the style key `markup-error` sets its color), and
+the event log has a `warn` line for it.
 
 ## Sending
 
@@ -153,6 +155,6 @@ notification daemon.
 `notifyd ctl status | list [--json|--ids] | history [-n N] [--json] | pop [ID] | forget ID|--all | center [toggle|show|hide] | close ID | action ID [KEY] |
 close-all | pause | resume | toggle | mode [NAME] | reload | preset NAME | preview [PRESET] | watch [--json]`.
 `ctl bar [--follow]` prints a status-bar line (do not disturb, the mode, how many are held back;
-see `notifyd help ctl bar` for a polybar module). `history --pick` picks one in fzf and shows it again. Each notification records its `sender` (the sending process's pid and name, its parent's name, and the `desktop-entry` hint): in `history --json`, `list --json` and `watch --json`, and as `via PROCESS (PARENT)` on `watch` lines. In the center: `j`/`k` or the arrows move between cards (and load more past the last), `g`/`G` first and last, `Enter` acts like a left click (shows a closed one again), `d`/`Delete` closes or forgets it, `C` clears, `p` toggles do not disturb, `m` the next mode, `space`/`n`/`N` play-pause, next and previous, `+`/`-` the volume, `Esc`/`q` closes it. The style key `center-selected` outlines the selected card; `center-card` sets the
+see `notifyd help ctl bar` for a polybar module). `history --pick` picks one in fzf and shows it again. Each notification records its `sender` (the sending process's pid and name, its parent's name, and the `desktop-entry` hint): in `history --json`, `list --json` and `watch --json`, and as `via PROCESS (PARENT)` on `watch` lines. In the center: `j`/`k` or the arrows move between cards (and load more past the last), `g`/`G` first and last, `Enter` acts like a left click (shows a closed one again), `d`/`Delete` closes or forgets it, `C` clears, `p` toggles do not disturb, `m` the next mode, `space`/`n`/`N` play-pause, next and previous, `+`/`-` the volume, `Esc`/`q` (or `center.toggle-key`) closes it. The style key `center-selected` outlines the selected card; `center-card` sets the
 background of cards in the center. dunst's color hints (`fgcolor`, `bgcolor`, `frcolor`, `hlcolor`) color a single notification. `watch` streams the daemon's
 event log, colored, or as JSON lines.

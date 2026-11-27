@@ -44,7 +44,8 @@ DEFAULTS = {
     'log': {'format': 'pretty', 'color': 'auto', 'level': 'info', 'file': None},
     'click': {'left': 'dismiss', 'middle': 'dismiss-all', 'right': 'default-action'},
     'center': {'width': 400, 'side': 'right', 'hide-on-leave': True, 'mpris': True, 'volume': True, 'modes': True,
-               'cards': 20, 'keyboard': True, 'remote-art': True},
+               'cards': 20, 'keyboard': True, 'remote-art': True,
+               'toggle-key': '<Super>grave'},   # the WM's toggle binding, which the grab swallows
     'fade': {'in': 0, 'out': 150},   # ms; picom fades windows in, but not translucent ones out
     'style': {},
     'rules': [],

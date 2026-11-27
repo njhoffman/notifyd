@@ -1,6 +1,6 @@
 import pytest
 
-from notifyd.markup import expand_classes, plain_text, prepare
+from notifyd.markup import expand_classes, markup_error, plain_text, prepare
 
 CLASSES = {'accent': {'foreground': '#7aa2f7', 'weight': 'bold'}, 'muted': {'alpha': '60%'},
            'odd': {'onclick': 'x', 'font-size': '10pt'}}
@@ -29,6 +29,7 @@ def test_unknown_class_and_unsafe_attributes_are_dropped():
     ('a<br>b<br/>c', 'a\nb\nc'),
     ('see <img src="x.png" alt="pic"/> here', 'see pic here'),
     ('&amp; &lt; &#65;', '&amp; &lt; &#65;'),
+    ('a < b <b>x</b> <3', 'a &lt; b <b>x</b> &lt;3'),         # bare <, markup kept
 ])
 def test_full_mode_fallbacks(text, expected):
     assert prepare(text) == expected
@@ -45,3 +46,28 @@ def test_plain_mode_shows_markup_as_typed():
 def test_plain_text_handles_invalid_markup():
     assert plain_text('<b>a</b> &amp; b') == 'a & b'
     assert plain_text('<span class="x">a</span> &amp; <b>b') == 'a & b'
+
+
+@pytest.mark.parametrize('text', [
+    '', 'plain words', 'a < b and c > d', 'Tom & Jerry <b>x</b>', '<b>bold</b> &amp;', 'a<br>b',
+    'see <img src="x.png" alt="pic"/>', '<span class="accent">a</span>',
+])
+def test_markup_error_is_empty_for_text_that_renders(text):
+    assert markup_error(text, classes=CLASSES) == ''
+
+
+@pytest.mark.parametrize('text', [
+    '<agent-message from="a1">report</agent-message>', '<b>broken', '<foo>x</foo>',
+])
+def test_markup_error_names_the_problem_and_nothing_is_stripped(text):
+    assert markup_error(text)
+    assert markup_error(text, 'strip')
+    assert prepare(text) == escape_all(text)   # shown as typed, tags and all
+
+
+def test_markup_error_is_empty_in_plain_mode():
+    assert markup_error('<b>broken', 'plain') == ''
+
+
+def escape_all(text):
+    return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')

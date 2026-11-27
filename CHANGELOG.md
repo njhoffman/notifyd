@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-26
+
+### Added
+
+- Text that is not valid Pango markup is still shown as typed, with nothing stripped, but it is now
+  flagged: a `markup error` mark in the popup's and the center card's header (its tooltip has
+  Pango's reason; the style key `markup-error` sets its color), and a `warn` line in the event log.
+- `center.toggle-key` (default `<Super>grave`): the key that hides the open center. While the center
+  is open it holds the keyboard, so the window manager's own toggle binding for `notifyd ctl center`
+  never fired and the center could not be closed with it. `''` turns it off.
+
+### Fixed
+
+- A bare `<` that cannot start a tag (`a < b`, `<3`) is escaped like a bare `&`, so the rest of
+  the markup still renders instead of the whole text being shown as typed.
+
 ## [0.11.1] - 2026-11-25
 
 ### Fixed

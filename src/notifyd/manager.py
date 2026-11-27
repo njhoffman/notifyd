@@ -11,6 +11,7 @@ from pathlib import Path
 
 from notifyd.effects import sound_for
 from notifyd.history import History
+from notifyd.markup import markup_error
 from notifyd.model import CLOSED, DISMISSED, EXPIRED, REASON_NAMES, Notification, actions_from_list
 from notifyd.rules import resolve
 
@@ -93,6 +94,10 @@ class Manager:
             n.commands[key] = button['run']
         target = self._replace_target(n)
         n.id = target or self._new_id()
+        for part, text in (('summary', n.summary), ('body', n.body)):
+            error = markup_error(text, n.settings.get('markup', 'full'))
+            if error:
+                self.log.warn(f'#{n.id} {part} is not valid markup, shown as typed: {error}')
         if n.settings.get('run'):
             self.runner(n.settings['run'], n)
         if n.settings.get('skip'):
