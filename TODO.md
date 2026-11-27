@@ -59,7 +59,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       (`href="?a=1&b=2"`) is not fixed either. Map `html.entities.name2codepoint` names to `&#N;`
       in `markup._normalize` and escape bare `&` in attribute values. Upstream: dunst#1399,
       swaync#16, wired#43.
-- [ ] **Unknown HTML tags show every tag.** (p3) [feature] Decision needed: one `<p>` or `<div>`
+- [x] **Unknown HTML tags show every tag.** (p3) [feature] Decision needed: one `<p>` or `<div>`
       from a web app makes the whole body literal (by design since 0.12.0: nothing is stripped).
       Middle way: unwrap only block tags (`<p>`, `<div>` to newlines) and keep showing the rest as
       typed. Upstream: deadd PR#30, deadd#93.

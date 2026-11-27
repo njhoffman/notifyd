@@ -22,6 +22,10 @@ from gi.repository import GLib, Pango  # noqa: E402
 _CLASS_ATTR = re.compile(r'''\sclass\s*=\s*(["'])([^"']*)\1''')
 _SPAN_OPEN = re.compile(r'<span\b[^>]*>', re.I)
 _BR = re.compile(r'<br\s*/?>', re.I)
+# HTML block tags web apps send: a closing one ends a line, an opening one goes (other unknown tags
+# still make the text show as typed, flagged)
+_BLOCK_OPEN = re.compile(r'<(?:p|div)(?:\s[^<>]*)?>', re.I)
+_BLOCK_CLOSE = re.compile(r'</(?:p|div)\s*>', re.I)
 _IMG = re.compile(r'<img\b[^>]*>', re.I)
 _ALT = re.compile(r'''\balt\s*=\s*(["'])(.*?)\1''', re.I | re.S)
 _BARE_AMP = re.compile(r'&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#x[0-9a-fA-F]+);)')
@@ -132,6 +136,8 @@ def _normalize(text, classes):
     """TEXT with <br>, <img>, HTML entities and span classes turned into Pango, and a bare & or <
     fixed when that helps."""
     text = _BR.sub('\n', text or '')
+    if _BLOCK_CLOSE.search(text) or _BLOCK_OPEN.search(text):
+        text = _BLOCK_OPEN.sub('', _BLOCK_CLOSE.sub('\n', text)).strip('\n')
     if '&' in text:
         text = _NAMED_ENTITY.sub(_entity, text)
     text = _IMG.sub(_alt_text, text)

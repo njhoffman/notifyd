@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-11-26
+
+### Fixed
+
+- HTML `<p>` and `<div>` from web apps no longer make the whole text show as typed: a closing one
+  becomes a line break and an opening one goes. Other unknown tags still show as typed, flagged.
+
 ## [0.16.0] - 2026-11-26
 
 ### Added

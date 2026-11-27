@@ -142,8 +142,8 @@ notifyd send 'Song' '<b>Artist</b> · Album
 <span class="tag">indie</span> <span class="muted">late night</span>'
 ```
 
-Every bundled preset has `accent`, `muted`, `good`, `warn`, `bad` and `tag`. `<br>` becomes a line
-break, `<img>` its alt text, HTML entities Pango lacks (`&nbsp;`, `&hellip;`) become characters, an unknown one
+Every bundled preset has `accent`, `muted`, `good`, `warn`, `bad` and `tag`. `<br>` and a closing
+`</p>` or `</div>` become a line break (an opening `<p>`/`<div>` goes), `<img>` its alt text, HTML entities Pango lacks (`&nbsp;`, `&hellip;`) become characters, an unknown one
 (`&foo;`) and a bare `&` or `<` (one that cannot start a tag) are escaped, and markup that still does not parse is shown as
 typed, tags and all: nothing is stripped. The popup and the center card then show a `markup error`
 mark in the header (its tooltip has Pango's reason; the style key `markup-error` sets its color), and

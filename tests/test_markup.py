@@ -118,3 +118,19 @@ def test_html_entities(text, expected):
 
 def test_html_entities_in_plain_text():
     assert plain_text(prepare('a&nbsp;b&hellip;')) == 'a\u00a0b\u2026'
+
+
+@pytest.mark.parametrize('text, expected', [
+    ('<p>one</p><p>two <b>b</b></p>', 'one\ntwo <b>b</b>'),
+    ('<div class="msg">a</div>b', 'a\nb'),
+    ('<P>upper</P>', 'upper'),
+    ('<p>keep &amp; <i>it</i></p>\n', 'keep &amp; <i>it</i>'),
+])
+def test_block_tags_become_line_breaks(text, expected):
+    assert prepare(text) == expected
+    assert markup_error(text) == ''
+
+
+def test_other_unknown_tags_still_show_as_typed():
+    assert prepare('<p>x</p><pre>y</pre>') == 'x\n&lt;pre&gt;y&lt;/pre&gt;'
+    assert markup_error('<p>x</p><pre>y</pre>')
