@@ -461,7 +461,8 @@ class Center:
         events.set_visible_window(False)
         events.add(box)
         if not opened:
-            events.connect('button-release-event', lambda _w, _e: self.manager.pop(nid) and False)
+            events.connect('button-release-event',
+                           lambda _w, e: e.time != self.renderer.link_clicked and self.manager.pop(nid) and False)
         self.cards.append((events, entry, opened))
         return events
 

@@ -22,10 +22,10 @@ import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gdk', '3.0')
 gi.require_version('GdkPixbuf', '2.0')
-from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
 
 from notifyd.config import ConfigError, load_preset  # noqa: E402
-from notifyd.markup import markup_error, prepare  # noqa: E402
+from notifyd.markup import markup_error, prepare, safe_link  # noqa: E402
 from notifyd.render.center import Center  # noqa: E402
 from notifyd.render.css import build_css, resolve_style, style_class  # noqa: E402
 
@@ -83,6 +83,7 @@ class GtkRenderer:
             raise RuntimeError('no X display (is DISPLAY set?)')
         self.manager = manager
         self.log = log
+        self.link_clicked = None   # the event time of the last link click, which must not dismiss
         self.screen = Gdk.Screen.get_default()
         self.visual = self.screen.get_rgba_visual()
         if self.visual is None or not self.screen.is_composited():
@@ -319,9 +320,24 @@ class GtkRenderer:
         flag.set_tooltip_text('\n'.join(errors) + '\nshown as typed')
         return flag
 
+    def on_link(self, _label, uri):
+        """A link in a label was clicked: open http(s) and mailto, refuse the rest; never dismiss."""
+        self.link_clicked = Gtk.get_current_event_time()
+        if not safe_link(uri):
+            self.log.warn(f'link not opened (only http, https and mailto): {uri}')
+            return True
+        try:
+            Gio.AppInfo.launch_default_for_uri(uri, None)
+            self.log.info(f'opened {uri}')
+        except GLib.Error as exc:
+            self.log.warn(f'link {uri}: {exc.message}')
+        return True
+
     def label(self, markup, css_class, wrap=True):
         label = Gtk.Label()
         label.set_markup(markup)
+        if '<a ' in markup:
+            label.connect('activate-link', self.on_link)
         label.set_xalign(0)
         if wrap:
             label.set_line_wrap(True)
@@ -396,6 +412,8 @@ class GtkRenderer:
             self.manager.release(nid)
 
     def on_click(self, _widget, event, nid):
+        if self.link_clicked == event.time:     # the label opened a link with this click
+            return True
         button = BUTTONS.get(event.button)
         if button:
             self.manager.click(nid, button)

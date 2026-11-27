@@ -41,7 +41,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       reason) and a `warn` log line; a bare `<` is escaped like a bare `&`. Done in 0.12.0.
 - [x] **`$mod+grave` cannot close the center.** (p2) [bug] The center's keyboard grab swallows the
       i3 binding; `center.toggle-key` (default `<Super>grave`) hides it. Done in 0.12.0.
-- [ ] **`<a href>` links render as escaped text.** (p1) [bug] `markup.parses()` uses
+- [x] **`<a href>` links render as escaped text.** (p1) [bug] `markup.parses()` uses
       `Pango.parse_markup`, which has no `<a>` (only GtkLabel does), so any link makes the whole
       body fall back to text, now with a `markup error` mark, although `body-hyperlinks` is
       advertised (`server.py:20`) and docs/config.md lists `<a href>`. Validate with `<a>` mapped

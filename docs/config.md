@@ -130,7 +130,9 @@ switches until the next reload; `notifyd presets --pick` does both from fzf as y
 
 Summary and body take Pango markup: `<b> <i> <u> <s> <tt> <sub> <sup> <small> <big> <a href>` and
 `<span foreground= background= size= weight= alpha= ...>`. A span can use a preset's named styles,
-so senders don't hard-code colors:
+so senders don't hard-code colors. A link is `<a href="..." [title="..."]>` (lowercase, not
+nested); clicking it opens http, https and mailto links with the default handler (anything else,
+such as `file:`, is refused with a `warn` log line) and does not dismiss the notification:
 
 ```
 notifyd send 'Song' '<b>Artist</b> · Album

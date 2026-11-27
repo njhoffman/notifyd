@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-26 "notifyd 0.12.0" "User Commands"
+.TH NOTIFYD 1 2026-11-26 "notifyd 0.12.1" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -72,7 +72,7 @@ and
 hints replace the previous notification with the same app and tag. The
 .B value
 hint draws a progress bar, actions become buttons, and a notification under the pointer does not
-expire. Summary and body take Pango markup.
+expire. Summary and body take Pango markup and <a href> links (a click opens http, https and mailto links only).
 .PP
 Every event (shown, replaced, waiting, suppressed, expired, dismissed, closed, action, pause,
 reload) is written to standard error as an aligned line colored by urgency and event, or as JSON

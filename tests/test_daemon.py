@@ -285,6 +285,32 @@ renderer.center.refresh()
 assert renderer.center.toggle() is False
 assert 'monitors changed' in stream.getvalue()
 assert renderer.area is not None                        # laid out again on the new geometry
+
+# links: GtkLabel renders them, only http(s)/mailto open, a link click never dismisses
+from gi.repository import Gio, Gtk
+import notifyd.render.gtk as gtk_module
+opened = []
+gtk_module.Gio.AppInfo.launch_default_for_uri = lambda uri, ctx: opened.append(uri)
+def labels(widget):
+    found = [widget] if isinstance(widget, Gtk.Label) else []
+    for child in (widget.get_children() if isinstance(widget, Gtk.Container) else []):
+        found += labels(child)
+    return found
+linked = manager.notify('a', summary='s', body='see <a href="https://x.org/?a=1&b=2">the site</a> & <b>more</b>')
+body = [l for l in labels(renderer.windows[linked]) if 'the site' in l.get_text()]
+assert body and body[0].get_text() == 'see the site & more', [l.get_text() for l in labels(renderer.windows[linked])]
+assert not [l for l in labels(renderer.windows[linked]) if l.get_text() == 'markup error']
+assert body[0].emit('activate-link', 'file:///etc/passwd') is True
+assert body[0].emit('activate-link', 'https://x.org/?a=1&b=2') is True
+assert opened == ['https://x.org/?a=1&b=2'], opened
+assert 'link not opened' in stream.getvalue()
+class Click: button, time = 1, 4242
+renderer.link_clicked = 4242
+renderer.on_click(None, Click, linked)
+assert linked in manager.displayed                       # the click that opened a link did not dismiss it
+broken = manager.notify('a', summary='s', body='<agent-message>x</agent-message>')
+assert [l for l in labels(renderer.windows[broken]) if l.get_text() == 'markup error']
+
 manager.close_all()
 assert renderer.area is None and renderer.windows == {}
 print('ok', x1, y1)

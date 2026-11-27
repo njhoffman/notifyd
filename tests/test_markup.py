@@ -1,6 +1,6 @@
 import pytest
 
-from notifyd.markup import expand_classes, markup_error, plain_text, prepare
+from notifyd.markup import expand_classes, markup_error, plain_text, prepare, safe_link
 
 CLASSES = {'accent': {'foreground': '#7aa2f7', 'weight': 'bold'}, 'muted': {'alpha': '60%'},
            'odd': {'onclick': 'x', 'font-size': '10pt'}}
@@ -71,3 +71,35 @@ def test_markup_error_is_empty_in_plain_mode():
 
 def escape_all(text):
     return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+
+
+@pytest.mark.parametrize('text, expected', [
+    ('see <a href="https://x.org">link</a>', 'see <a href="https://x.org">link</a>'),
+    ('<a href="u" title="t">L</a> <b>b</b>', '<a href="u" title="t">L</a> <b>b</b>'),
+    ('<a href="https://x.org/?a=1&b=2">q</a>', '<a href="https://x.org/?a=1&amp;b=2">q</a>'),   # bare & in href
+])
+def test_links_are_kept_for_the_label(text, expected):
+    assert prepare(text) == expected
+    assert markup_error(text) == ''
+
+
+@pytest.mark.parametrize('text', [
+    '<a>no href</a>', '<a href="x"><a href="y">nested</a></a>', 'stray</a>', '<A HREF="u">upper</A>',
+    '<a href="u" onclick="x">other attribute</a>',
+])
+def test_links_gtklabel_refuses_are_shown_as_typed(text):
+    assert markup_error(text)
+    assert prepare(text) == escape_all(text)
+
+
+def test_link_text_in_strip_mode_and_plain_text():
+    assert prepare('see <a href="https://x.org">link</a>', 'strip') == 'see link'
+    assert plain_text('see <a href="https://x.org">link</a> &amp; more') == 'see link & more'
+
+
+@pytest.mark.parametrize('uri, ok', [
+    ('https://x.org', True), ('HTTP://x.org', True), ('mailto:a@b.c', True),
+    ('file:///etc/passwd', False), ('javascript:alert(1)', False), ('x.org', False), ('', False), (None, False),
+])
+def test_only_web_and_mail_links_open(uri, ok):
+    assert safe_link(uri) is ok

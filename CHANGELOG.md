@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-11-26
+
+### Fixed
+
+- `<a href>` links render as links instead of turning the whole text into escaped markup with a
+  `markup error` mark: Pango does not know `<a>`, so the check now reads links as spans, while the
+  label gets them as they are. A click opens http, https and mailto links with the default handler,
+  refuses anything else (`file:` included) with a `warn` log line, and does not dismiss the
+  notification. A bare `&` in an `href` is escaped.
+
 ## [0.12.0] - 2026-11-26
 
 ### Added

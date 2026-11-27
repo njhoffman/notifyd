@@ -39,9 +39,35 @@ def escape(text):
     return GLib.markup_escape_text(text or '')
 
 
+# <a href="..." [title="..."]>: GtkLabel takes it, Pango does not know it
+_A_TAG = re.compile(r'''<(?:a((?:\s+(?:href|title)\s*=\s*(?:"[^"]*"|'[^']*'))+)\s*|(/a)\s*)>''')
+_HREF = re.compile(r'''\shref\s*=\s*(["'])(.*?)\1''', re.S)
+LINK_SCHEMES = ('http', 'https', 'mailto')
+
+
+def pango_view(text):
+    """TEXT with its links as spans, as Pango sees what GtkLabel shows. A link without an href, a
+    nested one or a stray </a> is left as it is, so the text does not parse (GtkLabel refuses those)."""
+    depth = 0
+
+    def swap(found):
+        nonlocal depth
+        if found.group(2):          # </a>
+            if depth != 1:
+                return found.group(0)
+            depth = 0
+            return '</span>'
+        # attribute values are markup too: a bare & in one fails here, and _normalize escapes it
+        if depth or not _HREF.search(found.group(1)) or _BARE_AMP.search(found.group(1)) or '<' in found.group(1):
+            return found.group(0)
+        depth = 1
+        return '<span>'
+    return _A_TAG.sub(swap, text) if '<a' in text.lower() else text
+
+
 def parses(text):
     try:
-        Pango.parse_markup(text, -1, '\0')
+        Pango.parse_markup(pango_view(text), -1, '\0')
         return True
     except GLib.Error:
         return False
@@ -53,9 +79,15 @@ _TAG = re.compile(r'<[^>]*>')
 def plain_text(markup):
     """The text of MARKUP without tags (also when it is not valid markup)."""
     try:
-        return Pango.parse_markup(markup, -1, '\0')[2]
+        return Pango.parse_markup(pango_view(markup), -1, '\0')[2]
     except GLib.Error:
         return html.unescape(_TAG.sub('', markup))
+
+
+def safe_link(uri):
+    """Whether a clicked link may be opened: only http(s) and mailto, never file: and the like."""
+    scheme, colon, _rest = (uri or '').partition(':')
+    return bool(colon) and scheme.lower() in LINK_SCHEMES
 
 
 def expand_classes(text, classes):
@@ -101,7 +133,7 @@ def markup_error(text, mode='full', classes=None):
     if mode == 'plain' or not text or ('<' not in text and '&' not in text):
         return ''
     try:
-        Pango.parse_markup(_normalize(text, classes), -1, '\0')
+        Pango.parse_markup(pango_view(_normalize(text, classes)), -1, '\0')
         return ''
     except GLib.Error as exc:
         return exc.message or 'invalid markup'
