@@ -103,6 +103,56 @@ def action_link(uri):
     return key if colon and scheme.lower() == 'action' and key else None
 
 
+_OPEN_MARK, _CLOSE_MARK = '\ue000', '\ue001'      # private-use: never in a sender's text that matters
+
+
+def split_action_links(markup):
+    """MARKUP with its `<a href="action:KEY">` links unwrapped, and [(key, start, end)]: the byte range
+    of each one's text in the label's text (as Pango lays it out). GtkLabel draws every link in the
+    theme's link color, underlined, over the sender's own styling; an action link is notifyd's, so its
+    text keeps the sender's look and notifyd finds the click itself. Other links stay for GtkLabel. On
+    markup that does not parse, MARKUP is returned as it is, with no ranges."""
+    if 'action:' not in markup.lower():
+        return markup, []
+    keys, depth = [], 0
+
+    def swap(found):
+        nonlocal depth
+        if found.group(2):                       # </a>
+            if depth == 2:
+                depth = 0
+                return _CLOSE_MARK
+            depth = 0
+            return found.group(0)
+        href = _HREF.search(found.group(1))
+        key = action_link(html.unescape(href.group(2))) if href else None
+        if key is None or depth:
+            depth = 1
+            return found.group(0)
+        keys.append(key)
+        depth = 2
+        return _OPEN_MARK
+    marked = _A_TAG.sub(swap, markup)
+    if not keys:
+        return markup, []
+    try:
+        text = Pango.parse_markup(pango_view(marked), -1, '\0')[2]
+    except GLib.Error:
+        return markup, []
+    ranges, offset, index, start = [], 0, 0, None
+    for char in text:
+        if char == _OPEN_MARK:
+            start = offset
+        elif char == _CLOSE_MARK:
+            if start is not None and index < len(keys):
+                ranges.append((keys[index], start, offset))
+            index += 1
+            start = None
+        else:
+            offset += len(char.encode())
+    return marked.replace(_OPEN_MARK, '').replace(_CLOSE_MARK, ''), ranges
+
+
 def expand_classes(text, classes):
     """Replace class="a b" on spans with the attributes CLASSES gives those names."""
     if 'class' not in text:

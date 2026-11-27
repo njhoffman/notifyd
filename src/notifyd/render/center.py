@@ -658,7 +658,12 @@ class Center:
         events = Gtk.EventBox()
         events.set_visible_window(False)
         events.add(box)
-        if not opened:
+        # a click on an action link of an open card invokes it (a closed card's links act on nothing)
+        events.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
+        events.connect('motion-notify-event', self.renderer.on_motion)
+        if opened:
+            events.connect('button-release-event', self.renderer.action_link_hit)
+        else:
             events.connect('button-release-event',
                            lambda _w, e: e.time != self.renderer.link_clicked and self.manager.pop(entry=entry)
                            and False)

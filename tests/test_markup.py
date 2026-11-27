@@ -1,6 +1,15 @@
 import pytest
 
-from notifyd.markup import action_link, cap_lines, expand_classes, markup_error, plain_text, prepare, safe_link
+from notifyd.markup import (
+    action_link,
+    cap_lines,
+    expand_classes,
+    markup_error,
+    plain_text,
+    prepare,
+    safe_link,
+    split_action_links,
+)
 
 CLASSES = {'accent': {'foreground': '#7aa2f7', 'weight': 'bold'}, 'muted': {'alpha': '60%'},
            'odd': {'onclick': 'x', 'font-size': '10pt'}}
@@ -156,3 +165,23 @@ def test_other_unknown_tags_still_show_as_typed():
 ])
 def test_cap_lines(text, lines, expected):
     assert cap_lines(text, lines) == expected
+
+
+@pytest.mark.parametrize('markup, unwrapped, ranges', [
+    # the Claude Code input notification's tag: the span keeps its colors, no link is left for GtkLabel
+    ('<a href="action:default"><span foreground="#fff" background="#7aa2f7"> proj </span></a>',
+     '<span foreground="#fff" background="#7aa2f7"> proj </span>', [('default', 0, 6)]),
+    # byte offsets, as Pango indexes the text; http links stay links
+    ('héllo <a href="action:go">wörld</a> and <a href="https://x.org">site</a> <a href=\'action:b\'>x</a>',
+     'héllo wörld and <a href="https://x.org">site</a> x', [('go', 7, 13), ('b', 23, 24)]),
+    ('no links', 'no links', []),
+    ('<a href="https://x.org">only a web link</a>', '<a href="https://x.org">only a web link</a>', []),
+    ('<b>bold <a href="action:a">and</a></b>', '<b>bold and</b>', [('a', 5, 8)]),
+])
+def test_split_action_links(markup, unwrapped, ranges):
+    assert split_action_links(markup) == (unwrapped, ranges)
+
+
+def test_split_action_links_leaves_markup_that_does_not_parse():
+    broken = '<a href="action:x">text</a> <b>unclosed'
+    assert split_action_links(broken) == (broken, [])

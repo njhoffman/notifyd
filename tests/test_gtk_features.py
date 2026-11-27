@@ -67,8 +67,8 @@ def run_gtk(display, script):
 def test_action_icons(display):
     run_gtk(display, """
         manager, renderer = setup()
-        with_icons = manager.notify('a', summary='player', actions=['media-skip-forward', 'Next', 'no-such-icon-x', 'Odd'],
-                                    hints={'action-icons': True})
+        actions = ['media-skip-forward', 'Next', 'no-such-icon-x', 'Odd']
+        with_icons = manager.notify('a', summary='player', actions=actions, hints={'action-icons': True})
         buttons = widgets(renderer.windows[with_icons], Gtk.Button)
         assert [b.get_label() for b in buttons] == [None, 'Odd'], [b.get_label() for b in buttons]
         assert buttons[0].get_tooltip_text() == 'Next'                   # the label is the tooltip

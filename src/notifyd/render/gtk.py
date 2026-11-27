@@ -31,7 +31,7 @@ from notifyd.images import (  # noqa: E402, F401
     image_data_problem,
     pixbuf_from_image_data,
 )
-from notifyd.markup import action_link, cap_lines, markup_error, prepare, safe_link  # noqa: E402
+from notifyd.markup import action_link, cap_lines, markup_error, prepare, safe_link, split_action_links  # noqa: E402
 from notifyd.model import TITLE_END_HINT  # noqa: E402
 from notifyd.render.center import Center  # noqa: E402
 from notifyd.render.css import build_css, resolve_style, style_class  # noqa: E402
@@ -141,6 +141,8 @@ class GtkRenderer:
         self.manager = manager
         self.log = log
         self.link_clicked = None   # the event time of the last link click, which must not dismiss
+        self.action_labels = {}    # label -> (notification id, [(action key, start, end)]): its action links
+        self.hand = None           # the pointer cursor shown over an action link
         self.measured = None       # (notification, window) built by fits() for show()
         self.fades = {}            # window -> its running fade's GLib source
         self.bodies = {}           # notification id -> (body label, max-lines) when its body is capped
@@ -354,7 +356,8 @@ class GtkRenderer:
         events = Gtk.EventBox()
         events.set_visible_window(False)
         events.add_events(Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK
-                          | Gdk.EventMask.BUTTON_RELEASE_MASK)
+                          | Gdk.EventMask.BUTTON_RELEASE_MASK | Gdk.EventMask.POINTER_MOTION_MASK)
+        events.connect('motion-notify-event', self.on_motion)
         events.connect('enter-notify-event', self.on_enter, n.id)
         events.connect('leave-notify-event', self.on_leave, n.id)
         events.connect('button-release-event', self.on_click, n.id)
@@ -549,11 +552,17 @@ class GtkRenderer:
         return True
 
     def label(self, markup, css_class, wrap=True, nid=None):
-        """A label of MARKUP; NID is the notification whose actions its `action:` links invoke."""
+        """A label of MARKUP; NID is the notification whose actions its `action:` links invoke. Those links
+        are not GtkLabel links (drawn in the theme's link color and underlined, over the sender's styling):
+        their text keeps the sender's look, and action_link_hit() finds a click on it."""
         label = Gtk.Label()
+        markup, actions = split_action_links(markup)
         label.set_markup(markup)
         if '<a ' in markup:
             label.connect('activate-link', self.on_link, nid)
+        if actions and nid is not None:
+            self.action_labels[label] = (nid, actions)
+            label.connect('destroy', lambda widget: self.action_labels.pop(widget, None))
         label.set_xalign(0)
         if wrap:
             label.set_line_wrap(True)
@@ -721,8 +730,55 @@ class GtkRenderer:
             return
         self.layout()
 
-    def on_click(self, _widget, event, nid):
+    def action_link_at(self, widget, event):
+        """(nid, key) of the action link under EVENT's pointer in WIDGET's window, or None."""
+        toplevel = widget.get_toplevel()
+        for label, (nid, ranges) in list(self.action_labels.items()):
+            if not label.get_mapped() or label.get_toplevel() is not toplevel:
+                continue
+            window = label.get_window()
+            _ok, origin_x, origin_y = window.get_origin()
+            offset_x, offset_y = label.get_layout_offsets()      # in the label's window, as GTK 3 gives them
+            inside, index, _trailing = label.get_layout().xy_to_index(
+                int((event.x_root - origin_x - offset_x) * Pango.SCALE),
+                int((event.y_root - origin_y - offset_y) * Pango.SCALE))
+            if inside:
+                for key, start, end in ranges:
+                    if start <= index < end:
+                        return nid, key
+        return None
+
+    def action_link_hit(self, widget, event):
+        """A click on an action link invokes that action, as its button would; True when it did, so the
+        click does not also dismiss or pop the card."""
+        if event.button != 1:
+            return False
+        found = self.action_link_at(widget, event)
+        if found is None:
+            return False
+        self.link_clicked = event.time
+        nid, key = found
+        if not self.manager.invoke(nid, key):
+            self.log.warn(f'link action:{key}: no such action on this notification')
+        return True
+
+    def on_motion(self, widget, event):
+        """The pointer turns into a hand over an action link, as over a link."""
+        window = widget.get_toplevel().get_window()
+        if window is None:
+            return False
+        if self.action_link_at(widget, event) is not None:
+            if self.hand is None:
+                self.hand = Gdk.Cursor.new_from_name(window.get_display(), 'pointer')
+            window.set_cursor(self.hand)
+        else:
+            window.set_cursor(None)
+        return False
+
+    def on_click(self, widget, event, nid):
         if self.link_clicked == event.time:     # the label opened a link with this click
+            return True
+        if self.action_link_hit(widget, event):
             return True
         button = BUTTONS.get(event.button)
         if button:

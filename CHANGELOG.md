@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.37.1] - 2026-11-27
+
+### Fixed
+
+- An `action:KEY` link is drawn as the sender styled its text again: GtkLabel drew it in the theme's
+  link color, underlined, over the sender's span, so the Claude Code input notification's project tag
+  lost its white-on-blue look. notifyd now unwraps action links before GTK sees them and finds a click
+  on their text itself (left button; the pointer turns into a hand over one), in popups and on open
+  center cards. http, https and mailto links are unchanged.
+
 ## [0.37.0] - 2026-11-27
 
 ### Added

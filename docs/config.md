@@ -156,7 +156,8 @@ nested); clicking it opens http, https and mailto links with the default handler
 such as `file:`, is refused with a `warn` log line) and does not dismiss the notification. A link
 `<a href="action:KEY">` invokes the notification's own action KEY instead, as its button would
 (`default` too, which has no button): the sender gets `ActionInvoked`, and a card in the center
-that has already closed does nothing:
+that has already closed does nothing. An action link is drawn as the sender styled its text (no link
+color, no underline; the pointer turns into a hand over it), so a tag or word can be the thing to click:
 
 ```
 notifyd send 'Song' '<b>Artist</b> · Album

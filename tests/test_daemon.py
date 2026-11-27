@@ -419,15 +419,40 @@ acting = manager.notify('a', summary='s', actions=['default', 'Open', 'go', 'Go'
                         hints={'x-notifyd-title-end': '<a href="action:default">proj</a>'})
 end = [l for l in labels(renderer.windows[acting]) if l.get_text() == 'proj']
 assert end, [l.get_text() for l in labels(renderer.windows[acting])]
+# not a GtkLabel link (the theme's link color and an underline would cover the sender's styling): the text
+# is drawn as sent, and a click on it is found by its position
+assert '<a' not in end[0].get_label() and renderer.action_labels[end[0]] == (acting, [('default', 0, 4)])
+while Gtk.events_pending():
+    Gtk.main_iteration()
+def at(label, index, button=1, time=9001):
+    _ok, ox, oy = label.get_window().get_origin()
+    lx, ly = label.get_layout_offsets()
+    rect = label.get_layout().index_to_pos(index)
+    class Event: pass
+    event = Event()
+    event.x_root = ox + lx + rect.x / Pango.SCALE + 1
+    event.y_root = oy + ly + rect.y / Pango.SCALE + 1
+    event.button, event.time = button, time
+    return event
+events_box = renderer.windows[acting].get_child()
+assert renderer.action_link_at(events_box, at(end[0], 1)) == (acting, 'default')
+far = at(end[0], 1); far.x_root += 500
+assert renderer.action_link_at(events_box, far) is None                   # off the link: an ordinary click
 invoked = []
 real_invoke = manager.invoke
 manager.invoke = lambda nid, key: invoked.append((nid, key)) or real_invoke(nid, key)
-assert end[0].emit('activate-link', 'action:nope') is True
-assert 'link action:nope: no such action' in stream.getvalue()
-assert end[0].emit('activate-link', 'action:default') is True
+assert renderer.action_link_hit(events_box, at(end[0], 1, button=3)) is False   # only the left button
+renderer.on_click(events_box, at(end[0], 1), acting)
 manager.invoke = real_invoke
-assert invoked == [(acting, 'nope'), (acting, 'default')], invoked
+assert invoked == [(acting, 'default')], invoked
 assert acting not in manager.active                       # invoking closed it, as a button does
+missing = manager.notify('a', summary='s', hints={'x-notifyd-title-end': '<a href="action:nope">x</a>'})
+while Gtk.events_pending():
+    Gtk.main_iteration()
+link = [l for l in labels(renderer.windows[missing]) if l.get_text() == 'x'][0]
+renderer.on_click(renderer.windows[missing].get_child(), at(link, 0, time=9002), missing)
+assert 'link action:nope: no such action' in stream.getvalue()
+assert missing in manager.active                         # nothing invoked, and the click did not dismiss
 assert len(opened) == 1
 broken = manager.notify('a', summary='s', body='<agent-message>x</agent-message>')
 assert [l for l in labels(renderer.windows[broken]) if l.get_text() == 'markup error']
