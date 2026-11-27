@@ -334,6 +334,21 @@ class Click: button, time = 1, 4242
 renderer.link_clicked = 4242
 renderer.on_click(None, Click, linked)
 assert linked in manager.displayed                       # the click that opened a link did not dismiss it
+# an action: link invokes that notification's own action (here in the title end), never opens anything
+acting = manager.notify('a', summary='s', actions=['default', 'Open', 'go', 'Go'],
+                        hints={'x-notifyd-title-end': '<a href="action:default">proj</a>'})
+end = [l for l in labels(renderer.windows[acting]) if l.get_text() == 'proj']
+assert end, [l.get_text() for l in labels(renderer.windows[acting])]
+invoked = []
+real_invoke = manager.invoke
+manager.invoke = lambda nid, key: invoked.append((nid, key)) or real_invoke(nid, key)
+assert end[0].emit('activate-link', 'action:nope') is True
+assert 'link action:nope: no such action' in stream.getvalue()
+assert end[0].emit('activate-link', 'action:default') is True
+manager.invoke = real_invoke
+assert invoked == [(acting, 'nope'), (acting, 'default')], invoked
+assert acting not in manager.active                       # invoking closed it, as a button does
+assert len(opened) == 1
 broken = manager.notify('a', summary='s', body='<agent-message>x</agent-message>')
 assert [l for l in labels(renderer.windows[broken]) if l.get_text() == 'markup error']
 

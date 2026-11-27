@@ -97,6 +97,12 @@ def safe_link(uri):
     return bool(colon) and scheme.lower() in LINK_SCHEMES
 
 
+def action_link(uri):
+    """The action key of an `action:KEY` link, or None for any other link."""
+    scheme, colon, key = (uri or '').partition(':')
+    return key if colon and scheme.lower() == 'action' and key else None
+
+
 def expand_classes(text, classes):
     """Replace class="a b" on spans with the attributes CLASSES gives those names."""
     if 'class' not in text:

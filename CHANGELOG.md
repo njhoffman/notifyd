@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-11-27
+
+### Added
+
+- A link `<a href="action:KEY">` in a notification's title, title end or body invokes that notification's own action KEY when clicked (`default` too, which has no button), as its button would; the sender gets `ActionInvoked`. A card in the center that has already closed does nothing. Senders can make a tag or word the thing to click, as the Claude Code input notification in `~/.shell` does.
+
 ## [0.32.1] - 2026-11-27
 
 ### Fixed

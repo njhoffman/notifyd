@@ -1,6 +1,6 @@
 import pytest
 
-from notifyd.markup import cap_lines, expand_classes, markup_error, plain_text, prepare, safe_link
+from notifyd.markup import action_link, cap_lines, expand_classes, markup_error, plain_text, prepare, safe_link
 
 CLASSES = {'accent': {'foreground': '#7aa2f7', 'weight': 'bold'}, 'muted': {'alpha': '60%'},
            'odd': {'onclick': 'x', 'font-size': '10pt'}}
@@ -103,6 +103,15 @@ def test_link_text_in_strip_mode_and_plain_text():
 ])
 def test_only_web_and_mail_links_open(uri, ok):
     assert safe_link(uri) is ok
+
+
+@pytest.mark.parametrize('uri, key', [
+    ('action:default', 'default'), ('ACTION:go', 'go'), ('action:', None), ('https://x.org', None),
+    ('actions:x', None), ('', None), (None, None),
+])
+def test_action_links_name_an_action(uri, key):
+    assert action_link(uri) == key
+    assert not safe_link(uri) or key is None
 
 
 @pytest.mark.parametrize('text, expected', [

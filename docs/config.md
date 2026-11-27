@@ -151,7 +151,10 @@ Summary and body take Pango markup: `<b> <i> <u> <s> <tt> <sub> <sup> <small> <b
 `<span foreground= background= size= weight= alpha= ...>`. A span can use a preset's named styles,
 so senders don't hard-code colors. A link is `<a href="..." [title="..."]>` (lowercase, not
 nested); clicking it opens http, https and mailto links with the default handler (anything else,
-such as `file:`, is refused with a `warn` log line) and does not dismiss the notification:
+such as `file:`, is refused with a `warn` log line) and does not dismiss the notification. A link
+`<a href="action:KEY">` invokes the notification's own action KEY instead, as its button would
+(`default` too, which has no button): the sender gets `ActionInvoked`, and a card in the center
+that has already closed does nothing:
 
 ```
 notifyd send 'Song' '<b>Artist</b> · Album

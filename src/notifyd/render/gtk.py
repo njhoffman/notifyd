@@ -31,7 +31,7 @@ from notifyd.images import (  # noqa: E402, F401
     image_data_problem,
     pixbuf_from_image_data,
 )
-from notifyd.markup import cap_lines, markup_error, prepare, safe_link  # noqa: E402
+from notifyd.markup import action_link, cap_lines, markup_error, prepare, safe_link  # noqa: E402
 from notifyd.model import TITLE_END_HINT  # noqa: E402
 from notifyd.render.center import Center  # noqa: E402
 from notifyd.render.css import build_css, resolve_style, style_class  # noqa: E402
@@ -450,8 +450,9 @@ class GtkRenderer:
             image.set_margin_end(int(image_settings.get('margin-right', 0)) + 12)
             content.pack_start(image, False, False, 0)
         text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        link_nid = n.id if actions else None     # a closed card in the center has no actions to invoke
         if 'title' not in hide and n.summary:
-            title = self.label(prepare(n.summary, mode, classes), 'title')
+            title = self.label(prepare(n.summary, mode, classes), 'title', nid=link_nid)
             title_lines = int((settings.get('title') or {}).get('max-lines') or 0)
             if title_lines:
                 title.set_lines(title_lines)
@@ -461,7 +462,7 @@ class GtkRenderer:
             else:
                 row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
                 row.get_style_context().add_class('title-row')
-                end = self.label(prepare(title_end, mode, classes), 'title-end', wrap=False)
+                end = self.label(prepare(title_end, mode, classes), 'title-end', wrap=False, nid=link_nid)
                 end.set_ellipsize(Pango.EllipsizeMode.NONE)
                 end.set_xalign(1)
                 for part in (title, end):
@@ -474,7 +475,7 @@ class GtkRenderer:
             full = prepare(n.body, mode, classes)
             lines = int((settings.get('body') or {}).get('max-lines') or 0) if body_lines is None else body_lines
             capped = cap_lines(full, lines)
-            body = self.label(capped or full, 'body')
+            body = self.label(capped or full, 'body', nid=link_nid)
             if lines:
                 body.set_lines(lines)             # a long paragraph: Pango caps it (per paragraph)
                 body.set_ellipsize(Pango.EllipsizeMode.END)
@@ -521,9 +522,15 @@ class GtkRenderer:
             self.log.warn(f'#{n.id} {hint} not drawn: {getattr(exc, "message", None) or exc}')
             return None
 
-    def on_link(self, _label, uri):
-        """A link in a label was clicked: open http(s) and mailto, refuse the rest; never dismiss."""
+    def on_link(self, _label, uri, nid=None):
+        """A link in a label was clicked: `action:KEY` invokes the notification's own action KEY (on
+        a card that can still act: NID is set), http(s) and mailto open, the rest is refused."""
         self.link_clicked = Gtk.get_current_event_time()
+        key = action_link(uri)
+        if key is not None:
+            if nid is None or not self.manager.invoke(nid, key):
+                self.log.warn(f'link {uri}: no such action on this notification')
+            return True
         if not safe_link(uri):
             self.log.warn(f'link not opened (only http, https and mailto): {uri}')
             return True
@@ -534,11 +541,12 @@ class GtkRenderer:
             self.log.warn(f'link {uri}: {exc.message}')
         return True
 
-    def label(self, markup, css_class, wrap=True):
+    def label(self, markup, css_class, wrap=True, nid=None):
+        """A label of MARKUP; NID is the notification whose actions its `action:` links invoke."""
         label = Gtk.Label()
         label.set_markup(markup)
         if '<a ' in markup:
-            label.connect('activate-link', self.on_link)
+            label.connect('activate-link', self.on_link, nid)
         label.set_xalign(0)
         if wrap:
             label.set_line_wrap(True)
