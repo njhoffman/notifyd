@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.6] - 2026-11-26
+
+### Fixed
+
+- Closing a card in the notification center (its close button, or `d`) tells the sender the user
+  dismissed it (reason 2) instead of reason 3, which the spec keeps for a sender closing its own.
+
 ## [0.12.5] - 2026-11-26
 
 ### Fixed

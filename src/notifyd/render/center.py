@@ -24,6 +24,7 @@ from gi.repository import Gdk, Gio, GLib, Gtk, Pango
 from notifyd import art, mpris, volume
 from notifyd.config import ConfigError, load_preset
 from notifyd.markup import prepare
+from notifyd.model import DISMISSED
 from notifyd.render.css import build_css, resolve_style, style_class
 from notifyd.rules import known_modes
 
@@ -445,7 +446,7 @@ class Center:
         close.set_relief(Gtk.ReliefStyle.NONE)
         nid = entry['id']
         if opened:
-            close.connect('clicked', lambda _b: self.manager.close(nid))
+            close.connect('clicked', lambda _b: self.manager.close(nid, DISMISSED))
         else:
             close.connect('clicked', lambda _b: self.forget(nid))
         top.pack_end(close, False, False, 0)
@@ -550,7 +551,7 @@ class Center:
             return
         _box, entry, opened = self.cards[index]
         if opened:
-            self.manager.close(entry['id'])
+            self.manager.close(entry['id'], DISMISSED)
         else:
             self.forget(entry['id'])
 

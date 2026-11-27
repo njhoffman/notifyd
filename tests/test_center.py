@@ -349,6 +349,7 @@ assert selected() == 'h4' and center.cards[center.index()][2]
 press('d')                                       # closes the open one
 spin(100)
 assert not manager.active
+assert manager.history.entries[-1]['closed'] == 'dismissed'   # the user dismissed it (2), not the sender (3)
 
 paused = manager.paused
 press('p'); assert manager.paused != paused
