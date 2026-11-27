@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-11-27
+
+### Added
+
+- A "By app" button in the center (and the key `a`) switches the history between grouped by app and
+  one list; `center.group` is where it starts, and a reload goes back to it.
+
+### Fixed
+
+- Center cards are as compact as the popups: the close mark is as tall as the header text (a
+  button made every card about 20 px taller), and the card list runs edge to edge, so the
+  center's padding no longer adds to each card's own.
+
 ## [0.28.0] - 2026-11-27
 
 ### Changed

@@ -142,6 +142,11 @@ def build_css(style, scope):
     css += block(f'.center {s}.center-card', {'border-radius': px(style.get('radius', 4) or 4), 'margin': '2px'})
     css += block(f'.center {s}.center-card.selected', {
         'box-shadow': f"0 0 0 2px {style.get('center-selected', 'rgba(255, 255, 255, 0.45)')}"})
+    # the center: only its top part keeps the padding, so cards line up with the popups' text
+    css += block(f'{card}.center', {'padding': '0'})
+    css += block(f'{card}.center .center-top', {
+        'padding': padding(style['padding']) if 'padding' in style else '10px 15px', 'padding-bottom': '0'})
+    css += block(f'.center {s} .notification .center-close', {'padding': '0 4px', 'opacity': '0.7'})
     css += block(f'{card}.center .center-time', {'font-size': '28px', 'font-weight': 'bold'})
     css += block(f'{card}.center .center-group', {'margin-top': '6px', 'opacity': '0.85'})
     css += block(f'{card}.center-help', {'padding': '12px 16px', 'border-radius': px(style.get('radius', 4) or 4)})

@@ -51,6 +51,7 @@ BINDINGS = [
     (('Return', 'KP_Enter'), 'enter', 'act on the card (shows a closed one again)', ('activate',)),
     (('d', 'Delete'), 'd / delete', 'close it, or forget it from history', ('remove',)),
     (('e',), 'e', 'whole body of the card, or three lines', ('toggle_expand',)),
+    (('a',), 'a', 'history by app, or one list', ('toggle_grouping',)),
     (('C',), 'C', 'clear everything', ('clear',)),
     (('p',), 'p', 'do not disturb on or off', ('toggle_pause',)),
     (('m',), 'm', 'next mode', ('next_mode',)),
@@ -113,6 +114,7 @@ class Center:
         self.button_widgets = []   # (button, spec) of center.buttons
         self.expanded_groups = set()   # apps whose history group shows every card (center.group)
         self.help_window = None        # the key help (? or ctrl+/) while it is open
+        self.group_override = None     # By app / `a` until the next reload; None: center.group
         self.volume_level = None   # the last level read (reads are async, so the center never waits on pactl)
         try:
             self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
@@ -206,6 +208,8 @@ class Center:
     def on_event(self, event):
         if event['event'] not in REFRESH_EVENTS:
             return
+        if event['event'] == 'reload':
+            self.group_override = None             # the config's center.group again
         self.dirty = True
         if self.visible and not self.pending:
             self.pending = True
@@ -292,6 +296,11 @@ class Center:
         panel.get_style_context().add_class('notification')
         panel.get_style_context().add_class('center')
 
+        # the top part keeps the panel's padding; the cards below run edge to edge, each with its own
+        top = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        top.get_style_context().add_class('center-top')
+        panel.pack_start(top, False, False, 0)
+
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self.clock = self.renderer.label(time.strftime('%H:%M'), 'center-time', wrap=False)
         header.pack_start(self.clock, True, True, 0)
@@ -299,7 +308,7 @@ class Center:
         pause.set_active(self.manager.paused)
         pause.connect('toggled', lambda b: self.manager.pause(b.get_active()))
         header.pack_end(pause, False, False, 0)
-        panel.pack_start(header, False, False, 0)
+        top.pack_start(header, False, False, 0)
 
         status = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         if self.settings().get('modes', True):
@@ -312,17 +321,23 @@ class Center:
         clear = Gtk.Button(label='Clear')
         clear.connect('clicked', lambda _b: self.clear())
         status.pack_end(clear, False, False, 0)
-        panel.pack_start(status, False, False, 0)
+        by_app = Gtk.ToggleButton(label='By app')
+        by_app.set_tooltip_text('history grouped by app, or one list (a)')
+        by_app.get_style_context().add_class('center-group-toggle')
+        by_app.set_active(self.grouped())
+        by_app.connect('toggled', lambda b: b.get_active() != self.grouped() and self.toggle_grouping())
+        status.pack_end(by_app, False, False, 0)
+        top.pack_start(status, False, False, 0)
 
         if playing:
-            panel.pack_start(self.player_row(playing), False, False, 0)
+            top.pack_start(self.player_row(playing), False, False, 0)
         level = self.volume_level if self.volume_wanted() else None
         self.volume_widgets = None
         if level is not None:
-            panel.pack_start(self.volume_row(level), False, False, 0)
+            top.pack_start(self.volume_row(level), False, False, 0)
         buttons = self.buttons_row()
         if buttons is not None:
-            panel.pack_start(buttons, False, False, 0)
+            top.pack_start(buttons, False, False, 0)
 
         rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         self.cards = []
@@ -334,7 +349,7 @@ class Center:
             rows.pack_start(self.card(entry, style, opened=True), False, False, 0)
         if open_entries and closed:
             rows.pack_start(Gtk.Separator(), False, False, 4)
-        if self.settings().get('group'):
+        if self.grouped():
             self.grouped_history(rows, closed[:limit], style)
         else:
             for entry in closed[:limit]:
@@ -387,6 +402,17 @@ class Center:
         events.add(box)
         events.connect('button-release-event', lambda _w, _e: self.toggle_group(app) or False)
         return events
+
+    def grouped(self):
+        """History by app: the By app button / `a` while set, else center.group."""
+        if self.group_override is not None:
+            return self.group_override
+        return bool(self.settings().get('group'))
+
+    def toggle_grouping(self):
+        self.group_override = not self.grouped()
+        self.dirty = True
+        self.refresh()
 
     def toggle_group(self, app):
         self.expanded_groups ^= {app}
@@ -588,14 +614,14 @@ class Center:
         if n is None:
             n = self.manager.entry_notification(entry)
         scope, card_style = self.renderer.style_for(n)
-        close = Gtk.Button(label='×')
-        close.set_relief(Gtk.ReliefStyle.NONE)
-        close.get_style_context().add_class('center-close')
+        # a clickable close mark, as tall as the header's text (a GtkButton adds the theme's button height)
+        close = Gtk.EventBox()
+        close.set_visible_window(False)
+        close.add(self.renderer.label('×', 'center-close', wrap=False))
+        close.set_tooltip_text('close' if opened else 'forget')
         nid = entry['id']
-        if opened:
-            close.connect('clicked', lambda _b: self.manager.close(nid, DISMISSED))
-        else:
-            close.connect('clicked', lambda _b: self.forget(entry))
+        action = (lambda: self.manager.close(nid, DISMISSED)) if opened else (lambda: self.forget(entry))
+        close.connect('button-release-event', lambda _w, e: e.button == 1 and (action() or True))
         lines = 0 if card_key(entry, opened) in self.expanded else self.CARD_LINES
         card, _parts = self.renderer.build_card(n, card_style, body_lines=lines, header_end=close, actions=opened)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)       # carries the card's own style scope

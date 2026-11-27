@@ -512,6 +512,36 @@ center.forget_group([e for e in manager.history if e['app'] == 'mail'])
 spin(50)
 assert [e['app'] for e in manager.history] == ['chat'] and history_summaries() == ['c1']
 manager.config.settings['center']['group'] = False
+
+# By app (and `a`) switch between grouped and one list, until the next reload
+for app, summary in (('mail', 'm1'), ('mail', 'm2')):
+    manager.close(manager.notify(app, summary=summary))
+center.hide()
+center.toggle('show')
+spin(100)
+assert history_summaries() == ['m2', 'm1', 'c1']                 # center.group is off: one list
+toggle, = [w for w in widgets(center.window, Gtk.ToggleButton) if w.get_label() == 'By app']
+assert not toggle.get_active()
+toggle.set_active(True)
+assert wait_for(lambda: history_summaries() == ['m2', 'c1'])      # grouped, mail collapsed
+manager.config.settings['center']['keyboard'] = True
+press('a')
+assert wait_for(lambda: history_summaries() == ['m2', 'm1', 'c1'])
+press('a')
+assert wait_for(lambda: history_summaries() == ['m2', 'c1'])
+manager.reload(manager.config)                                    # a reload goes back to center.group
+assert wait_for(lambda: history_summaries() == ['m2', 'm1', 'c1'])
+
+# the × on a history card forgets that card (and only does that)
+card = [c for c in center.cards if c[1]['summary'] == 'm1'][0][0]
+close, = [w for w in widgets(card, Gtk.EventBox)
+          if isinstance(w.get_child(), Gtk.Label) and w.get_child().get_text() == '×']
+release = Gdk.Event.new(Gdk.EventType.BUTTON_RELEASE)
+release.button.button = 1
+close.emit('button-release-event', release)
+assert wait_for(lambda: 'm1' not in [e['summary'] for e in manager.history])
+assert 'm1' not in [n.summary for n in manager.active.values()]  # not shown again by the card's click
+manager.config.settings['center']['keyboard'] = False
 manager.config.settings['center']['cards'] = 3
 
 # a center card is the popup's card: its own style scope and the rule's hidden parts, open or closed
