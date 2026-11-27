@@ -389,6 +389,12 @@ assert center.volume_widgets[1].get_value() == 70
 spin(150)
 
 assert not press('j', Gdk.ModifierType.CONTROL_MASK)   # chords are left alone
+center.toggle('show')
+spin(100)
+assert press('bracketleft', Gdk.ModifierType.CONTROL_MASK) and not center.visible   # ctrl+[ is escape
+center.toggle('show')
+spin(100)
+assert not press('bracketleft')                         # a plain [ does nothing
 assert not press('x')
 press('Escape')
 assert not center.visible and not center.grabbed

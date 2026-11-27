@@ -61,7 +61,7 @@ BINDINGS = [
     (('plus', 'equal', 'KP_Add'), '+', 'volume up', ('step_volume', VOLUME_STEP)),
     (('minus', 'KP_Subtract'), '-', 'volume down', ('step_volume', -VOLUME_STEP)),
     (('question',), '? / ctrl+/', 'this help', ('toggle_help',)),
-    (('Escape', 'q'), 'esc / q', 'close the center', ('hide',)),
+    (('Escape', 'q'), 'esc / q / ctrl+[', 'close the center', ('hide',)),
 ]
 KEYS = {name: action for names, _label, _what, action in BINDINGS for name in names}
 
@@ -653,7 +653,12 @@ class Center:
         if help_key:
             self.toggle_help()
             return True
+        if name == 'bracketleft' and event.state & Gdk.ModifierType.CONTROL_MASK:
+            name = 'Escape'                        # ctrl+[ is escape, as in a terminal
         found = KEYS.get(name)
+        if name == 'Escape':
+            self.hide()
+            return True
         if found is None or event.state & (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK):
             return False
         getattr(self, found[0])(*found[1:])

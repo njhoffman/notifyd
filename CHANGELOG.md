@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.29.1] - 2026-11-27
+
+### Added
+
+- `Ctrl+[` closes the notification center, as Escape does (as in a terminal).
+
 ## [0.29.0] - 2026-11-27
 
 ### Added
