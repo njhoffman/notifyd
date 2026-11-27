@@ -95,7 +95,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [x] **`notifyd send -w` hangs when the daemon goes away.** (p3) [bug] `send.py` waits for
       signals from any sender and does not watch `NameOwnerChanged`. Quit when the bus name
       vanishes; subscribe to the owner's unique name.
-- [ ] **Advertise `sound`; consider `ActivationToken`.** (p3) [feature] Sound hints are handled but
+- [x] **Advertise `sound`; consider `ActivationToken`.** (p3) [feature] Sound hints are handled but
       the `sound` capability is not advertised, so clients may play their own too; the spec 1.2
       `ActivationToken` signal before `ActionInvoked` is not sent.
 - [ ] **Option to ignore an app's own CloseNotification.** (p3) [feature] dunst's

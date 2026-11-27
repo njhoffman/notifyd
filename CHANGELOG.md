@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-26
+
+### Added
+
+- The `sound` capability is advertised when a sound player is installed (sound-file, sound-name and
+  suppress-sound are handled), so clients that check for it do not play their own sound as well.
+- The spec 1.2 `ActivationToken` signal is sent before `ActionInvoked`, with an X11
+  startup-notification id, so an app can raise its window when one of its actions is chosen.
+
 ## [0.16.1] - 2026-11-26
 
 ### Fixed

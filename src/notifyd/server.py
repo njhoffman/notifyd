@@ -5,6 +5,8 @@ Both live at /org/freedesktop/Notifications. notifyd also owns io.github.njhoffm
 """
 
 import json
+import os
+import socket
 
 from gi.repository import Gio, GLib
 
@@ -44,6 +46,7 @@ INTROSPECTION = f'''
     </method>
     <signal name="NotificationClosed"><arg type="u" name="id"/><arg type="u" name="reason"/></signal>
     <signal name="ActionInvoked"><arg type="u" name="id"/><arg type="s" name="action_key"/></signal>
+    <signal name="ActivationToken"><arg type="u" name="id"/><arg type="s" name="activation_token"/></signal>
   </interface>
   <interface name="{CONTROL_IFACE}">
     <method name="Status"><arg direction="out" type="s" name="json"/></method>
@@ -167,7 +170,18 @@ class Server:
             info['parent'] = process_name(parent)
         return info
 
+    def capabilities(self):
+        """CAPABILITIES, plus `sound` when sounds can be played (sound-file, sound-name, suppress-sound
+        are handled, so a client that sees it does not play its own as well)."""
+        player = self.manager.sound
+        playable = getattr(player, 'file_player', None) or getattr(player, 'name_player', None)
+        return [*CAPABILITIES, 'sound'] if playable else list(CAPABILITIES)
+
     def emit_action(self, nid, key):
+        # spec 1.2: the token comes first, so the app can raise its window with it (an X11
+        # startup-notification id; no X timestamp is known here)
+        token = f'notifyd-{os.getpid()}-{socket.gethostname()}-{nid}_TIME0'
+        self._signal(IFACE, 'ActivationToken', GLib.Variant('(us)', (nid, token)))
         self._signal(IFACE, 'ActionInvoked', GLib.Variant('(us)', (nid, key)))
 
     def emit_event(self, event):
@@ -198,7 +212,7 @@ class Server:
                 m.close(params.unpack()[0], CLOSED)
                 return None
             if method == 'GetCapabilities':
-                return GLib.Variant('(as)', (CAPABILITIES,))
+                return GLib.Variant('(as)', (self.capabilities(),))
             if method == 'GetServerInformation':
                 return GLib.Variant('(ssss)', ('notifyd', 'njhoffman', __version__, '1.2'))
         elif iface == CONTROL_IFACE:

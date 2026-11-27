@@ -471,3 +471,30 @@ def test_check_lock_follows_the_setting():
     daemon.manager.config = load_config(text='')                      # lock.pause off: unlock, stop checking
     daemon.check_lock()
     assert calls == [True, False, True, False]
+
+
+def bare_server(sound):
+    from notifyd.server import Server
+    server = Server.__new__(Server)
+    server.manager = type('M', (), {'sound': sound})()
+    server.sent = []
+    server._signal = lambda iface, name, value: server.sent.append((name, value.unpack()))
+    return server
+
+
+def test_sound_capability_only_with_a_player():
+    from notifyd.effects import SoundPlayer
+    player = SoundPlayer()
+    player.file_player, player.name_player = None, '/usr/bin/canberra-gtk-play'
+    assert 'sound' in bare_server(player).capabilities()
+    player.name_player = None
+    assert 'sound' not in bare_server(player).capabilities()
+    assert 'sound' not in bare_server(lambda _name: None).capabilities()   # tests' plain callables
+
+
+def test_activation_token_comes_before_action_invoked():
+    server = bare_server(None)
+    server.emit_action(7, 'open')
+    (first, (nid, token)), second = server.sent
+    assert first == 'ActivationToken' and nid == 7 and token.startswith('notifyd-') and token.endswith('_TIME0')
+    assert second == ('ActionInvoked', (7, 'open'))
