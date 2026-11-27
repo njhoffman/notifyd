@@ -5,7 +5,7 @@ data is gone)."""
 import gi
 
 gi.require_version('GdkPixbuf', '2.0')
-from gi.repository import GdkPixbuf, GLib  # noqa: E402
+from gi.repository import GdkPixbuf, Gio, GLib  # noqa: E402
 
 from notifyd.files import private_dir  # noqa: E402
 
@@ -87,3 +87,30 @@ def prune_thumbnails(directory, keep_ids):
                 path.unlink()
             except OSError:
                 pass
+
+
+_desktop_icons = {}
+
+
+def desktop_icon(entry):
+    """The icon (a theme name or a file path) of desktop entry ENTRY ('firefox', 'org.gnome.Nautilus'),
+    or ''. Electron and browser apps often send no app_icon but this hint."""
+    if not entry:
+        return ''
+    if entry not in _desktop_icons:
+        icon = ''
+        for name in dict.fromkeys((entry, entry.lower())):
+            name = name.removesuffix('.desktop')
+            try:
+                info = Gio.DesktopAppInfo.new(f'{name}.desktop')
+            except TypeError:
+                info = None
+            gicon = info.get_icon() if info is not None else None
+            if isinstance(gicon, Gio.FileIcon) and gicon.get_file().get_path():
+                icon = gicon.get_file().get_path()
+            elif isinstance(gicon, Gio.ThemedIcon) and gicon.get_names():
+                icon = gicon.get_names()[0]
+            if icon:
+                break
+        _desktop_icons[entry] = icon
+    return _desktop_icons[entry]

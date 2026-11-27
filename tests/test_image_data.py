@@ -37,3 +37,29 @@ def test_malformed_image_data_is_refused_before_gdkpixbuf(data, problem):
     assert problem in image_data_problem(data)
     with pytest.raises(ValueError, match='image-data'):
         pixbuf_from_data(data, 0)
+
+
+DESKTOP_SCRIPT = r"""
+import sys
+sys.path.insert(0, sys.argv[1])
+from notifyd.images import desktop_icon
+print(repr(desktop_icon('chatapp')), repr(desktop_icon('ChatApp')), repr(desktop_icon('pathapp.desktop')),
+      repr(desktop_icon('missing')), repr(desktop_icon('')))
+"""
+
+
+def test_desktop_entry_icons(tmp_path):
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+    apps = tmp_path / 'data' / 'applications'
+    apps.mkdir(parents=True)
+    (apps / 'chatapp.desktop').write_text('[Desktop Entry]\nType=Application\nName=Chat\nExec=true\nIcon=chat-icon\n')
+    (apps / 'pathapp.desktop').write_text(
+        f'[Desktop Entry]\nType=Application\nName=P\nExec=true\nIcon={tmp_path}/p.png\n')
+    env = {**os.environ, 'XDG_DATA_HOME': str(tmp_path / 'data'), 'XDG_DATA_DIRS': str(tmp_path / 'none')}
+    src = Path(__file__).resolve().parent.parent / 'src'
+    out = subprocess.run([sys.executable, '-c', DESKTOP_SCRIPT, str(src)], env=env, capture_output=True, text=True,
+                         check=True).stdout.split()
+    assert out == ["'chat-icon'", "'chat-icon'", f"'{tmp_path}/p.png'", "''", "''"]

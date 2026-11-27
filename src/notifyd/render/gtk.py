@@ -25,7 +25,12 @@ gi.require_version('GdkPixbuf', '2.0')
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
 
 from notifyd.config import ConfigError, load_preset  # noqa: E402
-from notifyd.images import MAX_IMAGE_SIDE, image_data_problem, pixbuf_from_image_data  # noqa: E402, F401
+from notifyd.images import (  # noqa: E402, F401
+    MAX_IMAGE_SIDE,
+    desktop_icon,
+    image_data_problem,
+    pixbuf_from_image_data,
+)
 from notifyd.markup import markup_error, prepare, safe_link  # noqa: E402
 from notifyd.render.center import Center  # noqa: E402
 from notifyd.render.css import build_css, resolve_style, style_class  # noqa: E402
@@ -278,7 +283,7 @@ class GtkRenderer:
         image_settings = settings.get('image') or {}
         image_size = int(image_settings.get('size') or 0)
         icon_settings = settings.get('icon') or {}
-        icon_source = icon_settings.get('name') or n.app_icon
+        icon_source = icon_settings.get('name') or n.app_icon or desktop_icon(n.desktop_entry)
         picture = None
         if 'image' not in hide:
             if image_settings.get('path'):

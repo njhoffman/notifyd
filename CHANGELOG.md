@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-26
+
+### Added
+
+- A notification with no `app_icon` (Electron and browser apps send none) shows the icon of its
+  `desktop-entry` hint's `.desktop` file, in the popup and on its center card; the entry name is
+  also tried in lowercase.
+
 ## [0.13.6] - 2026-11-26
 
 ### Fixed

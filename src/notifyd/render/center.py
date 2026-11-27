@@ -23,7 +23,7 @@ from gi.repository import Gdk, Gio, GLib, Gtk, Pango
 
 from notifyd import art, mpris, volume
 from notifyd.config import ConfigError, load_preset
-from notifyd.images import IMAGE_HINTS
+from notifyd.images import IMAGE_HINTS, desktop_icon
 from notifyd.markup import prepare
 from notifyd.model import DISMISSED
 from notifyd.render.css import build_css, resolve_style, style_class
@@ -440,8 +440,10 @@ class Center:
                     picture = self.renderer.image_from_data(n, hint, self.CARD_PICTURE)
                     if picture is not None:
                         return picture
-        for key in ('thumb', 'image', 'app_icon'):
-            picture = self.renderer.load_image(entry.get(key), self.CARD_PICTURE)
+        sources = [entry.get(key) for key in ('thumb', 'image', 'app_icon')]
+        sources.append(desktop_icon((entry.get('sender') or {}).get('desktop_entry')))
+        for source in sources:
+            picture = self.renderer.load_image(source, self.CARD_PICTURE)
             if picture is not None:
                 return picture
         return None

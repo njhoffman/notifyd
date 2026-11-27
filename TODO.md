@@ -111,7 +111,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       checking the work area, so tall cards (the summary has no line cap) or `max-visible: 0`
       place windows off-screen. Queue what does not fit (`manager._room`) and add
       `title.max-lines`. Upstream: dunst#1533, dunst#625.
-- [ ] **Icon from the `desktop-entry` hint.** (p2) [feature] Electron and browser apps send an
+- [x] **Icon from the `desktop-entry` hint.** (p2) [feature] Electron and browser apps send an
       empty `app_icon` but a `desktop-entry`; fall back to
       `Gio.DesktopAppInfo.new(entry + '.desktop').get_icon()` in `fill`. Upstream: deadd PR#23,
       mako#581, swaync#447.

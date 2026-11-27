@@ -23,7 +23,7 @@ missing file gives the deadd look. The daemon reloads the file when it changes (
 | `position.margin` | `[30, 5]` | `[vertical, horizontal]` from the anchored edges |
 | `position.gap` | `10` | between notifications |
 | `position.follow` | `mouse` | `mouse`: the monitor under the pointer; `none`: `position.monitor` |
-| `icon.size` / `icon.name` | `25` / - | app icon in the header; `name` replaces the sender's |
+| `icon.size` / `icon.name` | `25` / - | app icon in the header; `name` replaces the sender's; with neither, the icon of the `desktop-entry` hint's `.desktop` file |
 | `image.size` / `image.path` / `image.margin-right` | `75` / - / `0` | the picture on the left |
 | `title.max-lines` / `body.max-lines` | `0` / `6` | longer summaries and bodies end in … (`0`: no limit) |
 | `markup` | `full` | `full` (Pango), `strip` (text only), `plain` (tags shown as typed) |
