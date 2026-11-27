@@ -559,6 +559,19 @@ def test_pop_brings_back_icon_image_and_sender_without_run_or_sound(make_manager
     assert m.ran == [('run', 'notify-hook', nid)] and m.sounds == ['bell']  # but stay quiet
 
 
+def test_history_keeps_the_title_end_for_center_cards_and_pop(make_manager):
+    m, *_ = make_manager('')
+    end = '<span foreground="#ff8fc7">h</span> 4.5'
+    nid = m.notify('musicman', summary='Song', hints={'x-notifyd-title-end': end})
+    plain = m.notify('chat', summary='hi', hints={'x-notifyd-title-end': '  '})
+    m.close(nid)
+    m.close(plain)
+    entry, other = m.history.entries
+    assert entry['title_end'] == end and 'title_end' not in other
+    assert m.entry_notification(entry).title_end == end
+    assert m.active[m.pop(nid)].title_end == end
+
+
 def test_thumbnails_go_with_their_history_entries(make_manager, tmp_path):
     thumbs = tmp_path / 'thumbs'
     m, *_ = make_manager('history: {size: 2}', thumbs_path=thumbs)

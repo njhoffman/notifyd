@@ -32,6 +32,7 @@ from notifyd.images import (  # noqa: E402, F401
     pixbuf_from_image_data,
 )
 from notifyd.markup import cap_lines, markup_error, prepare, safe_link  # noqa: E402
+from notifyd.model import TITLE_END_HINT  # noqa: E402
 from notifyd.render.center import Center  # noqa: E402
 from notifyd.render.css import build_css, resolve_style, style_class  # noqa: E402
 
@@ -40,8 +41,6 @@ TIMEOUT_BAR_TICK = 100   # ms between timeout-bar updates
 TIMEOUT_BAR_DEFAULTS = {'color': '#00d7d7', 'background': 'transparent', 'height': 2}   # thin and cyan
 IMAGE_HINTS = ('image-data', 'image_data')
 IMAGE_PATH_HINTS = ('image-path', 'image_path')
-# markup drawn at the right end of the title line (a rating, a count): never cut, the title is
-TITLE_END_HINT = 'x-notifyd-title-end'
 
 
 def file_path(value):
@@ -433,8 +432,7 @@ class GtkRenderer:
         if 'time' not in hide:
             header.pack_end(self.label(time.strftime('%H:%M', time.localtime(n.received)), 'time', wrap=False),
                             False, False, 0)
-        title_end = n.hints.get(TITLE_END_HINT) if 'title' not in hide else None
-        title_end = str(title_end) if isinstance(title_end, str) and title_end.strip() else None
+        title_end = (n.title_end or None) if 'title' not in hide else None
         flag = self.markup_flag(n.summary, n.body, mode, classes, title_end)
         if flag is not None:
             header.pack_end(flag, False, False, 0)

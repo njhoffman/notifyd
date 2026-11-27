@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.32.1] - 2026-11-27
+
+### Fixed
+
+- The `x-notifyd-title-end` hint is kept in the history (`title_end` in `history --json`), so center
+  cards and `ctl pop` show it as the popup did.
+
 ## [0.32.0] - 2026-11-27
 
 ### Added

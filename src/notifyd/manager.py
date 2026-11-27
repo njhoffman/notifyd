@@ -14,7 +14,16 @@ from notifyd.files import write_private
 from notifyd.history import History
 from notifyd.images import prune_thumbnails, save_thumbnail
 from notifyd.markup import markup_error
-from notifyd.model import CLOSED, DISMISSED, EXPIRED, REASON_NAMES, UNDEFINED, Notification, actions_from_list
+from notifyd.model import (
+    CLOSED,
+    DISMISSED,
+    EXPIRED,
+    REASON_NAMES,
+    TITLE_END_HINT,
+    UNDEFINED,
+    Notification,
+    actions_from_list,
+)
 from notifyd.rules import resolve
 
 MIN_RESUME_MS = 1000   # a notification left by the pointer stays at least this long
@@ -514,10 +523,13 @@ class Manager:
         return removed
 
     def entry_hints(self, entry):
-        """The hints a history entry brings back: urgency, category, its picture and desktop entry."""
+        """The hints a history entry brings back: urgency, category, the title end, its picture and
+        desktop entry."""
         hints = {'urgency': ('low', 'normal', 'critical').index(entry.get('urgency', 'normal'))}
         if entry.get('category'):
             hints['category'] = entry['category']
+        if entry.get('title_end'):
+            hints[TITLE_END_HINT] = entry['title_end']
         image = entry.get('image') or entry.get('thumb')
         if image:
             hints['image-path'] = image

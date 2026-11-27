@@ -12,6 +12,9 @@ REASON_NAMES = {EXPIRED: 'expired', DISMISSED: 'dismissed', CLOSED: 'closed', UN
 # hints that name a tag: a new notification with the same app and tag replaces the old one
 TAG_HINTS = ('x-dunst-stack-tag', 'x-canonical-private-synchronous', 'synchronous')
 
+# markup drawn at the right end of the title line (a rating, a count): never cut, the title is
+TITLE_END_HINT = 'x-notifyd-title-end'
+
 
 @dataclass
 class Notification:
@@ -78,6 +81,12 @@ class Notification:
             return None
 
     @property
+    def title_end(self):
+        """The x-notifyd-title-end hint's markup, or '' when it is not set or blank."""
+        value = self.hints.get(TITLE_END_HINT)
+        return value if isinstance(value, str) and value.strip() else ''
+
+    @property
     def resident(self):
         return bool(self.hints.get('resident', False))
 
@@ -94,6 +103,7 @@ class Notification:
             'id': self.id,
             'app': self.app,
             'summary': self.summary,
+            **({'title_end': self.title_end} if self.title_end else {}),
             'body': self.body,
             'urgency': self.urgency_name,
             'category': self.category,
