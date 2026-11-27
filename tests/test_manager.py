@@ -755,7 +755,8 @@ def test_remaining_time_runs_and_freezes_while_hovered(make_manager):
     assert m.remaining(never) is None
 
 
-def test_repeated_ids_keep_separate_entries_and_thumbnails(make_manager, tmp_path):
+def test_repeated_ids_keep_separate_entries_and_thumbnails(make_manager, tmp_path, monkeypatch):
+    monkeypatch.setattr('notifyd.manager.time.time', lambda: 1795805359.279)   # both closes in one millisecond
     thumbs = tmp_path / 'thumbs'
     m, *_ = make_manager(thumbs_path=thumbs)
     first = m.notify('backdrop', summary='one', hints={'image-data': image_data(4, 4)})

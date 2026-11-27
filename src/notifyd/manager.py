@@ -5,6 +5,7 @@ told to show and reports clicks and hovers back, and timers come from a schedule
 thing runs in tests with fakes.
 """
 
+import itertools
 import json
 import time
 from pathlib import Path
@@ -89,6 +90,7 @@ class Manager:
         self.idle = idle or (lambda: 0)
         self.state_path = Path(state_path) if state_path else None
         self.thumbs_path = Path(thumbs_path) if thumbs_path else None   # image-data kept for the history
+        self.thumb_seq = itertools.count()       # in thumbnail names: two closes in one millisecond differ
         state = self._load_state()
         self.mode = state.get('mode') or 'normal'
         # ids go on from the kept history, so pop and forget never mix up an old one with a new one
@@ -614,8 +616,10 @@ class Manager:
         if n.settings.get('markup', 'full') != 'full':
             entry['markup'] = n.settings['markup']
         if self.thumbs_path and 'image' not in entry:
-            # named by id and time: ids repeat when a sender reuses a replaces_id
-            thumb = save_thumbnail(n.hints, self.thumbs_path, f'{n.id}-{int(entry["closed_at"] * 1000)}')
+            # named by id, time and a sequence number: ids repeat when a sender reuses a replaces_id, and two
+            # closes can fall in one millisecond
+            name = f'{n.id}-{int(entry["closed_at"] * 1000)}-{next(self.thumb_seq)}'
+            thumb = save_thumbnail(n.hints, self.thumbs_path, name)
             if thumb:
                 entry['thumb'] = str(thumb)
         self.history.append(entry)

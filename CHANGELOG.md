@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.35.1] - 2026-11-27
+
+### Fixed
+
+- Two history entries with the same id closed within one millisecond (a sender reusing its
+  `replaces_id`) no longer share one image-data thumbnail: the second overwrote the first's picture,
+  and forgetting either entry deleted it for both. Thumbnail names now carry a sequence number.
+
 ## [0.35.0] - 2026-11-27
 
 ### Added
