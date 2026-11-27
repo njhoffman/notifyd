@@ -179,8 +179,12 @@ class Manager:
         limit = self.config.settings.get('max-visible') or 0
         return not limit or len(self.displayed) < limit
 
+    def _fits(self, n):
+        fits = getattr(self.renderer, 'fits', None)
+        return fits is None or fits(n)
+
     def _place(self, n):
-        if self._room():
+        if self._room() and self._fits(n):
             self._show(n)
         else:
             self.waiting.append(n.id)
@@ -270,7 +274,8 @@ class Manager:
             self.on_closed(nid, reason)
         if held:
             self._save_state()
-        while self.waiting and self._room():
+        # oldest first; one that does not fit on screen yet stops the rest (they keep their order)
+        while self.waiting and self._room() and self._fits(self.active[self.waiting[0]]):
             self._show(self.active[self.waiting.pop(0)])
         return True
 

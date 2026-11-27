@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.9] - 2026-11-26
+
+### Fixed
+
+- Popups no longer run off the screen: a notification whose window would not fit in the monitor's
+  work area below (or above) the ones on screen waits, like one past `max-visible`, and shows when
+  room frees up, oldest first. The first one on screen always shows. A window that grows on an
+  update can still reach past the edge.
+
+### Added
+
+- `title.max-lines` (default `0`, no limit): longer summaries end in …, like `body.max-lines`.
+
 ## [0.12.8] - 2026-11-26
 
 ### Fixed

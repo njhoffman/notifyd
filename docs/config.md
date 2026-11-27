@@ -16,7 +16,7 @@ missing file gives the deadd look. The daemon reloads the file when it changes (
 | `width` | `350` | px |
 | `timeout` | `8s` | `8000`, `8s`, `1500ms`, `2m`, `never` |
 | `timeout-critical` | `never` | for critical notifications no rule gives a timeout |
-| `max-visible` | `6` | more wait until one closes (`0`: no limit) |
+| `max-visible` | `6` | more wait until one closes (`0`: no limit); one that would not fit in the monitor's work area waits too (oldest first), except the first on screen |
 | `group-by` | `[]` | e.g. `[app]`: a new notification with the same values replaces the open one, shown `×N` (fields: app, summary, category, urgency; set it in a rule to group one app only) |
 | `stack-duplicates` | `true` | an identical notification (app, summary, body, urgency) replaces the open one, shown `×N` |
 | `position.anchor` | `top-right` | `top-`/`bottom-` + `left`/`center`/`right` |
@@ -25,7 +25,7 @@ missing file gives the deadd look. The daemon reloads the file when it changes (
 | `position.follow` | `mouse` | `mouse`: the monitor under the pointer; `none`: `position.monitor` |
 | `icon.size` / `icon.name` | `25` / - | app icon in the header; `name` replaces the sender's |
 | `image.size` / `image.path` / `image.margin-right` | `75` / - / `0` | the picture on the left |
-| `body.max-lines` | `6` | longer bodies end in … |
+| `title.max-lines` / `body.max-lines` | `0` / `6` | longer summaries and bodies end in … (`0`: no limit) |
 | `markup` | `full` | `full` (Pango), `strip` (text only), `plain` (tags shown as typed) |
 | `hide` | `[]` | any of `app-icon app-name time title body image actions progress` |
 | `class` | - | extra CSS class on the card |

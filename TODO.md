@@ -107,7 +107,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 
 ## 13. Rendering and the center
 
-- [ ] **The stack can run off the screen.** (p2) [bug] `GtkRenderer.layout` sums heights without
+- [x] **The stack can run off the screen.** (p2) [bug] `GtkRenderer.layout` sums heights without
       checking the work area, so tall cards (the summary has no line cap) or `max-visible: 0`
       place windows off-screen. Queue what does not fit (`manager._room`) and add
       `title.max-lines`. Upstream: dunst#1533, dunst#625.

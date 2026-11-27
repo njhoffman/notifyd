@@ -226,7 +226,8 @@ def test_ctl_without_notifyd(bus):
 @pytest.mark.skipif(not shutil.which('Xvfb'), reason='needs Xvfb')
 def test_gtk_renderer_under_xvfb(bus, daemon, tmp_path):
     display = f':{90 + os.getpid() % 9}'
-    xvfb = subprocess.Popen(['Xvfb', display, '-screen', '0', '1280x720x24'], stdout=subprocess.DEVNULL,
+    # tall enough for all the previews at once: what does not fit waits (and `send -A` would wait on it)
+    xvfb = subprocess.Popen(['Xvfb', display, '-screen', '0', '1280x4000x24'], stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)
     try:
         env = {**bus, 'DISPLAY': display}
@@ -287,7 +288,7 @@ assert 'monitors changed' in stream.getvalue()
 assert renderer.area is not None                        # laid out again on the new geometry
 
 # links: GtkLabel renders them, only http(s)/mailto open, a link click never dismisses
-from gi.repository import Gio, Gtk
+from gi.repository import Gio, Gtk, Pango
 import notifyd.render.gtk as gtk_module
 opened = []
 gtk_module.Gio.AppInfo.launch_default_for_uri = lambda uri, ctx: opened.append(uri)
@@ -315,6 +316,27 @@ assert [l for l in labels(renderer.windows[broken]) if l.get_text() == 'markup e
 bad = manager.notify('a', summary='bad image', hints={'image-data': (10, 10, 4000000, False, 8, 3, bytes(400))})
 assert bad in renderer.windows
 assert f'#{bad} image-data not drawn: image-data: 400 bytes of pixels' in stream.getvalue()
+
+# what does not fit in the work area (720 px here) waits, oldest first, and shows when room frees up
+manager.close_all()
+long = 'line\n' * 12
+first_tall = manager.notify('a', summary='tall 1', body=long)
+assert renderer.fits(manager.active[first_tall]) is True        # the first always fits
+tall = [first_tall] + [manager.notify('a', summary=f'tall {i}', body=long) for i in range(2, 9)]
+shown, waiting = list(manager.displayed), list(manager.waiting)
+assert shown and waiting and len(shown) + len(waiting) == len(tall), (shown, waiting)
+assert waiting == tall[len(shown):]                              # in arrival order
+bottom = max(w.get_position()[1] + w.get_preferred_size()[1].height for w in renderer.windows.values())
+assert bottom <= renderer.area.y + renderer.area.height, bottom
+assert renderer.measured is None                                # the measuring window went to show() or away
+manager.close(shown[-1])
+assert manager.displayed[0] == waiting[0] and manager.waiting == waiting[1:]
+manager.close_all()
+manager.config.settings['title'] = {'max-lines': 2}
+capped = manager.notify('b', summary=' '.join(['word'] * 400), body='x')
+title = [l for l in labels(renderer.windows[capped]) if l.get_text().startswith('word word')]
+assert title and title[0].get_lines() == 2 and title[0].get_ellipsize() == Pango.EllipsizeMode.END
+manager.close_all()
 
 manager.close_all()
 assert renderer.area is None and renderer.windows == {}

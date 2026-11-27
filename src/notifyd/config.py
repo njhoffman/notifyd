@@ -31,6 +31,7 @@ DEFAULTS = {
     'group-by': [],              # e.g. [app]: a new one with the same app replaces the open one, counted
     'icon': {'size': 25, 'name': None},
     'image': {'size': 75, 'path': None, 'margin-right': 0},
+    'title': {'max-lines': 0},   # 0: as many as it needs
     'body': {'max-lines': 6},
     'markup': 'full',            # full (Pango), strip (text only), plain (shown as typed)
     'hide': [],                  # parts not shown: app-icon, app-name, time, title, body, image
@@ -113,7 +114,8 @@ def format_duration(ms):
 
 # settings the renderer reads as whole numbers: (path, may be negative)
 NUMBER_KEYS = ((('width',), False), (('image', 'size'), False), (('image', 'margin-right'), True),
-               (('icon', 'size'), False), (('body', 'max-lines'), False), (('position', 'monitor'), False),
+               (('icon', 'size'), False), (('title', 'max-lines'), False), (('body', 'max-lines'), False),
+               (('position', 'monitor'), False),
                (('position', 'gap'), True))
 
 

@@ -114,6 +114,7 @@ class GtkRenderer:
         self.manager = manager
         self.log = log
         self.link_clicked = None   # the event time of the last link click, which must not dismiss
+        self.measured = None       # (notification, window) built by fits() for show()
         self.screen = Gdk.Screen.get_default()
         self.visual = self.screen.get_rgba_visual()
         if self.visual is None or not self.screen.is_composited():
@@ -156,7 +157,37 @@ class GtkRenderer:
                 self.update(n)
 
     # -- windows --------------------------------------------------------
-    def show(self, n):
+    def fits(self, n):
+        """Whether N's window fits in the work area below (or above) the ones on screen. It is built
+        now, unshown, to measure it, and show() uses it. The first one always fits, so a very tall
+        notification still shows."""
+        self.discard_measured()
+        shown = [w for nid, w in self.windows.items() if nid in self.manager.displayed and nid != n.id]
+        if not shown:
+            return True
+        window = self.new_window(n)
+        self.measured = (n, window)
+        position = self.manager.config.settings['position']
+        margin = position.get('margin', [30, 5])
+        margin_v = margin if isinstance(margin, (int, float)) else margin[0]
+        gap = int(position.get('gap', 10))
+        area = self.area or self.monitor_geometry()
+        used = margin_v + sum(self.window_height(w) + gap for w in shown)
+        if used + self.window_height(window) + margin_v <= area.height:
+            return True
+        self.discard_measured()                # it waits; it is built again when there is room
+        return False
+
+    @staticmethod
+    def window_height(window):
+        return window.get_preferred_size()[1].height
+
+    def discard_measured(self):
+        if self.measured is not None:
+            self.measured[1].destroy()
+            self.measured = None
+
+    def new_window(self, n):
         window = Gtk.Window(type=Gtk.WindowType.POPUP)
         window.set_title('notifyd')
         with warnings.catch_warnings():
@@ -168,8 +199,17 @@ class GtkRenderer:
         if self.visual is not None:
             window.set_visual(self.visual)
         window.get_style_context().add_class('notifyd')
-        self.windows[n.id] = window
         self.fill(window, n)
+        window.get_child().show_all()          # measurable before the window itself is shown
+        return window
+
+    def show(self, n):
+        if self.measured is not None and self.measured[0] is n:
+            window, self.measured = self.measured[1], None
+        else:
+            self.discard_measured()
+            window = self.new_window(n)
+        self.windows[n.id] = window
         fade_in = (n.settings.get('fade') or {}).get('in') or 0
         if fade_in:
             window.set_opacity(0)
@@ -306,6 +346,10 @@ class GtkRenderer:
         text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         if 'title' not in hide and n.summary:
             title = self.label(prepare(n.summary, mode, classes), 'title')
+            title_lines = int((settings.get('title') or {}).get('max-lines') or 0)
+            if title_lines:
+                title.set_lines(title_lines)
+                title.set_ellipsize(Pango.EllipsizeMode.END)
             text.pack_start(title, False, False, 0)
         if 'body' not in hide and n.body:
             body = self.label(prepare(n.body, mode, classes), 'body')
