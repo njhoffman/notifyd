@@ -145,6 +145,8 @@ def build_css(style, scope):
         'border-radius': px(button.get('radius', 3)), 'padding': '2px 8px'})
     css += block(f'{card} button label', {'color': button.get('foreground', style.get('foreground'))})
     css += block(f'{card} button:hover', {'background-color': button.get('hover', 'rgba(255, 255, 255, 0.18)')})
+    css += block(f'{card} button.center-button.on', {
+        'background-color': button.get('on', style.get('accent', 'rgba(122, 162, 247, 0.45)'))})
     if style.get('css'):
         css += str(style['css']).replace('&', s) + '\n'
     return css

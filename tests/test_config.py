@@ -179,3 +179,10 @@ def test_mpris_ignore_is_a_list_of_names():
     assert load_config(text='center: {mpris-ignore: [firefox]}').settings['center']['mpris-ignore'] == ['firefox']
     with pytest.raises(ConfigError, match=r'center\.mpris-ignore'):
         load_config(text='center: {mpris-ignore: firefox}')
+
+
+def test_center_buttons_are_checked():
+    buttons = load_config(text='center: {buttons: [{label: Wifi, run: nmcli r wifi on, state: "true"}]}')
+    assert buttons.settings['center']['buttons'][0]['label'] == 'Wifi'
+    with pytest.raises(ConfigError, match=r'center\.buttons'):
+        load_config(text='center: {buttons: [{label: Wifi}]}')

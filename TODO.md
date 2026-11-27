@@ -151,7 +151,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       "clear group". Upstream: swaync#61, mako#234.
 - [x] **Filter MPRIS players.** (p3) [feature] `center.mpris-ignore: [firefox, chromium]`, so
       browser tabs do not take the now-playing row. Upstream: swaync PR#324.
-- [ ] **Center buttons that run commands.** (p3) [feature] A configured row of buttons or toggles
+- [x] **Center buttons that run commands.** (p3) [feature] A configured row of buttons or toggles
       (with a state command), e.g. wifi, bluetooth, displayd layouts. Upstream: swaync
       buttons-grid, swaync#277.
 - [ ] **Accessibility.** (p3) [feature] Set an ATK role and accessible name and description on

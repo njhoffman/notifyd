@@ -309,6 +309,14 @@ def widgets(root, kind):
             found += widgets(child, kind)
     return found
 
+def wait_for(condition, ms=3000):
+    # spin until CONDITION() holds, at most MS
+    end = time.monotonic() + ms / 1000
+    while not condition() and time.monotonic() < end:
+        GLib.MainContext.default().iteration(False)
+        time.sleep(0.005)
+    return condition()
+
 def spin(ms):
     end = time.monotonic() + ms / 1000
     while time.monotonic() < end:
@@ -420,6 +428,28 @@ assert body_text() == ['\n'.join(f'line {i}' for i in range(8))] and selected() 
 press('e')
 assert body_text() == ['line 0\nline 1\nline 2…']
 manager.config.settings['center']['keyboard'] = False
+
+# center.buttons: a click runs the command; `state` exiting 0 marks the button on
+import tempfile as _tempfile
+flag_dir = _tempfile.mkdtemp()
+flag = flag_dir + '/wifi-on'
+manager.config.settings['center']['buttons'] = [
+    {'label': 'Wifi', 'run': f'touch {flag}', 'state': f'test -e {flag}'}, {'label': 'Plain', 'run': 'true'}]
+center.hide()
+manager.notify('x', summary='rebuild')
+center.toggle('show')
+spin(100)
+(wifi, wifi_spec), (plain, _p) = center.button_widgets
+assert wifi.get_label() == 'Wifi' and plain.get_label() == 'Plain'
+assert wait_for(lambda: True) and not wifi.get_style_context().has_class('on')
+wifi.clicked()
+assert wait_for(lambda: wifi.get_style_context().has_class('on')), 'state follows the click'
+import os as _os
+_os.remove(flag)
+center.hide()
+center.toggle('show')                              # opening again checks the state again
+assert wait_for(lambda: not wifi.get_style_context().has_class('on'))
+manager.config.settings['center']['buttons'] = []
 
 # a history card shows the kept thumbnail of an image-data picture, and its markup mode
 import tempfile

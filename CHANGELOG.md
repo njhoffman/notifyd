@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-11-27
+
+### Added
+
+- `center.buttons: [{label, run, state}]`: a row of buttons under the center's volume slider. A
+  click runs `run`; a button with `state` shows as on (style key `button.on`) while that command
+  exits 0, checked without waiting when the center opens and shortly after each click.
+
 ## [0.23.0] - 2026-11-27
 
 ### Added

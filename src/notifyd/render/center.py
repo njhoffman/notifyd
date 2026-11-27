@@ -97,6 +97,7 @@ class Center:
         self.players = None
         self.card_color = None     # the text color symbolic icons on the card being built take
         self.expanded = set()      # (opened, id) of cards whose whole body shows (`e`)
+        self.button_widgets = []   # (button, spec) of center.buttons
         self.volume_level = None   # the last level read (reads are async, so the center never waits on pactl)
         try:
             self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
@@ -134,6 +135,7 @@ class Center:
             self.window.connect('leave-notify-event', self.on_leave)
             self.window.connect('key-press-event', self.on_key)
         self.request_volume()                     # the row updates (or appears) when pactl answers
+        self.refresh_button_states()
         playing = self.now_playing()
         if self.dirty or self.built != (self.scope()[0], playing):
             self.rebuild(playing)
@@ -302,6 +304,9 @@ class Center:
         self.volume_widgets = None
         if level is not None:
             panel.pack_start(self.volume_row(level), False, False, 0)
+        buttons = self.buttons_row()
+        if buttons is not None:
+            panel.pack_start(buttons, False, False, 0)
 
         rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         self.cards = []
@@ -375,6 +380,62 @@ class Center:
         self.limit = limit
         self.rebuild()
         self.window.show_all()
+
+    # -- buttons (center.buttons) ----------------------------------------------
+    BUTTON_STATE_DELAY = 600   # ms after a click before its state command runs again
+
+    def buttons_row(self):
+        """A row of center.buttons: each runs its `run`; one with `state` shows as on while that exits 0."""
+        config = self.settings().get('buttons') or []
+        if not config:
+            self.button_widgets = []
+            return None
+        row = Gtk.FlowBox()
+        row.set_selection_mode(Gtk.SelectionMode.NONE)
+        row.set_max_children_per_line(4)
+        row.set_homogeneous(True)
+        row.get_style_context().add_class('center-buttons')
+        self.button_widgets = []
+        for spec in config:
+            button = Gtk.Button(label=spec['label'])
+            button.get_style_context().add_class('center-button')
+            button.connect('clicked', self.on_center_button, spec)
+            row.add(button)
+            self.button_widgets.append((button, spec))
+        self.refresh_button_states()
+        return row
+
+    def on_center_button(self, button, spec):
+        self.spawn(['sh', '-c', spec['run']])
+        if spec.get('state'):
+            GLib.timeout_add(self.BUTTON_STATE_DELAY, lambda: self.check_button_state(button, spec) and False)
+
+    def refresh_button_states(self):
+        for button, spec in self.button_widgets:
+            if spec.get('state'):
+                self.check_button_state(button, spec)
+
+    def check_button_state(self, button, spec):
+        """Run SPEC's state command without waiting; BUTTON gets the `on` class while it exits 0."""
+        proc = self.spawn(['sh', '-c', spec['state']])
+        if proc is None:
+            return
+
+        def done(proc, result):
+            try:
+                proc.wait_finish(result)
+            except GLib.Error:
+                return
+            context = button.get_style_context()
+            (context.add_class if proc.get_successful() else context.remove_class)('on')
+        proc.wait_async(None, done)
+
+    def spawn(self, argv):
+        try:
+            return Gio.Subprocess.new(argv, Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE)
+        except GLib.Error as exc:
+            self.renderer.log.warn(f'center button: {exc.message}')
+            return None
 
     def on_drag(self, _scale, _event, held):
         self.dragging = held

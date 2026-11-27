@@ -50,7 +50,7 @@ DEFAULTS = {
     'log': {'format': 'pretty', 'color': 'auto', 'level': 'info', 'file': None},
     'click': {'left': 'dismiss', 'middle': 'dismiss-all', 'right': 'default-action'},
     'center': {'width': 400, 'side': 'right', 'hide-on-leave': True, 'mpris': True, 'volume': True, 'modes': True,
-               'cards': 20, 'keyboard': True, 'remote-art': True, 'mpris-ignore': [],
+               'cards': 20, 'keyboard': True, 'remote-art': True, 'mpris-ignore': [], 'buttons': [],
                'toggle-key': '<Super>grave'},   # the WM's toggle binding, which the grab swallows
     'fade': {'in': 0, 'out': 150},   # ms; picom fades windows in, but not translucent ones out
     'style': {},
@@ -181,6 +181,14 @@ def normalize(settings, where='config'):
     if settings.get('sound') not in (None, False) and not isinstance(settings['sound'], str):
         raise ConfigError(f'{where}: sound: expected a file, a sound name, or false')
     center = settings.get('center')
+    if isinstance(center, dict) and 'buttons' in center:
+        buttons = center['buttons'] or []
+        if not isinstance(buttons, list) or not all(
+                isinstance(b, dict) and isinstance(b.get('label'), str) and isinstance(b.get('run'), str)
+                and isinstance(b.get('state', ''), str) for b in buttons):
+            raise ConfigError(f'{where}: center.buttons: expected a list of {{label: TEXT, run: COMMAND, '
+                              'state: COMMAND}} (state is optional)')
+        center['buttons'] = buttons
     if isinstance(center, dict) and 'mpris-ignore' in center:
         ignore = center['mpris-ignore'] or []
         if not isinstance(ignore, list) or not all(isinstance(name, str) for name in ignore):
