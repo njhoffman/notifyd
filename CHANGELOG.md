@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-11-26
+
+### Fixed
+
+- Leading and trailing newlines and spaces in a summary or body no longer draw blank lines; blank
+  lines inside the text stay.
+
 ## [0.13.0] - 2026-11-26
 
 ### Added

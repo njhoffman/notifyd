@@ -580,3 +580,11 @@ def test_malformed_image_data_makes_no_thumbnail(make_manager, tmp_path):
     nid = m.notify('a', summary='s', hints={'image-data': (10, 10, 4000000, False, 8, 3, bytes(400))})
     m.close(nid)
     assert 'thumb' not in m.history.entries[-1]
+
+
+def test_edge_newlines_and_spaces_are_dropped_inner_ones_kept(make_manager):
+    m, *_ = make_manager()
+    nid = m.notify('a', summary='\n  Title \n', body='\n\nline one\n\nline two\n\n  ')
+    n = m.active[nid]
+    assert n.summary == 'Title' and n.body == 'line one\n\nline two'
+    assert m.active[m.notify('a', summary='\n', body=' ')].body == ''

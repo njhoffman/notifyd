@@ -63,7 +63,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       from a web app makes the whole body literal (by design since 0.12.0: nothing is stripped).
       Middle way: unwrap only block tags (`<p>`, `<div>` to newlines) and keep showing the rest as
       typed. Upstream: deadd PR#30, deadd#93.
-- [ ] **Leading and trailing newlines draw blank lines.** (p3) [bug] `'line\n\n'` reaches the
+- [x] **Leading and trailing newlines draw blank lines.** (p3) [bug] `'line\n\n'` reaches the
       label unchanged. Strip summary and body edges in `manager.notify`. Upstream: dunst#1559.
 - [x] **A renderer exception leaves the manager inconsistent.** (p2) [bug] `_show`
       (`manager.py:175`) adds the id to `displayed` before `renderer.show`; when that raises (a

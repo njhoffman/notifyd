@@ -88,6 +88,8 @@ class Manager:
     # -- incoming -------------------------------------------------------
     def notify(self, app='', replaces_id=0, app_icon='', summary='', body='', actions=(), hints=None,
                timeout=-1, extra=None, sender=None):
+        # edge newlines and spaces would draw blank lines (chat apps and scripts send them)
+        summary, body = (summary or '').strip(), (body or '').strip()
         n = Notification(app=app, summary=summary, body=body, app_icon=app_icon,
                          actions=actions_from_list(actions), hints=dict(hints or {}),
                          requested_timeout=timeout, replaces_id=replaces_id, mode=self.mode)
