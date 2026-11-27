@@ -102,7 +102,18 @@ class Notification:
             'mode': self.mode,
             'duplicates': self.duplicates,
             **({'sender': dict(self.sender)} if self.sender else {}),
+            **({'app_icon': self.app_icon} if self.app_icon else {}),
+            **({'image': self.image_path} if self.image_path else {}),
         }
+
+    @property
+    def image_path(self):
+        """The image-path hint (a file path, file:// URI or icon name), or ''."""
+        for hint in ('image-path', 'image_path'):
+            value = self.hints.get(hint)
+            if isinstance(value, str) and value:
+                return value
+        return ''
 
 
 def actions_from_list(flat):

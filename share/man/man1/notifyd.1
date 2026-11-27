@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-26 "notifyd 0.12.9" "User Commands"
+.TH NOTIFYD 1 2026-11-26 "notifyd 0.13.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -245,7 +245,8 @@ close it.
 .TP
 .BR pop " [\fIid\fR]"
 Show a closed notification again: the last one in the history, or
-.IR id .
+.IR id ,
+with its icon, image (a thumbnail of image-data, kept under $XDG_CACHE_HOME/notifyd/thumbs) and sender, so rules match it again; their commands and sounds do not run again.
 .TP
 .BI close " id"
 Close a notification.

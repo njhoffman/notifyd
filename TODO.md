@@ -115,7 +115,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       empty `app_icon` but a `desktop-entry`; fall back to
       `Gio.DesktopAppInfo.new(entry + '.desktop').get_icon()` in `fill`. Upstream: deadd PR#23,
       mako#581, swaync#447.
-- [ ] **History keeps too little for the center and `pop`.** (p2) [bug] `summary_dict` stores no
+- [x] **History keeps too little for the center and `pop`.** (p2) [bug] `summary_dict` stores no
       `app_icon`, image path or markup mode, so center cards have no icon and render in `full`
       even for `markup: plain` rules, and `pop` brings back a bare notification that misses
       sender rules and reruns `run:`. Store them (optionally a small cached thumbnail of

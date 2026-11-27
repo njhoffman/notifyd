@@ -25,6 +25,7 @@ gi.require_version('GdkPixbuf', '2.0')
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
 
 from notifyd.config import ConfigError, load_preset  # noqa: E402
+from notifyd.images import MAX_IMAGE_SIDE, image_data_problem, pixbuf_from_image_data  # noqa: E402, F401
 from notifyd.markup import markup_error, prepare, safe_link  # noqa: E402
 from notifyd.render.center import Center  # noqa: E402
 from notifyd.render.css import build_css, resolve_style, style_class  # noqa: E402
@@ -53,41 +54,8 @@ def scale_to(pixbuf, size):
                                GdkPixbuf.InterpType.BILINEAR)
 
 
-MAX_IMAGE_SIDE = 4096
-
-
-def image_data_problem(data):
-    """Why an image-data hint (width, height, rowstride, has_alpha, bits, channels, pixels) cannot be
-    drawn safely, or ''. GdkPixbuf only checks the buffer against width*height*channels, so a large
-    rowstride would make it read past the buffer in C (a crash, not an exception)."""
-    try:
-        width, height, rowstride, has_alpha, bits, channels, pixels = data
-    except (TypeError, ValueError):
-        return 'not (iiibiiay)'
-    if not all(isinstance(v, int) for v in (width, height, rowstride, bits, channels)):
-        return 'not (iiibiiay)'
-    if bits != 8:
-        return f'{bits} bits per sample (only 8)'
-    if channels != (4 if has_alpha else 3):
-        return f'{channels} channels with has_alpha={bool(has_alpha)}'
-    if not (0 < width <= MAX_IMAGE_SIDE and 0 < height <= MAX_IMAGE_SIDE):
-        return f'size {width}x{height} (1..{MAX_IMAGE_SIDE})'
-    if rowstride < width * channels:
-        return f'rowstride {rowstride} < {width * channels}'
-    need = rowstride * (height - 1) + width * channels
-    if not isinstance(pixels, (bytes, bytearray)) or len(pixels) < need:
-        return f'{len(pixels) if isinstance(pixels, (bytes, bytearray)) else "no"} bytes of pixels, {need} needed'
-    return ''
-
-
 def pixbuf_from_data(data, size):
-    problem = image_data_problem(data)
-    if problem:
-        raise ValueError(f'image-data: {problem}')
-    width, height, rowstride, has_alpha, bits, _channels, pixels = data
-    pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(GLib.Bytes.new(pixels), GdkPixbuf.Colorspace.RGB, has_alpha,
-                                             bits, width, height, rowstride)
-    return scale_to(pixbuf, size)
+    return scale_to(pixbuf_from_image_data(data), size)
 
 
 def load_pixbuf(source, size):

@@ -516,3 +516,67 @@ def test_not_paused_at_shutdown_restores_nothing(make_manager, tmp_path):
     m.shutdown()
     again, *_ = make_manager(state_path=state)
     assert not again.paused and again.held_back == [] and again.active == {}
+
+
+def image_data(width=80, height=40):
+    return (width, height, width * 3, False, 8, 3, bytes(width * height * 3))
+
+
+POP_RULES = 'rules:\n- match: {process: musicman}\n  run: notify-hook\n  sound: bell\n  markup: plain\n'
+
+
+def test_history_keeps_icon_image_markup_and_a_thumbnail(make_manager, tmp_path):
+    thumbs = tmp_path / 'thumbs'
+    m, *_ = make_manager(POP_RULES, thumbs_path=thumbs)
+    sender = {'process': 'musicman', 'parent': 'bash', 'desktop_entry': 'musicman'}
+    a = m.notify('Spotify', summary='<b>Song</b>', app_icon='spotify', hints={'image-data': image_data()},
+                 sender=sender)
+    b = m.notify('chat', summary='hi', hints={'image-path': '/tmp/avatar.png'})
+    m.close(a)
+    m.close(b)
+    first, second = m.history.entries
+    assert first['app_icon'] == 'spotify' and first['markup'] == 'plain' and first['sender'] == sender
+    assert first['thumb'] == str(thumbs / f'{a}.png')
+    from gi.repository import GdkPixbuf
+    pixbuf = GdkPixbuf.Pixbuf.new_from_file(first['thumb'])
+    assert (pixbuf.get_width(), pixbuf.get_height()) == (64, 32)          # at most 64 px, aspect kept
+    assert oct((thumbs / f'{a}.png').stat().st_mode & 0o777) == '0o600'
+    assert second['image'] == '/tmp/avatar.png' and 'thumb' not in second and 'markup' not in second
+
+
+def test_pop_brings_back_icon_image_and_sender_without_run_or_sound(make_manager, tmp_path):
+    m, *_ = make_manager(POP_RULES, thumbs_path=tmp_path / 'thumbs')
+    nid = m.notify('Spotify', summary='Song', app_icon='spotify', hints={'image-data': image_data()},
+                   sender={'process': 'musicman', 'desktop_entry': 'musicman'})
+    assert m.ran == [('run', 'notify-hook', nid)] and m.sounds == ['bell']
+    m.close(nid)
+    again = m.pop(nid)
+    n = m.active[again]
+    assert n.app_icon == 'spotify' and n.hints['image-path'] == str(tmp_path / 'thumbs' / f'{nid}.png')
+    assert n.sender['process'] == 'musicman' and n.hints['desktop-entry'] == 'musicman'
+    assert n.settings['markup'] == 'plain'                                # sender rules match again
+    assert m.ran == [('run', 'notify-hook', nid)] and m.sounds == ['bell']  # but stay quiet
+
+
+def test_thumbnails_go_with_their_history_entries(make_manager, tmp_path):
+    thumbs = tmp_path / 'thumbs'
+    m, *_ = make_manager('history: {size: 2}', thumbs_path=thumbs)
+    ids = []
+    for i in range(3):
+        nid = m.notify('a', summary=f's{i}', hints={'image-data': image_data(4, 4)})
+        m.close(nid)
+        ids.append(nid)
+    assert sorted(p.name for p in thumbs.iterdir()) == [f'{ids[1]}.png', f'{ids[2]}.png']   # s0 fell out
+    popped = m.pop(ids[1])
+    m.close(popped)                                     # its entry points at ids[1]'s thumbnail
+    assert m.history.entries[-1]['image'] == str(thumbs / f'{ids[1]}.png')
+    assert (thumbs / f'{ids[1]}.png').exists()        # kept: the popped entry still shows it
+    m.forget()
+    assert list(thumbs.iterdir()) == []
+
+
+def test_malformed_image_data_makes_no_thumbnail(make_manager, tmp_path):
+    m, *_ = make_manager(thumbs_path=tmp_path / 'thumbs')
+    nid = m.notify('a', summary='s', hints={'image-data': (10, 10, 4000000, False, 8, 3, bytes(400))})
+    m.close(nid)
+    assert 'thumb' not in m.history.entries[-1]

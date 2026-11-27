@@ -293,6 +293,13 @@ from gi.repository import Gdk, GLib, Gtk
 sys.path.insert(0, sys.argv[2])
 from conftest import FakeScheduler
 
+def widgets(root, kind):
+    found = [root] if isinstance(root, kind) else []
+    if isinstance(root, Gtk.Container):
+        for child in root.get_children():
+            found += widgets(child, kind)
+    return found
+
 def spin(ms):
     end = time.monotonic() + ms / 1000
     while time.monotonic() < end:
@@ -386,6 +393,23 @@ manager.config.settings['center']['keyboard'] = False
 center.toggle('show')
 spin(100)
 assert center.visible and not center.grabbed
+
+# a history card shows the kept thumbnail of an image-data picture, and its markup mode
+import tempfile
+from pathlib import Path
+manager.thumbs_path = Path(tempfile.mkdtemp())
+manager.config.settings['rules'] = load_config(text='rules:\n- match: {app: pic}\n  markup: plain\n').settings['rules']
+pic = manager.notify('pic', summary='<b>raw</b>', hints={'image-data': (8, 8, 24, False, 8, 3, bytes(192))})
+spin(100)
+open_card = [c for c in center.cards if c[1]['id'] == pic and c[2]][0][0]
+assert widgets(open_card, Gtk.Image), 'the open card shows its image-data'
+manager.close(pic)
+center.refresh()
+spin(100)
+card = [c for c in center.cards if c[1]['id'] == pic][0][0]
+images = widgets(card, Gtk.Image)
+assert images and images[0].get_pixbuf() is not None and manager.history.entries[-1]['thumb']
+assert [l for l in widgets(card, Gtk.Label) if l.get_text() == '<b>raw</b>'], 'plain markup kept in history'
 print('ok')
 """
 

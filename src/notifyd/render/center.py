@@ -23,6 +23,7 @@ from gi.repository import Gdk, Gio, GLib, Gtk, Pango
 
 from notifyd import art, mpris, volume
 from notifyd.config import ConfigError, load_preset
+from notifyd.images import IMAGE_HINTS
 from notifyd.markup import prepare
 from notifyd.model import DISMISSED
 from notifyd.render.css import build_css, resolve_style, style_class
@@ -428,8 +429,27 @@ class Center:
         slot.pack_start(Gtk.Image.new_from_pixbuf(pixbuf), False, False, 0)
         slot.show_all()
 
+    CARD_PICTURE = 32
+
+    def card_picture(self, entry, opened):
+        """A card's picture: an open one's image-data, else the kept thumbnail, image path or app icon."""
+        n = self.manager.active.get(entry['id']) if opened else None
+        if n is not None:
+            for hint in IMAGE_HINTS:
+                if isinstance(n.hints.get(hint), tuple):
+                    picture = self.renderer.image_from_data(n, hint, self.CARD_PICTURE)
+                    if picture is not None:
+                        return picture
+        for key in ('thumb', 'image', 'app_icon'):
+            picture = self.renderer.load_image(entry.get(key), self.CARD_PICTURE)
+            if picture is not None:
+                return picture
+        return None
+
     def card(self, entry, style, opened):
         classes = style.get('classes') or {}
+        n = self.manager.active.get(entry['id']) if opened else None
+        mode = (n.settings.get('markup') if n is not None else entry.get('markup')) or 'full'
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         context = box.get_style_context()
         context.add_class('center-card')
@@ -439,7 +459,7 @@ class Center:
                        True, True, 0)
         stamp = time.strftime('%H:%M', time.localtime(entry.get('received', time.time())))
         top.pack_start(self.renderer.label(stamp, 'time', wrap=False), False, False, 0)
-        flag = self.renderer.markup_flag(entry.get('summary'), entry.get('body'), 'full', classes)
+        flag = self.renderer.markup_flag(entry.get('summary'), entry.get('body'), mode, classes)
         if flag is not None:
             top.pack_start(flag, False, False, 0)
         close = Gtk.Button(label='×')
@@ -451,13 +471,25 @@ class Center:
             close.connect('clicked', lambda _b: self.forget(nid))
         top.pack_end(close, False, False, 0)
         box.pack_start(top, False, False, 0)
+        text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         if entry.get('summary'):
-            box.pack_start(self.renderer.label(prepare(entry['summary'], 'full', classes), 'title'), False, False, 0)
+            text.pack_start(self.renderer.label(prepare(entry['summary'], mode, classes), 'title'), False, False, 0)
         if entry.get('body'):
-            body = self.renderer.label(prepare(entry['body'], 'full', classes), 'body')
+            body = self.renderer.label(prepare(entry['body'], mode, classes), 'body')
             body.set_lines(3)
             body.set_ellipsize(Pango.EllipsizeMode.END)
-            box.pack_start(body, False, False, 0)
+            text.pack_start(body, False, False, 0)
+        picture = self.card_picture(entry, opened)
+        if picture is not None:
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            image = Gtk.Image.new_from_pixbuf(picture)
+            image.get_style_context().add_class('card-picture')
+            image.set_valign(Gtk.Align.START)
+            row.pack_start(image, False, False, 0)
+            row.pack_start(text, True, True, 0)
+            box.pack_start(row, False, False, 0)
+        else:
+            box.pack_start(text, False, False, 0)
         events = Gtk.EventBox()
         events.set_visible_window(False)
         events.add(box)

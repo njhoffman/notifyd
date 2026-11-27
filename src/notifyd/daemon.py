@@ -4,7 +4,7 @@ import signal
 
 from gi.repository import Gio, GLib
 
-from notifyd import __version__
+from notifyd import __version__, art
 from notifyd.config import ConfigError, default_path, load_config, load_preset
 from notifyd.effects import Runner, SoundPlayer, XIdle
 from notifyd.history import default_path as history_default_path
@@ -150,7 +150,8 @@ class Daemon:
         idle = XIdle() if self.renderer_name == 'gtk' else None
         self.manager = Manager(config, self.log, GLibScheduler(), history_path=history_path,
                                state_path=history_default_path().with_name('state.json'),
-                               runner=Runner(self.log), sound=SoundPlayer(self.log), idle=idle)
+                               runner=Runner(self.log), sound=SoundPlayer(self.log), idle=idle,
+                               thumbs_path=art.cache_dir().with_name('thumbs'))
         try:
             self.renderer = self.make_renderer()
         except RuntimeError as exc:

@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-26
+
+### Added
+
+- History entries keep the app icon, the image path, the markup mode and the sender, and an image
+  sent as image-data is kept as a 64 px thumbnail in `$XDG_CACHE_HOME/notifyd/thumbs/` (0600,
+  removed with its entry). Center cards show the picture and render in the markup mode the popup
+  used.
+
+### Changed
+
+- `ctl pop` (and Enter or a click in the center) brings a notification back with its icon, image
+  and sender, so sender rules match it again; rules still style it, but their `run:` commands and
+  sounds do not fire a second time.
+
 ## [0.12.9] - 2026-11-26
 
 ### Fixed

@@ -12,6 +12,7 @@ from pathlib import Path
 from notifyd.effects import sound_for
 from notifyd.files import write_private
 from notifyd.history import History
+from notifyd.images import prune_thumbnails, save_thumbnail
 from notifyd.markup import markup_error
 from notifyd.model import CLOSED, DISMISSED, EXPIRED, REASON_NAMES, UNDEFINED, Notification, actions_from_list
 from notifyd.rules import resolve
@@ -55,7 +56,7 @@ class NullRenderer:
 
 class Manager:
     def __init__(self, config, log, scheduler, renderer=None, on_closed=None, on_action=None, history_path=None,
-                 state_path=None, runner=None, sound=None, idle=None):
+                 state_path=None, runner=None, sound=None, idle=None, thumbs_path=None):
         self.config = config
         self.log = log
         self.scheduler = scheduler
@@ -75,12 +76,14 @@ class Manager:
         self.sound = sound or (lambda name: None)
         self.idle = idle or (lambda: 0)
         self.state_path = Path(state_path) if state_path else None
+        self.thumbs_path = Path(thumbs_path) if thumbs_path else None   # image-data kept for the history
         state = self._load_state()
         self.mode = state.get('mode') or 'normal'
         # ids go on from the kept history, so pop and forget never mix up an old one with a new one
         self.next_id = max((e.get('id', 0) for e in self.history), default=0) % 0xFFFFFFFF + 1
         if state.get('paused') is True:
             self._restore_held(state.get('held'))
+        self._prune_thumbnails()                  # of entries that did not survive the restart
 
     # -- incoming -------------------------------------------------------
     def notify(self, app='', replaces_id=0, app_icon='', summary='', body='', actions=(), hints=None,
@@ -404,6 +407,7 @@ class Manager:
         removed = self.history.remove(nid)
         if removed:
             self.log.emit('history', message=f'forgot {removed}')
+            self._prune_thumbnails()
         return removed
 
     def pop(self, nid=0):
@@ -415,7 +419,15 @@ class Manager:
         hints = {'urgency': ('low', 'normal', 'critical').index(entry.get('urgency', 'normal'))}
         if entry.get('category'):
             hints['category'] = entry['category']
-        return self.notify(entry.get('app', ''), 0, '', entry.get('summary', ''), entry.get('body', ''), [], hints)
+        image = entry.get('image') or entry.get('thumb')
+        if image:
+            hints['image-path'] = image
+        if (entry.get('sender') or {}).get('desktop_entry'):
+            hints['desktop-entry'] = entry['sender']['desktop_entry']
+        # a look back, not a new arrival: rules style it again, but their commands and sounds stay quiet
+        return self.notify(entry.get('app', ''), 0, entry.get('app_icon', ''), entry.get('summary', ''),
+                           entry.get('body', ''), [], hints, extra={'run': None, 'sound': False},
+                           sender=entry.get('sender'))
 
     def reload(self, config):
         self.config = config
@@ -428,7 +440,27 @@ class Manager:
         entry = n.summary_dict()
         entry['closed'] = REASON_NAMES.get(reason) if reason else 'suppressed'
         entry['closed_at'] = time.time()
+        if n.settings.get('markup', 'full') != 'full':
+            entry['markup'] = n.settings['markup']
+        if self.thumbs_path and 'image' not in entry:
+            thumb = save_thumbnail(n.hints, self.thumbs_path, n.id)
+            if thumb:
+                entry['thumb'] = str(thumb)
         self.history.append(entry)
+        self._prune_thumbnails()
+
+    def _prune_thumbnails(self):
+        """Thumbnails go with their history entries; one a popped entry's image points at stays."""
+        if not (self.thumbs_path and self.thumbs_path.is_dir()):
+            return
+        keep = set()
+        for entry in self.history:
+            keep.add(entry.get('id'))
+            for key in ('thumb', 'image'):
+                path = Path(str(entry.get(key) or ''))
+                if path.parent == self.thumbs_path and path.stem.isdigit():
+                    keep.add(int(path.stem))
+        prune_thumbnails(self.thumbs_path, keep)
 
     def listing(self):
         """Open notifications: on screen (newest first), waiting, held back."""
