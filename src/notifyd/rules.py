@@ -37,6 +37,10 @@ MATCH_FIELDS = {
 # dunst's per-notification color hints, as style keys (rules still override them)
 COLOR_HINTS = {'fgcolor': ('foreground',), 'bgcolor': ('background',), 'frcolor': ('border-color',),
                'hlcolor': ('progress', 'color')}
+# fgcolor colors all the text, as in dunst, so it also replaces the colors presets give the parts and the
+# urgencies; the header's app name and time stay quieter than the text by opacity
+FG_PARTS = {'title': {}, 'title-end': {}, 'body': {}, 'count': {}, 'appname': {'opacity': 0.75},
+            'time': {'opacity': 0.75}}
 REWRITE_KEYS = {'summary', 'body', 'app', 'urgency', 'stack-tag'}
 SETTING_KEYS = TOP_LEVEL - {'rules', 'log', 'click', 'max-visible', 'position', 'center', 'lock',
                             'indicate-waiting'}
@@ -169,36 +173,46 @@ def _apply_rewrite(n, rewrite, captures):
             setattr(n, key, str(template).format_map(fields))
 
 
-def hint_style(hints):
+def hint_style(hints, rules_set_foreground=False):
+    """The style dunst's color hints in HINTS ask for. fgcolor is left out when RULES_SET_FOREGROUND (a matching
+    rule's foreground wins over it, parts and all)."""
     style = {}
     for hint, path in COLOR_HINTS.items():
         value = hints.get(hint)
-        if isinstance(value, str) and value:
-            if len(path) == 1:
-                style[path[0]] = value
-            else:
-                style.setdefault(path[0], {})[path[1]] = value
+        if not (isinstance(value, str) and value) or (hint == 'fgcolor' and rules_set_foreground):
+            continue
+        if len(path) == 1:
+            style[path[0]] = value
+        else:
+            style.setdefault(path[0], {})[path[1]] = value
+        if hint == 'fgcolor':
+            for part, extra in FG_PARTS.items():
+                style[part] = {'color': value, **extra}
+            for urgency in URGENCY_NAMES:
+                style[urgency] = {'foreground': value}
     return style
 
 
 def resolve(config, n, extra=None):
     """Apply CONFIG's rules to notification N in place: its settings, matched rule names and timeout.
     EXTRA (a settings mapping) goes on top of everything, for previews."""
-    settings = config.base()
-    hinted = hint_style(n.hints)
-    if hinted:
-        settings = deep_merge(settings, {'style': hinted})
+    ruled = {}            # the matching rules' settings, merged: they go on top of the hints'
     rule_timeout = None
     n.rules = []
     for rule in config.rules:
         captures = rule.match(n)
         if captures is None:
             continue
-        settings = deep_merge(settings, rule.modify)
+        ruled = deep_merge(ruled, rule.modify)
         _apply_rewrite(n, rule.rewrite, captures)
         n.rules.append(rule.name)
         if 'timeout' in rule.modify:
             rule_timeout = rule.modify['timeout']
+    settings = config.base()
+    hinted = hint_style(n.hints, rules_set_foreground='foreground' in (ruled.get('style') or {}))
+    if hinted:
+        settings = deep_merge(settings, {'style': hinted})
+    settings = deep_merge(settings, ruled)
     if extra:
         settings = deep_merge(settings, extra)
         if 'timeout' in extra:

@@ -215,6 +215,41 @@ def test_notifyd_send_quits_on_the_first_action_of_a_resident_one(bus, daemon):
     assert [n['id'] for n in json.loads(run(bus, 'ctl', 'list', '--json').stdout)] == [int(nid)]   # still open
 
 
+def test_deadd_control_messages(bus, daemon, tmp_path):
+    daemon('', '--renderer', 'none')
+
+    def control(kind, form='boolean:deadd-notification-center:true'):
+        return subprocess.run([*NOTIFYD_SEND, '-w', '-a', 'notify-daemon', '-h', form, '-h', f'string:type:{kind}',
+                               'a'], env=bus, capture_output=True, text=True, timeout=20)
+
+    def status():
+        return dict(line.split(None, 1) for line in run(bus, 'ctl', 'status').stdout.splitlines())
+
+    run(bus, 'send', 'one')
+    run(bus, 'send', 'two')
+    assert control('clearPopups').returncode == 0                       # -w returned: the id was closed
+    assert status()['displayed'] == '0'
+    assert control('pausePopups', 'int:deadd-notification-center:1').returncode == 0
+    assert status()['paused'] == 'True'
+    assert control('unpausePopups').returncode == 0
+    assert status()['paused'] == 'False'
+    assert len(json.loads(run(bus, 'ctl', 'history', '--json').stdout)) == 2
+    assert control('clearInCenter').returncode == 0
+    assert json.loads(run(bus, 'ctl', 'history', '--json').stdout) == []
+    assert control('reloadStyle').returncode == 0
+    assert control('bogus').returncode == 0
+    log = events(tmp_path)
+    assert not [e for e in log if e.get('n') and e['n']['app'] == 'notify-daemon']   # never shown or kept
+    said = [e['message'] for e in log if e['event'] in ('info', 'warn') and 'deadd control' in e.get('message', '')]
+    assert [m.rsplit(': ', 1)[-1] for m in said[:5]] == ['clearPopups', 'pausePopups', 'unpausePopups',
+                                                        'clearInCenter', 'reloadStyle']
+    assert "unknown type 'bogus'" in said[5]
+    assert 'reload' in [e['event'] for e in log]
+    # false (or 0) is not a control message
+    run(bus, 'send', '-h', 'boolean:deadd-notification-center:false', '-h', 'string:type:clearPopups', 'shown')
+    assert [e['n']['summary'] for e in events(tmp_path) if e['event'] == 'shown'][-1] == 'shown'
+
+
 def test_second_daemon_names_the_owner(bus, daemon, tmp_path):
     daemon('', '--renderer', 'none')
     other = subprocess.run([*NOTIFYD, 'daemon', '--renderer', 'none', '--log-format', 'pretty'], env=bus,

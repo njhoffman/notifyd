@@ -191,6 +191,10 @@ class Manager:
         if self.paused:
             self._save_state()
 
+    def reserve_id(self):
+        """An id for a reply that shows nothing (a control message)."""
+        return self._new_id()
+
     def _new_id(self):
         nid = self.next_id
         self.next_id = self.next_id + 1 if self.next_id < 0xFFFFFFFF else 1

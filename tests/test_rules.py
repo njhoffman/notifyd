@@ -134,11 +134,38 @@ def test_bad_rules_raise(rule):
 def test_dunst_color_hints_become_style_and_rules_override_them():
     n = resolved('', app='x', hints={'fgcolor': '#ff0000', 'bgcolor': '#000000', 'frcolor': '#00ff00',
                                     'hlcolor': '#0000ff'})
-    assert n.settings['style'] == {'foreground': '#ff0000', 'background': '#000000', 'border-color': '#00ff00',
-                                   'progress': {'color': '#0000ff'}}
+    style = n.settings['style']
+    assert {k: style[k] for k in ('foreground', 'background', 'border-color', 'progress')} == \
+        {'foreground': '#ff0000', 'background': '#000000', 'border-color': '#00ff00', 'progress': {'color': '#0000ff'}}
     ruled = resolved("rules:\n  - match: {app: x}\n    style: {foreground: '#fff'}\n", app='x',
                      hints={'fgcolor': '#ff0000'})
-    assert ruled.settings['style'] == {'foreground': '#fff'}
+    assert ruled.settings['style'] == {'foreground': '#fff'}      # the rule's foreground wins, parts and all
+
+
+def test_fgcolor_colors_every_part_and_urgency():
+    style = resolved('', app='x', hints={'fgcolor': '#123456'}).settings['style']
+    for part in ('title', 'title-end', 'body', 'count', 'appname', 'time'):
+        assert style[part]['color'] == '#123456', part
+    assert style['appname']['opacity'] < 1 and 'opacity' not in style['title']
+    assert {u: style[u] for u in ('low', 'normal', 'critical')} == {u: {'foreground': '#123456'}
+                                                                    for u in ('low', 'normal', 'critical')}
+    # a rule's part color, or its size, still goes on top
+    ruled = resolved("rules:\n  - match: {app: x}\n    style: {title: {color: '#abcdef', size: 20px}}\n", app='x',
+                     hints={'fgcolor': '#123456'}).settings['style']
+    assert ruled['title'] == {'color': '#abcdef', 'size': '20px'} and ruled['body']['color'] == '#123456'
+
+
+def test_fgcolor_beats_the_preset_part_colors_in_css():
+    from notifyd.config import load_preset
+    from notifyd.render.css import build_css, resolve_style
+    n = resolved('preset: tokyonight\n', app='x', hints={'fgcolor': '#123456'})
+    style = resolve_style(load_preset('tokyonight')['style'], n.settings['style'])   # as the renderer does
+    assert style['title']['color'] == '#123456' and style['appname']['color'] == '#123456'
+    assert style['title']['size'] == '14px'                                       # the rest of the preset stays
+    css = build_css(style, '.n')
+    for preset_color in ('#c0caf5', '#7dcfff', '#565f89'):              # title, appname, time
+        assert preset_color not in css.lower(), preset_color
+    assert '.critical label { color: #123456; }' in css                 # critical text too (its frame stays red)
 
 
 def test_match_on_the_sending_process_and_its_parent():

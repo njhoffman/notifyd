@@ -234,8 +234,8 @@ stacking() {
 
 styles() {
   title 'Styles'
-  shell "notifyd-send --fg '#ffd7d7' --bg '#5a1d1d' --frame '#ff5555' ..."
-  "$send" -a demo --fg '#ffd7d7' --bg '#5a1d1d' --frame '#ff5555' 'Colors per notification' \
+  shell "notifyd-send --fg '#1a1b26' --bg '#e0af68' --frame '#ff9e64' ..."
+  "$send" -a demo --fg '#1a1b26' --bg '#e0af68' --frame '#ff9e64' 'Colors per notification' \
     "--fg, --bg and --frame: dunst's color hints"
   pause 1.5
   "$send" -a demo-style 'Styled by a rule' 'background, border, radius, title and body colors, and raw CSS'

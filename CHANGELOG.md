@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-11-27
+
+### Added
+
+- deadd's control messages: a notification with the hint `deadd-notification-center` (true or 1) and a
+  `type` of `pausePopups`, `unpausePopups`, `clearPopups`, `clearInCenter` or `reloadStyle` pauses,
+  resumes, clears the popups, forgets the history or reloads the config, and is never shown or kept.
+  Scripts written for deadd (`notify-daemon` clearing popups) keep working.
+
+### Fixed
+
+- dunst's `fgcolor` hint (`notifyd-send --fg`) colors all of a notification's text, as in dunst: the
+  title, title end, body, count, app name and time (those two a little dimmer) and the urgency's text
+  color, where presets that color those parts kept their own colors. A matching rule's `foreground`
+  still wins over it.
+
 ## [0.34.0] - 2026-11-27
 
 ### Added

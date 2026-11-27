@@ -11,7 +11,7 @@ import socket
 from gi.repository import Gio, GLib
 
 from notifyd import __version__
-from notifyd.model import CLOSED
+from notifyd.model import CLOSED, EXPIRED
 
 BUS_NAME = 'org.freedesktop.Notifications'
 CONTROL_NAME = 'io.github.njhoffman.Notifyd'
@@ -100,6 +100,11 @@ INTROSPECTION = f'''
 '''
 
 IMAGE_HINTS = ('image-data', 'image_data', 'icon_data')
+# deadd-notification-center's control messages: a notification with this hint (true, or 1) and a `type`
+# hint is a command, not something to show (notify-send -h int:deadd-notification-center:1
+# -h string:type:pausePopups), so scripts written for deadd keep working
+DEADD_CONTROL = 'deadd-notification-center'
+DEADD_TYPES = ('pausePopups', 'unpausePopups', 'clearPopups', 'clearInCenter', 'reloadStyle')
 
 
 def unpack_hints(variant):
@@ -150,6 +155,32 @@ class Server:
 
     def emit_closed(self, nid, reason):
         self._signal(IFACE, 'NotificationClosed', GLib.Variant('(uu)', (nid, reason)))
+
+    def deadd_control(self, kind, app, sender):
+        """Carry out deadd's control message KIND; nothing is shown or kept. The sender gets an id, closed
+        right after the reply, so `notify-send -w` returns."""
+        m = self.manager
+        who = self.sender_info(sender).get('process') or app or sender
+        if kind == 'pausePopups':
+            m.pause(True)
+        elif kind == 'unpausePopups':
+            m.pause(False)
+        elif kind == 'clearPopups':
+            m.close_all()
+        elif kind == 'clearInCenter':
+            m.forget()
+        elif kind == 'reloadStyle':
+            if self.control is not None:
+                self.control.reload()
+        else:
+            self.log.warn(f'deadd control message from {who}: unknown type {kind!r} '
+                          f'(known: {", ".join(DEADD_TYPES)}); ignored')
+            kind = None
+        if kind:
+            self.log.info(f'deadd control message from {who}: {kind}')
+        nid = m.reserve_id()
+        GLib.idle_add(lambda: self.emit_closed(nid, EXPIRED) and False)
+        return nid
 
     def sender_info(self, name):
         """{pid, process, parent} of the client behind bus name NAME, or {} (no bus, gone, not Linux).
@@ -205,6 +236,8 @@ class Server:
                 actions = params.get_child_value(5).unpack()
                 hints = unpack_hints(params.get_child_value(6))
                 timeout = params.get_child_value(7).unpack()
+                if hints.get(DEADD_CONTROL):
+                    return GLib.Variant('(u)', (self.deadd_control(hints.get('type'), app, sender),))
                 nid = m.notify(app, replaces, icon, summary, body, actions, hints, timeout,
                                sender=self.sender_info(sender))
                 return GLib.Variant('(u)', (nid,))

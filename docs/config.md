@@ -201,6 +201,9 @@ Flags for hints that otherwise take `-h TYPE:NAME:VALUE`:
 | `--resident` | `resident`: stays open after an action |
 | `--fg`, `--bg`, `--frame`, `--highlight COLOR` | dunst's `fgcolor`, `bgcolor`, `frcolor`, `hlcolor` |
 
+deadd's control messages work too: a notification with the hint `deadd-notification-center` (true or 1) and a `type` of `pausePopups`, `unpausePopups`, `clearPopups`, `clearInCenter` (forget the history) or `reloadStyle` (reload the config) is carried out, logged, and never shown or kept, so scripts written for deadd keep working:
+`notifyd-send -h int:deadd-notification-center:1 -h string:type:clearPopups x`.
+
 `-h variant:NAME:TEXT` sends any GVariant (`-h 'variant:x-list:[1, 2]'`).
 `notifyd-send --completion zsh|bash|fish` prints its completion script.
 
@@ -213,5 +216,5 @@ running `examples/demo.yaml`, whose rules are commented with the step each one s
 close-all | pause | resume | toggle | mode [NAME] | reload | preset NAME | preview [PRESET] | watch [--json]`.
 `ctl bar [--follow]` prints a status-bar line (do not disturb, the mode, how many are held back;
 see `notifyd help ctl bar` for a polybar module). `history --pick` picks one in fzf and shows it again. Each notification records its `sender` (the sending process's pid and name, its parent's name, and the `desktop-entry` hint): in `history --json`, `list --json` and `watch --json`, and as `via PROCESS (PARENT)` on `watch` lines. In the center: `j`/`k` or the arrows move between cards (and load more past the last), `g`/`G` first and last, `Enter` acts like a left click (shows a closed one again), `d`/`Delete` closes or forgets it, `C` clears, `e` shows the whole body of the selected card, `i` its details (app, icon, picture, sender, rules, times), `a` switches the history between grouped by app and one list, `p` toggles do not disturb, `m` the next mode, `space`/`n`/`N` play-pause, next and previous, `+`/`-` the volume, `?` or `Ctrl+/` shows a small window with all of these (any key closes it), `Esc`/`Ctrl+[`/`q` (or `center.toggle-key`) closes it. Center cards are built like the popups, each with its own style, preset, hidden parts and picture
-sizes (history entries get today's rules again); the style key `center-selected` outlines the selected card. dunst's color hints (`fgcolor`, `bgcolor`, `frcolor`, `hlcolor`) color a single notification. `watch` streams the daemon's
+sizes (history entries get today's rules again); the style key `center-selected` outlines the selected card. dunst's color hints (`fgcolor`, `bgcolor`, `frcolor`, `hlcolor`) color a single notification; `fgcolor` colors all its text, the preset's title, app name, time and urgency colors included (app name and time stay a little dimmer), unless a rule that matches sets `foreground`. `watch` streams the daemon's
 event log, colored, or as JSON lines.

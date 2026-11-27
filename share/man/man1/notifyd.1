@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.34.0" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.35.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -201,7 +201,8 @@ It stays open after an action is chosen.
 .TP
 .BR \-\-fg ", " \-\-bg ", " \-\-frame ", " \-\-highlight " \fIcolor\fR"
 dunst's fgcolor, bgcolor, frcolor and hlcolor hints: the text, background, border and progress bar
-color of this notification.
+color of this notification. fgcolor colors all its text, over the preset's part and urgency colors,
+unless a matching rule sets foreground.
 .TP
 .BR \-A ", " \-\-action " [\fIname\fB=\fR]\fItext\fR"
 A button (also
@@ -610,6 +611,14 @@ in the source tree checks the protocol behavior of whichever daemon owns the bus
 stack tags, NotificationClosed reasons, expiry, capabilities);
 .B just compliance
 compares notifyd, dunst and deadd side by side.
+.PP
+deadd's control messages are understood: a notification with the hint
+.B deadd\-notification\-center
+(true or 1) and a
+.B type
+hint of pausePopups, unpausePopups, clearPopups,
+clearInCenter (forget the history) or reloadStyle (reload the config) is carried out and logged, never
+shown or kept.
 .SH SEE ALSO
 .BR notify\-send (1),
 .BR dunst (1),
