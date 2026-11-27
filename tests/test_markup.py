@@ -103,3 +103,18 @@ def test_link_text_in_strip_mode_and_plain_text():
 ])
 def test_only_web_and_mail_links_open(uri, ok):
     assert safe_link(uri) is ok
+
+
+@pytest.mark.parametrize('text, expected', [
+    ('a&nbsp;b <b>x</b>', 'a&#160;b <b>x</b>'),                 # HTML names Pango lacks become numbers
+    ('wait&hellip; &mdash; &copy;', 'wait&#8230; &#8212; &#169;'),
+    ('&foo; <b>y</b>', '&amp;foo; <b>y</b>'),                    # unknown names show as typed, markup kept
+    ('&amp; &lt; &gt; &quot; &apos; &#65; &#x41;', '&amp; &lt; &gt; &quot; &apos; &#65; &#x41;'),
+])
+def test_html_entities(text, expected):
+    assert prepare(text) == expected
+    assert markup_error(text) == ''
+
+
+def test_html_entities_in_plain_text():
+    assert plain_text(prepare('a&nbsp;b&hellip;')) == 'a\u00a0b\u2026'

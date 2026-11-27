@@ -11,6 +11,7 @@ the popup and the center can flag it instead of silently showing tags.
 """
 
 import html
+import html.entities
 import re
 
 import gi
@@ -24,6 +25,8 @@ _BR = re.compile(r'<br\s*/?>', re.I)
 _IMG = re.compile(r'<img\b[^>]*>', re.I)
 _ALT = re.compile(r'''\balt\s*=\s*(["'])(.*?)\1''', re.I | re.S)
 _BARE_AMP = re.compile(r'&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#x[0-9a-fA-F]+);)')
+_NAMED_ENTITY = re.compile(r'&([a-zA-Z][a-zA-Z0-9]*);')
+_XML_ENTITIES = {'amp', 'lt', 'gt', 'quot', 'apos'}
 _BARE_LT = re.compile(r'<(?![A-Za-z/!?])')   # "a < b", "<3": cannot start a tag
 # Pango span attributes (and the short forms) a class may set
 SPAN_ATTRS = {
@@ -116,9 +119,21 @@ def _alt_text(found):
     return alt.group(2) if alt else ''
 
 
+def _entity(found):
+    """An HTML entity Pango does not know (&nbsp; &hellip;) as a number; an unknown one as text."""
+    name = found.group(1)
+    if name in _XML_ENTITIES:
+        return found.group(0)
+    code = html.entities.name2codepoint.get(name)
+    return f'&#{code};' if code else f'&amp;{name};'
+
+
 def _normalize(text, classes):
-    """TEXT with <br>, <img> and span classes turned into Pango, and a bare & fixed when that helps."""
+    """TEXT with <br>, <img>, HTML entities and span classes turned into Pango, and a bare & or <
+    fixed when that helps."""
     text = _BR.sub('\n', text or '')
+    if '&' in text:
+        text = _NAMED_ENTITY.sub(_entity, text)
     text = _IMG.sub(_alt_text, text)
     text = expand_classes(text, classes)
     if not parses(text):

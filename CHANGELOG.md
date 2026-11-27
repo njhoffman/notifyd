@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.3] - 2026-11-26
+
+### Fixed
+
+- HTML entities Pango does not know (`&nbsp;`, `&hellip;`, `&mdash;`, `&copy;`, which browsers and
+  chat apps send) no longer turn the whole text into escaped markup: they become their
+  characters. An unknown one (`&foo;`) is shown as typed and the rest of the markup still renders.
+
 ## [0.12.2] - 2026-11-26
 
 ### Fixed

@@ -54,7 +54,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       Any session client can kill the daemon. Require `bits == 8`, `channels == 3 + has_alpha`,
       `0 < w,h <= 4096`, `rowstride >= w*channels`, `len >= rowstride*(h-1) + w*channels`; add
       image-data tests (there are none). Upstream: mako#629, swaync#610.
-- [ ] **HTML named entities break the text.** (p2) [bug] `&nbsp;`, `&hellip;`, `&copy;` are not
+- [x] **HTML named entities break the text.** (p2) [bug] `&nbsp;`, `&hellip;`, `&copy;` are not
       Pango entities, so the whole body is shown as typed; a raw `&` inside an attribute
       (`href="?a=1&b=2"`) is not fixed either. Map `html.entities.name2codepoint` names to `&#N;`
       in `markup._normalize` and escape bare `&` in attribute values. Upstream: dunst#1399,
