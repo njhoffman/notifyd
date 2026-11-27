@@ -363,6 +363,23 @@ title = [l for l in labels(renderer.windows[capped]) if l.get_text().startswith(
 assert title and title[0].get_lines() == 2 and title[0].get_ellipsize() == Pango.EllipsizeMode.END
 manager.close_all()
 
+# the title-end hint: right of the title on its line, never cut, quieter by style; hiding the title hides it
+ended = manager.notify('b', summary=' '.join(['word'] * 400), body='x',
+                       hints={'x-notifyd-title-end': '<span foreground="#ff8fc7">h</span> 4.5'})
+found = labels(renderer.windows[ended])
+end = [l for l in found if l.get_text() == 'h 4.5']
+title = [l for l in found if l.get_text().startswith('word word')]
+assert end and title, [l.get_text() for l in found]
+assert end[0].get_ellipsize() == Pango.EllipsizeMode.NONE and end[0].get_style_context().has_class('title-end')
+assert end[0].get_parent() is title[0].get_parent()                       # the same line
+assert end[0].get_parent().get_style_context().has_class('title-row')
+assert not [l for l in found if l.get_text() == 'markup error']
+broken = manager.notify('b', summary='t', hints={'x-notifyd-title-end': '<b>open'})
+assert [l for l in labels(renderer.windows[broken]) if l.get_text() == 'markup error']
+hidden = manager.notify('b', summary='t', hints={'x-notifyd-title-end': '4.5'}, extra={'hide': ['title']})
+assert not [l for l in labels(renderer.windows[hidden]) if l.get_text() == '4.5']
+manager.close_all()
+
 # fades: per window, a close during the fade-in replaces it, and a rule's fade.out counts
 import time as _time
 from gi.repository import GLib

@@ -4,7 +4,8 @@ Style keys, all optional:
 
     font-family, font-size, background, foreground, radius, border-width, border-color,
     padding: [vertical, horizontal] or one number, spacing (between rows),
-    title / body / appname / time / count: { size, weight, style, color, family },
+    title / title-end / body / appname / time / count: { size, weight, style, color, family, opacity },
+        (title-end: the x-notifyd-title-end hint at the right of the title; quieter than it by default)
     low / normal / critical: { background, foreground, border-color },
     progress: { color, background, height },
     timeout-bar: { color, background, height }   (drawn by the renderer, not CSS)
@@ -25,7 +26,10 @@ import json
 from notifyd.config import deep_merge
 
 PART_PROPS = {'size': 'font-size', 'weight': 'font-weight', 'style': 'font-style', 'color': 'color',
-              'family': 'font-family'}
+              'family': 'font-family', 'opacity': 'opacity'}
+
+# the title-end hint's look before the style's title-end key: plainer and dimmer than the title
+TITLE_END_DEFAULTS = {'font-weight': 'normal', 'font-style': 'normal', 'font-size': '85%', 'opacity': '0.65'}
 
 
 def px(value):
@@ -107,7 +111,8 @@ def card_rules(style, card):
     css += block(f'{card} .waiting', {'font-weight': 'bold', 'opacity': '0.7'})
     css += block(f'{card} label.markup-error', {
         'color': style.get('markup-error', '#e0af68'), 'font-size': '80%', 'font-weight': 'bold'})
-    for name in ('title', 'body', 'appname', 'time', 'count'):
+    css += block(f'{card} .title-end', TITLE_END_DEFAULTS)
+    for name in ('title', 'title-end', 'body', 'appname', 'time', 'count'):
         css += block(f'{card} .{name}', part_props(style.get(name)))
     progress = style.get('progress') or {}
     height = px(progress.get('height', 6))

@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.31.0" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.32.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -465,7 +465,7 @@ regex's named groups), urgency and stack\-tag. A rule's timeout wins over the se
 .PP
 Presets are YAML files with a
 .B style
-mapping: colors, radius, border, padding, fonts per part (title, body, appname, time), urgency
+mapping: colors, radius, border, padding, fonts per part (title, title-end, body, appname, time), urgency
 colors, progress bar, buttons, raw CSS, and named
 .B classes
 that notification text can use as

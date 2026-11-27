@@ -98,6 +98,14 @@ def test_every_preset_builds_css_gtk_accepts():
         provider.load_from_data(build_css(style, style_class(style)).encode())   # raises on a parse error
 
 
+def test_title_end_is_quieter_by_default_and_takes_its_own_style():
+    css = build_css({'title': {'weight': 'bold'}}, 'nd-x')
+    assert ('.nd-x .notification .title-end { font-weight: normal; font-style: normal; font-size: 85%; '
+            'opacity: 0.65; }') in css
+    css = build_css({'title-end': {'size': 12, 'color': '#888', 'opacity': 1}}, 'nd-x')
+    assert '.nd-x .notification .title-end { font-size: 12px; color: #888; opacity: 1; }' in css
+
+
 def test_raw_css_ampersand_is_the_scope():
     css = build_css({'css': '& .title { letter-spacing: 1px; }'}, 'nd-x')
     assert '.nd-x .title { letter-spacing: 1px; }' in css

@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-11-27
+
+### Added
+
+- The hint `x-notifyd-title-end` (Pango markup) is drawn at the right end of the title's line,
+  never cut short, plainer and dimmer than the title; the new `title-end` style key restyles it.
+  musicman puts a song's rating and Liked Songs heart there.
+- Style parts (`title`, `body`, `appname`, `time`, `count`, `title-end`) take `opacity`.
+
 ## [0.31.0] - 2026-11-27
 
 ### Added

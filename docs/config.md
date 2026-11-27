@@ -121,7 +121,8 @@ style:
   padding: [10, 15]                  # [vertical, horizontal]
   spacing: 4                         # between header, content, actions
   title: { size: 16px, weight: bold, color: '#fff', style: italic, family: Sans }
-  body: { ... }  appname: { ... }  time: { ... }  count: { ... }
+  title-end: { size: 12px, color: '#888', opacity: 1 }   # the x-notifyd-title-end hint (see Markup)
+  body: { ... }  appname: { ... }  time: { ... }  count: { ... }   # each part also takes opacity
   low: { background: ..., foreground: ..., border-color: ... }   # also normal, critical
   progress: { color: '#acf', background: '...', height: 6 }     # the value hint's bar
   timeout-bar: { color: '#00d7d7', background: transparent, height: 2 }   # with timeout-bar: true
@@ -134,7 +135,7 @@ style:
   css: '& .title { letter-spacing: 1px; }'   # raw GTK CSS; & is this style's scope
 ```
 
-For anything else, `css` can target the widgets' classes: `.title`, `.body`, `.appname`, `.time`,
+For anything else, `css` can target the widgets' classes: `.title`, `.title-row`, `.title-end`, `.body`, `.appname`, `.time`,
 `.count`, `.waiting` (the `+N`), `.markup-error`, `.image`, `.appicon`, and in the center
 `.center-card`, `.center-group`, `.center-button`, `.center-more`.
 
@@ -155,6 +156,16 @@ such as `file:`, is refused with a `warn` log line) and does not dismiss the not
 ```
 notifyd send 'Song' '<b>Artist</b> · Album
 <span class="tag">indie</span> <span class="muted">late night</span>'
+```
+
+The hint `x-notifyd-title-end` (a string, Pango markup) is drawn at the right end of the title's
+line: a rating, a count, a state. It is never cut short; the title is, when `title.max-lines` caps
+it. By default it is plainer and dimmer than the title (normal weight and style, 85% size, opacity
+0.65), and the `title-end` style key changes that. Hiding `title` hides it too; daemons that do not
+know it ignore it:
+
+```
+notifyd send -h 'string:x-notifyd-title-end:<span foreground="#ff8fc7">♥</span> 4.5' 'Song' 'Artist'
 ```
 
 Every bundled preset has `accent`, `muted`, `good`, `warn`, `bad` and `tag`. `<br>` and a closing

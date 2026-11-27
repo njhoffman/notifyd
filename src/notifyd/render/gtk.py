@@ -40,6 +40,8 @@ TIMEOUT_BAR_TICK = 100   # ms between timeout-bar updates
 TIMEOUT_BAR_DEFAULTS = {'color': '#00d7d7', 'background': 'transparent', 'height': 2}   # thin and cyan
 IMAGE_HINTS = ('image-data', 'image_data')
 IMAGE_PATH_HINTS = ('image-path', 'image_path')
+# markup drawn at the right end of the title line (a rating, a count): never cut, the title is
+TITLE_END_HINT = 'x-notifyd-title-end'
 
 
 def file_path(value):
@@ -431,7 +433,9 @@ class GtkRenderer:
         if 'time' not in hide:
             header.pack_end(self.label(time.strftime('%H:%M', time.localtime(n.received)), 'time', wrap=False),
                             False, False, 0)
-        flag = self.markup_flag(n.summary, n.body, mode, classes)
+        title_end = n.hints.get(TITLE_END_HINT) if 'title' not in hide else None
+        title_end = str(title_end) if isinstance(title_end, str) and title_end.strip() else None
+        flag = self.markup_flag(n.summary, n.body, mode, classes, title_end)
         if flag is not None:
             header.pack_end(flag, False, False, 0)
         if header_end is not None:
@@ -454,7 +458,19 @@ class GtkRenderer:
             if title_lines:
                 title.set_lines(title_lines)
                 title.set_ellipsize(Pango.EllipsizeMode.END)
-            text.pack_start(title, False, False, 0)
+            if title_end is None:
+                text.pack_start(title, False, False, 0)
+            else:
+                row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+                row.get_style_context().add_class('title-row')
+                end = self.label(prepare(title_end, mode, classes), 'title-end', wrap=False)
+                end.set_ellipsize(Pango.EllipsizeMode.NONE)
+                end.set_xalign(1)
+                for part in (title, end):
+                    part.set_valign(Gtk.Align.BASELINE)
+                row.pack_start(title, True, True, 0)
+                row.pack_end(end, False, False, 0)
+                text.pack_start(row, False, False, 0)
         body_part = None
         if 'body' not in hide and n.body:
             full = prepare(n.body, mode, classes)
@@ -486,9 +502,11 @@ class GtkRenderer:
         return card, {'header': header, 'body': body_part}
 
 
-    def markup_flag(self, summary, body, mode, classes):
-        """A "markup error" label when SUMMARY or BODY is invalid markup (shown as typed), else None."""
-        errors = [f'{part}: {error}' for part, text in (('summary', summary), ('body', body))
+    def markup_flag(self, summary, body, mode, classes, title_end=None):
+        """A "markup error" label when SUMMARY, BODY or TITLE_END (the title-end hint) is invalid markup
+        (shown as typed), else None."""
+        parts = (('summary', summary), ('body', body), (TITLE_END_HINT, title_end))
+        errors = [f'{part}: {error}' for part, text in parts
                   if (error := markup_error(text, mode, classes))]
         if not errors:
             return None
