@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.25.2] - 2026-11-27
+
+### Fixed
+
+- j/k in the notification center no longer stop at the first of several history cards that share
+  an id (a sender that reuses `replaces_id`, such as a wallpaper script sending 500 each time, has
+  many). The center now tells history cards apart by id and closing time, so `d` forgets that one
+  card instead of every entry with the id, a click brings back the card clicked, and each keeps its
+  own thumbnail.
+
 ## [0.25.1] - 2026-11-27
 
 ### Fixed

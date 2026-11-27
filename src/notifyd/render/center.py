@@ -73,6 +73,12 @@ def toggle_key_matches(accelerator, keyval, state):
     return Gdk.keyval_to_lower(keyval) == Gdk.keyval_to_lower(want) and (state & _MODS) == (mods & _MODS)
 
 
+def card_key(entry, opened):
+    """What tells cards apart: an open one by id; a history one by id and when it closed, since ids
+    repeat when a sender reuses a replaces_id (backdrop sends 500 each time)."""
+    return (opened, entry['id'], None if opened else entry.get('closed_at'))
+
+
 class Center:
     def __init__(self, renderer):
         self.renderer = renderer
@@ -87,7 +93,7 @@ class Center:
         self.clock = None
         self.volume_widgets = None # (mute button, scale) to update in place
         self.cards = []            # [(event box, entry, opened)] top to bottom, for the keyboard
-        self.selected = None       # (opened, id) of the selected card
+        self.selected = None       # card_key() of the selected card
         self.selected_index = None # its place among the open or the closed cards, for its neighbor once gone
         self.more = None           # the next limit when "show more" is there
         self.scroll = None
@@ -380,7 +386,7 @@ class Center:
 
     def forget_group(self, members):
         for entry in members:
-            self.manager.forget(entry['id'])
+            self.manager.forget(entry=entry)
         self.dirty = True
         self.refresh()
 
@@ -606,7 +612,7 @@ class Center:
         if opened:
             close.connect('clicked', lambda _b: self.manager.close(nid, DISMISSED))
         else:
-            close.connect('clicked', lambda _b: self.forget(nid))
+            close.connect('clicked', lambda _b: self.forget(entry))
         top.pack_end(close, False, False, 0)
         box.pack_start(top, False, False, 0)
         text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
@@ -614,7 +620,7 @@ class Center:
             text.pack_start(self.renderer.label(prepare(entry['summary'], mode, classes), 'title'), False, False, 0)
         if entry.get('body'):
             full = prepare(entry['body'], mode, classes)
-            if (opened, entry['id']) in self.expanded:
+            if card_key(entry, opened) in self.expanded:
                 body = self.renderer.label(full, 'body')
             else:
                 body = self.renderer.label(cap_lines(full, self.CARD_LINES) or full, 'body')
@@ -638,7 +644,8 @@ class Center:
         events.add(box)
         if not opened:
             events.connect('button-release-event',
-                           lambda _w, e: e.time != self.renderer.link_clicked and self.manager.pop(nid) and False)
+                           lambda _w, e: e.time != self.renderer.link_clicked and self.manager.pop(entry=entry)
+                           and False)
         self.cards.append((events, entry, opened))
         return events
 
@@ -654,7 +661,7 @@ class Center:
         return True
 
     def index(self):
-        keys = [(opened, entry['id']) for _box, entry, opened in self.cards]
+        keys = [card_key(entry, opened) for _box, entry, opened in self.cards]
         return keys.index(self.selected) if self.selected in keys else None
 
     def select(self, index):
@@ -666,7 +673,7 @@ class Center:
             return
         box, entry, opened = self.cards[index]
         group = [number for number, card in enumerate(self.cards) if card[2] == opened]
-        self.selected, self.selected_index = (opened, entry['id']), group.index(index)
+        self.selected, self.selected_index = card_key(entry, opened), group.index(index)
         GLib.idle_add(self.scroll_to, box, priority=SCROLL_PRIORITY)
 
     def scroll_to(self, box):
@@ -718,7 +725,7 @@ class Center:
         if opened:
             self.manager.click(entry['id'], 'left')
         else:
-            self.manager.pop(entry['id'])
+            self.manager.pop(entry=entry)
 
     def remove(self):
         index = self.index()
@@ -728,7 +735,7 @@ class Center:
         if opened:
             self.manager.close(entry['id'], DISMISSED)
         else:
-            self.forget(entry['id'])
+            self.forget(entry)
 
     def toggle_expand(self):
         """`e`: the selected card's whole body, or back to three lines."""
@@ -756,8 +763,8 @@ class Center:
         _mute, scale = self.volume_widgets
         scale.set_value(max(0, min(100, scale.get_value() + delta)))   # the slider runs pactl (debounced)
 
-    def forget(self, nid):
-        self.manager.forget(nid)
+    def forget(self, entry):
+        self.manager.forget(entry=entry)
 
     def clear(self):
         self.manager.close_all()

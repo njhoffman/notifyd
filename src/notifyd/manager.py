@@ -504,20 +504,22 @@ class Manager:
         except OSError as exc:
             self.log.warn(f'state {self.state_path}: {exc.strerror}')
 
-    def forget(self, nid=None):
-        """Remove NID from history, or all of it; how many entries went."""
-        removed = self.history.remove(nid)
+    def forget(self, nid=None, entry=None):
+        """Remove ENTRY, else NID's entries, else all of the history; how many entries went."""
+        removed = self.history.remove(nid, entry)
         if removed:
             self.log.emit('history', message=f'forgot {removed}')
             self._prune_thumbnails()
         return removed
 
-    def pop(self, nid=0):
-        """Show a closed notification again (the last one, or NID); its new id, or 0 when none."""
-        entries = [e for e in self.history if not nid or e['id'] == nid]
-        if not entries:
-            return 0
-        entry = entries[-1]
+    def pop(self, nid=0, entry=None):
+        """Show a closed notification again (ENTRY, else the last one with NID, else the last one); its
+        new id, or 0 when none."""
+        if entry is None:
+            entries = [e for e in self.history if not nid or e['id'] == nid]
+            if not entries:
+                return 0
+            entry = entries[-1]
         hints = {'urgency': ('low', 'normal', 'critical').index(entry.get('urgency', 'normal'))}
         if entry.get('category'):
             hints['category'] = entry['category']
@@ -545,7 +547,8 @@ class Manager:
         if n.settings.get('markup', 'full') != 'full':
             entry['markup'] = n.settings['markup']
         if self.thumbs_path and 'image' not in entry:
-            thumb = save_thumbnail(n.hints, self.thumbs_path, n.id)
+            # named by id and time: ids repeat when a sender reuses a replaces_id
+            thumb = save_thumbnail(n.hints, self.thumbs_path, f'{n.id}-{int(entry["closed_at"] * 1000)}')
             if thumb:
                 entry['thumb'] = str(thumb)
         self.history.append(entry)
@@ -555,13 +558,8 @@ class Manager:
         """Thumbnails go with their history entries; one a popped entry's image points at stays."""
         if not (self.thumbs_path and self.thumbs_path.is_dir()):
             return
-        keep = set()
-        for entry in self.history:
-            keep.add(entry.get('id'))
-            for key in ('thumb', 'image'):
-                path = Path(str(entry.get(key) or ''))
-                if path.parent == self.thumbs_path and path.stem.isdigit():
-                    keep.add(int(path.stem))
+        keep = {Path(str(entry.get(key))).name for entry in self.history for key in ('thumb', 'image')
+                if entry.get(key) and Path(str(entry[key])).parent == self.thumbs_path}
         prune_thumbnails(self.thumbs_path, keep)
 
     def listing(self):

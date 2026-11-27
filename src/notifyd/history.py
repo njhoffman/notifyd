@@ -54,10 +54,14 @@ class History:
         write_private(self.path, ''.join(json.dumps(e, ensure_ascii=False) + '\n' for e in self.entries))
         self.written = len(self.entries)
 
-    def remove(self, nid=None):
-        """Forget entry NID (all of them when None); how many went."""
+    def remove(self, nid=None, entry=None):
+        """Forget ENTRY itself, else the entries with id NID (all of them when None); how many went.
+        Ids repeat when a sender reuses a replaces_id, so the center forgets by entry."""
         before = len(self.entries)
-        kept = [e for e in self.entries if nid is not None and e.get('id') != nid]
+        if entry is not None:
+            kept = [e for e in self.entries if e is not entry]
+        else:
+            kept = [e for e in self.entries if nid is not None and e.get('id') != nid]
         self.entries = deque(kept, maxlen=self.entries.maxlen)
         removed = before - len(self.entries)
         if removed and self.path:

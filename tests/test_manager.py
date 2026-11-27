@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from notifyd.config import load_config
 from notifyd.model import CLOSED, DISMISSED, EXPIRED, UNDEFINED
@@ -536,11 +537,11 @@ def test_history_keeps_icon_image_markup_and_a_thumbnail(make_manager, tmp_path)
     m.close(b)
     first, second = m.history.entries
     assert first['app_icon'] == 'spotify' and first['markup'] == 'plain' and first['sender'] == sender
-    assert first['thumb'] == str(thumbs / f'{a}.png')
+    assert Path(first['thumb']).parent == thumbs and Path(first['thumb']).name.startswith(f'{a}-')
     from gi.repository import GdkPixbuf
     pixbuf = GdkPixbuf.Pixbuf.new_from_file(first['thumb'])
     assert (pixbuf.get_width(), pixbuf.get_height()) == (64, 32)          # at most 64 px, aspect kept
-    assert oct((thumbs / f'{a}.png').stat().st_mode & 0o777) == '0o600'
+    assert oct(Path(first['thumb']).stat().st_mode & 0o777) == '0o600'
     assert second['image'] == '/tmp/avatar.png' and 'thumb' not in second and 'markup' not in second
 
 
@@ -552,7 +553,7 @@ def test_pop_brings_back_icon_image_and_sender_without_run_or_sound(make_manager
     m.close(nid)
     again = m.pop(nid)
     n = m.active[again]
-    assert n.app_icon == 'spotify' and n.hints['image-path'] == str(tmp_path / 'thumbs' / f'{nid}.png')
+    assert n.app_icon == 'spotify' and n.hints['image-path'] == m.history.entries[0]['thumb']
     assert n.sender['process'] == 'musicman' and n.hints['desktop-entry'] == 'musicman'
     assert n.settings['markup'] == 'plain'                                # sender rules match again
     assert m.ran == [('run', 'notify-hook', nid)] and m.sounds == ['bell']  # but stay quiet
@@ -566,11 +567,13 @@ def test_thumbnails_go_with_their_history_entries(make_manager, tmp_path):
         nid = m.notify('a', summary=f's{i}', hints={'image-data': image_data(4, 4)})
         m.close(nid)
         ids.append(nid)
-    assert sorted(p.name for p in thumbs.iterdir()) == [f'{ids[1]}.png', f'{ids[2]}.png']   # s0 fell out
+    kept = {e['id']: e['thumb'] for e in m.history}
+    assert sorted(p.name for p in thumbs.iterdir()) == sorted(Path(t).name for t in kept.values())   # s0 fell out
+    assert set(kept) == {ids[1], ids[2]}
     popped = m.pop(ids[1])
     m.close(popped)                                     # its entry points at ids[1]'s thumbnail
-    assert m.history.entries[-1]['image'] == str(thumbs / f'{ids[1]}.png')
-    assert (thumbs / f'{ids[1]}.png').exists()        # kept: the popped entry still shows it
+    assert m.history.entries[-1]['image'] == kept[ids[1]]
+    assert Path(kept[ids[1]]).exists()                # kept: the popped entry still shows it
     m.forget()
     assert list(thumbs.iterdir()) == []
 
@@ -737,3 +740,18 @@ def test_remaining_time_runs_and_freezes_while_hovered(make_manager):
     assert m.remaining(nid) == 3000
     never = m.notify('a', summary='y', timeout=0, extra={'timeout': 0})
     assert m.remaining(never) is None
+
+
+def test_repeated_ids_keep_separate_entries_and_thumbnails(make_manager, tmp_path):
+    thumbs = tmp_path / 'thumbs'
+    m, *_ = make_manager(thumbs_path=thumbs)
+    first = m.notify('backdrop', summary='one', hints={'image-data': image_data(4, 4)})
+    m.close(first)
+    again = m.notify('backdrop', replaces_id=first, summary='two', hints={'image-data': image_data(4, 4)})
+    assert again == first                                       # the sender reuses its id
+    m.close(again)
+    one, two = m.history.entries
+    assert one['id'] == two['id'] and one['thumb'] != two['thumb'] and len(list(thumbs.iterdir())) == 2
+    assert m.active[m.pop(entry=one)].summary == 'one'          # the entry asked for, not the newest
+    assert m.forget(entry=one) == 1 and [e['summary'] for e in m.history][:1] == ['two']
+    assert len(list(thumbs.iterdir())) == 1

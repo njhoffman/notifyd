@@ -411,6 +411,28 @@ center.toggle('show')
 spin(100)
 assert center.visible and not center.grabbed
 
+# history entries that share an id (a sender reusing replaces_id): j moves through every one of them
+manager.config.settings['center']['keyboard'] = True
+manager.forget()
+first = manager.notify('backdrop', summary='w0')
+manager.close(first)
+for i in range(1, 4):
+    manager.close(manager.notify('backdrop', replaces_id=first, summary=f'w{i}'))
+center.hide()
+center.limit = None
+center.toggle('show')
+spin(150)
+press('g')
+seen = [selected()]
+for _ in range(3):
+    press('j')
+    seen.append(selected())
+assert seen == ['w3', 'w2', 'w1', 'w0'], seen
+press('d')                                          # forgets that one entry, not all four
+spin(100)
+assert [e['summary'] for e in manager.history] == ['w1', 'w2', 'w3']
+manager.config.settings['center']['keyboard'] = False
+
 # `e` shows the selected card's whole body
 manager.config.settings['center']['keyboard'] = True
 center.hide()

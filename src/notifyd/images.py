@@ -49,8 +49,8 @@ def pixbuf_from_image_data(data):
                                            bits, width, height, rowstride)
 
 
-def save_thumbnail(hints, directory, nid):
-    """Save the first image-data among HINTS as DIRECTORY/NID.png (at most THUMB_SIZE px, 0600); its path,
+def save_thumbnail(hints, directory, name):
+    """Save the first image-data among HINTS as DIRECTORY/NAME.png (at most THUMB_SIZE px, 0600); its path,
     or None when there is none or it is malformed."""
     for hint in IMAGE_HINTS:
         data = hints.get(hint)
@@ -64,8 +64,8 @@ def save_thumbnail(hints, directory, nid):
                 pixbuf = pixbuf.scale_simple(max(int(width * factor), 1), max(int(height * factor), 1),
                                              GdkPixbuf.InterpType.BILINEAR)
             private_dir(directory)
-            path = directory / f'{nid}.png'
-            tmp = directory / f'{nid}.tmp'
+            path = directory / f'{name}.png'
+            tmp = directory / f'{name}.tmp'
             pixbuf.savev(str(tmp), 'png', [], [])
             tmp.chmod(0o600)
             tmp.replace(path)
@@ -75,14 +75,14 @@ def save_thumbnail(hints, directory, nid):
     return None
 
 
-def prune_thumbnails(directory, keep_ids):
-    """Remove the thumbnails in DIRECTORY whose ids are not in KEEP_IDS (forgotten, or fell out of history)."""
+def prune_thumbnails(directory, keep_names):
+    """Remove the thumbnails in DIRECTORY no history entry names (KEEP_NAMES: file names)."""
     try:
         files = list(directory.glob('*.png'))
     except OSError:
         return
     for path in files:
-        if path.stem.isdigit() and int(path.stem) not in keep_ids:
+        if path.name not in keep_names:
             try:
                 path.unlink()
             except OSError:
