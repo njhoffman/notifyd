@@ -493,8 +493,15 @@ class GtkRenderer:
         if buttons and 'actions' not in hide:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6, homogeneous=True)
             row.set_margin_top(8)
+            theme = Gtk.IconTheme.get_default()
             for key, label in buttons:
-                button = Gtk.Button(label=label)
+                if n.action_icons and theme is not None and theme.has_icon(key):
+                    # spec: with action-icons the key names an icon; the label is its tooltip (and name)
+                    button = Gtk.Button.new_from_icon_name(key, Gtk.IconSize.BUTTON)
+                    button.set_tooltip_text(label)
+                    button.get_style_context().add_class('action-icon')
+                else:
+                    button = Gtk.Button(label=label)
                 button.connect('clicked', lambda _b, k=key, nid=n.id: self.manager.invoke(nid, k))
                 row.pack_start(button, True, True, 0)
             card.pack_start(row, False, False, 0)

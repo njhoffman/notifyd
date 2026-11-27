@@ -19,7 +19,7 @@ OBJECT_PATH = '/org/freedesktop/Notifications'
 IFACE = 'org.freedesktop.Notifications'
 CONTROL_IFACE = 'io.github.njhoffman.Notifyd'
 
-CAPABILITIES = ['actions', 'body', 'body-hyperlinks', 'body-markup', 'icon-static', 'persistence',
+CAPABILITIES = ['actions', 'action-icons', 'body', 'body-hyperlinks', 'body-markup', 'icon-static', 'persistence',
                 'x-canonical-private-synchronous', 'x-dunst-stack-tag', 'synchronous', 'x-notifyd']
 
 INTROSPECTION = f'''

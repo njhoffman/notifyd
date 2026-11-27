@@ -201,6 +201,7 @@ Flags for hints that otherwise take `-h TYPE:NAME:VALUE`:
 | `--desktop-entry NAME` | `desktop-entry` |
 | `--sound-name NAME`, `--sound-file PATH`, `--suppress-sound` | `sound-name`, `sound-file`, `suppress-sound` |
 | `--resident` | `resident`: stays open after an action |
+| `--action-icons` | `action-icons`: each action's key is an icon name, drawn as an icon button (its text is the tooltip) |
 | `--fg`, `--bg`, `--frame`, `--highlight COLOR` | dunst's `fgcolor`, `bgcolor`, `frcolor`, `hlcolor` |
 
 deadd's control messages work too: a notification with the hint `deadd-notification-center` (true or 1) and a `type` of `pausePopups`, `unpausePopups`, `clearPopups`, `clearInCenter` (forget the history) or `reloadStyle` (reload the config) is carried out, logged, and never shown or kept, so scripts written for deadd keep working:

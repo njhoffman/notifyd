@@ -1,0 +1,79 @@
+"""The GTK renderer's cards under Xvfb: each test runs a short script in a child process (GTK needs the
+display before it is imported) against a Manager with a FakeScheduler, as the renderer test in
+test_daemon.py does."""
+
+import os
+import shutil
+import subprocess
+import sys
+import textwrap
+import time
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+
+pytestmark = pytest.mark.skipif(not shutil.which('Xvfb'), reason='needs Xvfb')
+
+PRELUDE = r"""
+import io, sys
+sys.path.insert(0, sys.argv[1])
+sys.path.insert(0, sys.argv[2])
+from conftest import FakeScheduler
+from notifyd.config import load_config
+from notifyd.log import EventLog
+from notifyd.manager import Manager
+from notifyd.render.gtk import GtkRenderer
+from gi.repository import Gtk
+
+stream = io.StringIO()
+log = EventLog(stream=stream, color='never')
+
+def setup(config='position: {follow: none}'):
+    manager = Manager(load_config(text=config), log, FakeScheduler())
+    renderer = GtkRenderer(manager, log)
+    manager.renderer = renderer
+    return manager, renderer
+
+def widgets(widget, kind=Gtk.Widget):
+    found = [widget] if isinstance(widget, kind) else []
+    for child in (widget.get_children() if isinstance(widget, Gtk.Container) else []):
+        found += widgets(child, kind)
+    return found
+"""
+
+
+@pytest.fixture(scope='module')
+def display():
+    name = f':{70 + os.getpid() % 9}'
+    xvfb = subprocess.Popen(['Xvfb', name, '-screen', '0', '1280x1024x24'], stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL)
+    time.sleep(0.7)
+    yield name
+    xvfb.terminate()
+    xvfb.wait(5)
+
+
+def run_gtk(display, script):
+    code = PRELUDE + textwrap.dedent(script) + "\nprint('ok')\n"
+    result = subprocess.run([sys.executable, '-c', code, str(ROOT / 'src'), str(ROOT / 'tests')],
+                            env={**os.environ, 'DISPLAY': display, 'GIO_USE_VFS': 'local', 'NO_AT_BRIDGE': '1'},
+                            capture_output=True, text=True, timeout=30, check=False)
+    assert result.returncode == 0 and result.stdout.strip().endswith('ok'), result.stdout + result.stderr
+    return result.stdout
+
+
+def test_action_icons(display):
+    run_gtk(display, """
+        manager, renderer = setup()
+        with_icons = manager.notify('a', summary='player', actions=['media-skip-forward', 'Next', 'no-such-icon-x', 'Odd'],
+                                    hints={'action-icons': True})
+        buttons = widgets(renderer.windows[with_icons], Gtk.Button)
+        assert [b.get_label() for b in buttons] == [None, 'Odd'], [b.get_label() for b in buttons]
+        assert buttons[0].get_tooltip_text() == 'Next'                   # the label is the tooltip
+        assert isinstance(buttons[0].get_image(), Gtk.Image)
+        assert buttons[1].get_tooltip_text() is None                     # not an icon: its text, as before
+        plain = manager.notify('a', summary='plain', actions=['media-skip-forward', 'Next'])
+        assert [b.get_label() for b in widgets(renderer.windows[plain], Gtk.Button)] == ['Next']
+    """)

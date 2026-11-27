@@ -36,6 +36,7 @@ FLAG_HINTS = {
     'sound_file': ('sound-file', 'path'),
     'suppress_sound': ('suppress-sound', 'b'),
     'resident': ('resident', 'b'),
+    'action_icons': ('action-icons', 'b'),
     'fg': ('fgcolor', 's'),
     'bg': ('bgcolor', 's'),
     'frame': ('frcolor', 's'),
@@ -213,6 +214,8 @@ def build_parser(prog='notifyd send', standalone=False):
     sound.complete = 'files'
     hints.add_argument('--suppress-sound', action='store_true', help='ask the daemon not to play a sound')
     hints.add_argument('--resident', action='store_true', help='stays open after an action is chosen')
+    hints.add_argument('--action-icons', action='store_true',
+                       help='each action NAME is an icon name, drawn instead of its text (the text is its tooltip)')
     hints.add_argument('--fg', default=None, metavar='COLOR', help='text color of this notification (fgcolor)')
     hints.add_argument('--bg', default=None, metavar='COLOR', help='background of this notification (bgcolor)')
     hints.add_argument('--frame', default=None, metavar='COLOR', help='border color of this notification (frcolor)')

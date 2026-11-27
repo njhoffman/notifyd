@@ -87,6 +87,11 @@ class Notification:
         return value if isinstance(value, str) and value.strip() else ''
 
     @property
+    def action_icons(self):
+        """The action-icons hint: each action's key is an icon name to draw instead of its label."""
+        return bool(self.hints.get('action-icons', False))
+
+    @property
     def resident(self):
         return bool(self.hints.get('resident', False))
 

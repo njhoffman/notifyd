@@ -205,8 +205,8 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       environment. Upstream: swaync#388, mako#38, swaync#226.
 - [ ] **Drop specific actions with a rule.** (p3) [feature] `hide: [actions]` drops all; add e.g.
       `actions: {drop: [settings]}` for Chromium's "Settings". Upstream: swaync PR#654.
-- [ ] **Action icons.** (p3) [feature] Advertise `action-icons` and use
-      `Gtk.Button.new_from_icon_name` when the hint is set. Upstream: deadd PR#116.
+- [x] **Action icons.** (p3) [feature] Advertise `action-icons` and use
+      `Gtk.Button.new_from_icon_name` when the hint is set. Upstream: deadd PR#116. Done in 0.37.0.
 - [ ] **Inline reply.** (p3) [feature] Advertise `inline-reply`, show an entry for that action (the
       center already grabs the keyboard) and emit `NotificationReplied`; KDE Connect and chat apps
       use it. Upstream: swaync PR#221, astal#250.

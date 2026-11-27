@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-11-27
+
+### Added
+
+- Action icons: notifyd advertises the `action-icons` capability, and when a notification sets the
+  hint each action's key is an icon name drawn as an icon button, its text the tooltip (a key the icon
+  theme lacks stays a text button). `notifyd-send --action-icons` sets the hint.
+
 ## [0.36.0] - 2026-11-27
 
 ### Added
