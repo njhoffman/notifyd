@@ -451,6 +451,30 @@ center.toggle('show')                              # opening again checks the st
 assert wait_for(lambda: not wifi.get_style_context().has_class('on'))
 manager.config.settings['center']['buttons'] = []
 
+# center.group: one group per app, newest card only until the header is clicked; × forgets the group
+manager.forget()
+for app, summary in (('mail', 'm1'), ('chat', 'c1'), ('mail', 'm2'), ('mail', 'm3')):
+    manager.close(manager.notify(app, summary=summary))
+manager.config.settings['center']['group'] = True
+manager.config.settings['center']['cards'] = 20        # the card limit counts entries before grouping
+center.limit = None
+center.hide()
+center.toggle('show')
+spin(100)
+def history_summaries():
+    return [entry['summary'] for _box, entry, opened in center.cards if not opened]
+assert history_summaries() == ['m3', 'c1'], history_summaries()   # mail is newest, then chat
+center.toggle_group('mail')
+spin(50)
+assert history_summaries() == ['m3', 'm2', 'm1', 'c1']
+center.toggle_group('mail')
+assert history_summaries() == ['m3', 'c1']
+center.forget_group([e for e in manager.history if e['app'] == 'mail'])
+spin(50)
+assert [e['app'] for e in manager.history] == ['chat'] and history_summaries() == ['c1']
+manager.config.settings['center']['group'] = False
+manager.config.settings['center']['cards'] = 3
+
 # a history card shows the kept thumbnail of an image-data picture, and its markup mode
 import tempfile
 from pathlib import Path

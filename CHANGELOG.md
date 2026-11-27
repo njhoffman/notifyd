@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-11-27
+
+### Added
+
+- `center.group: true` groups the center's history by app, newest app first: a header with the app
+  name and count, the newest card under it until the header is clicked, and a × that forgets the
+  whole group. Open notifications stay a flat list above.
+
 ## [0.24.0] - 2026-11-27
 
 ### Added

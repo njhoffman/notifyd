@@ -147,7 +147,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       the manager already keeps the deadline. Upstream: dunst PR#1550, deadd#56, swaync#765.
 - [x] **`+N` while popups wait.** (p3) [feature] dunst's `indicate_hidden`: show how many are
       waiting on the last card; optionally `position.order: newest-first|oldest-first`.
-- [ ] **Group by app in the center.** (p3) [feature] Collapsible per-app groups with a count and
+- [x] **Group by app in the center.** (p3) [feature] Collapsible per-app groups with a count and
       "clear group". Upstream: swaync#61, mako#234.
 - [x] **Filter MPRIS players.** (p3) [feature] `center.mpris-ignore: [firefox, chromium]`, so
       browser tabs do not take the now-playing row. Upstream: swaync PR#324.

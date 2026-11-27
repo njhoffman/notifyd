@@ -98,6 +98,7 @@ class Center:
         self.card_color = None     # the text color symbolic icons on the card being built take
         self.expanded = set()      # (opened, id) of cards whose whole body shows (`e`)
         self.button_widgets = []   # (button, spec) of center.buttons
+        self.expanded_groups = set()   # apps whose history group shows every card (center.group)
         self.volume_level = None   # the last level read (reads are async, so the center never waits on pactl)
         try:
             self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
@@ -318,8 +319,11 @@ class Center:
             rows.pack_start(self.card(entry, style, opened=True), False, False, 0)
         if open_entries and closed:
             rows.pack_start(Gtk.Separator(), False, False, 4)
-        for entry in closed[:limit]:
-            rows.pack_start(self.card(entry, style, opened=False), False, False, 0)
+        if self.settings().get('group'):
+            self.grouped_history(rows, closed[:limit], style)
+        else:
+            for entry in closed[:limit]:
+                rows.pack_start(self.card(entry, style, opened=False), False, False, 0)
         if len(closed) > limit:
             step = int(self.settings().get('cards') or CARDS)
             more = Gtk.Button(label=f'Show {min(step, len(closed) - limit)} more of {len(closed) - limit}')
@@ -337,6 +341,48 @@ class Center:
         self.restore_selection()
         panel.pack_start(scroll, True, True, 0)
         self.window.add(panel)
+
+    def grouped_history(self, rows, entries, style):
+        """center.group: history in one group per app, newest app first; a group shows its newest card
+        until its header is clicked, and its × forgets the whole group."""
+        groups = {}
+        for entry in entries:                          # newest first already
+            groups.setdefault(entry.get('app') or '', []).append(entry)
+        for app, members in groups.items():
+            rows.pack_start(self.group_header(app, members), False, False, 0)
+            shown = members if app in self.expanded_groups else members[:1]
+            for entry in shown:
+                rows.pack_start(self.card(entry, style, opened=False), False, False, 0)
+
+    def group_header(self, app, members):
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        box.get_style_context().add_class('center-group')
+        expanded = app in self.expanded_groups
+        arrow = '▾' if expanded or len(members) == 1 else '▸'
+        title = GLib.markup_escape_text(app or 'no app')
+        box.pack_start(self.renderer.label(f'{arrow} <b>{title}</b>', 'appname', wrap=False), True, True, 0)
+        box.pack_start(self.renderer.label(str(len(members)), 'count', wrap=False), False, False, 0)
+        clear = Gtk.Button(label='×')
+        clear.set_relief(Gtk.ReliefStyle.NONE)
+        clear.set_tooltip_text(f'forget these {len(members)}')
+        clear.connect('clicked', lambda _b: self.forget_group(members))
+        box.pack_end(clear, False, False, 0)
+        events = Gtk.EventBox()
+        events.set_visible_window(False)
+        events.add(box)
+        events.connect('button-release-event', lambda _w, _e: self.toggle_group(app) or False)
+        return events
+
+    def toggle_group(self, app):
+        self.expanded_groups ^= {app}
+        self.dirty = True
+        self.refresh()
+
+    def forget_group(self, members):
+        for entry in members:
+            self.manager.forget(entry['id'])
+        self.dirty = True
+        self.refresh()
 
     def mode_picker(self):
         picker = Gtk.ComboBoxText()

@@ -120,6 +120,7 @@ def build_css(style, scope):
     css += block(f'{center_card}.selected', {
         'box-shadow': f"inset 0 0 0 2px {style.get('center-selected', 'rgba(255, 255, 255, 0.45)')}"})
     css += block(f'{card}.center .center-time', {'font-size': '28px', 'font-weight': 'bold'})
+    css += block(f'{card}.center .center-group', {'margin-top': '6px', 'opacity': '0.85'})
     for name in ('title', 'body', 'appname', 'time', 'count'):
         css += block(f'{card} .{name}', part_props(style.get(name)))
     progress = style.get('progress') or {}
