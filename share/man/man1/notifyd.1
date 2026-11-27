@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.29.1" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.30.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -422,7 +422,7 @@ open one and is counted),
 .B center.group
 (history grouped by app, collapsed to each app's newest card),
 .B center.buttons
-(a row of {label, run, state} buttons; on while state exits 0),
+(a row of {label, run, state, icon} buttons; on while state exits 0),
 .BR fade.in / out
 (ms; out defaults to 150, since picom does not fade translucent windows out),
 .BR history.size / keep / persist ,

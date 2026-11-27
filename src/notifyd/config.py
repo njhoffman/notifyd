@@ -185,9 +185,9 @@ def normalize(settings, where='config'):
         buttons = center['buttons'] or []
         if not isinstance(buttons, list) or not all(
                 isinstance(b, dict) and isinstance(b.get('label'), str) and isinstance(b.get('run'), str)
-                and isinstance(b.get('state', ''), str) for b in buttons):
+                and isinstance(b.get('state', ''), str) and isinstance(b.get('icon', ''), str) for b in buttons):
             raise ConfigError(f'{where}: center.buttons: expected a list of {{label: TEXT, run: COMMAND, '
-                              'state: COMMAND}} (state is optional)')
+                              'state: COMMAND, icon: NAME}} (state and icon are optional)')
         center['buttons'] = buttons
     if isinstance(center, dict) and 'mpris-ignore' in center:
         ignore = center['mpris-ignore'] or []

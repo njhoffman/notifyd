@@ -479,13 +479,19 @@ import tempfile as _tempfile
 flag_dir = _tempfile.mkdtemp()
 flag = flag_dir + '/wifi-on'
 manager.config.settings['center']['buttons'] = [
-    {'label': 'Wifi', 'run': f'touch {flag}', 'state': f'test -e {flag}'}, {'label': 'Plain', 'run': 'true'}]
+    {'label': 'Wifi', 'run': f'touch {flag}', 'state': f'test -e {flag}', 'icon': 'view-grid-symbolic'},
+    {'label': 'Plain', 'run': 'true'}]
 center.hide()
 manager.notify('x', summary='rebuild')
 center.toggle('show')
 spin(100)
 (wifi, wifi_spec), (plain, _p) = center.button_widgets
 assert wifi.get_label() == 'Wifi' and plain.get_label() == 'Plain'
+assert wifi.get_image().get_icon_name()[0] == 'view-grid-symbolic' and plain.get_image() is None
+icons = {w.get_label(): w.get_image().get_icon_name()[0] for w in widgets(center.window, Gtk.Button)
+         if w.get_label() in ('Do not disturb', 'By app', 'Clear')}
+assert icons == {'Do not disturb': 'notifications-disabled-symbolic', 'By app': 'view-app-grid-symbolic',
+                 'Clear': 'edit-clear-all-symbolic'}, icons
 assert wait_for(lambda: True) and not wifi.get_style_context().has_class('on')
 wifi.clicked()
 assert wait_for(lambda: wifi.get_style_context().has_class('on')), 'state follows the click'

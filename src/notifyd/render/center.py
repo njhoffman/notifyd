@@ -82,6 +82,18 @@ def toggle_key_matches(accelerator, keyval, state):
     return Gdk.keyval_to_lower(keyval) == Gdk.keyval_to_lower(want) and (state & _MODS) == (mods & _MODS)
 
 
+def with_icon(button, icon, tooltip=None):
+    """BUTTON with the theme icon ICON (symbolic ones take the text color) before its label, if any."""
+    if icon and Gtk.IconTheme.get_default().has_icon(icon):
+        button.set_image(Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.MENU))
+        button.set_always_show_image(True)
+    elif icon and not button.get_label():
+        button.set_label(icon)                      # an unknown icon name on a bare button: show the name
+    if tooltip:
+        button.set_tooltip_text(tooltip)
+    return button
+
+
 def card_key(entry, opened):
     """What tells cards apart: an open one by id; a history one by id and when it closed, since ids
     repeat when a sender reuses a replaces_id (backdrop sends 500 each time)."""
@@ -304,7 +316,8 @@ class Center:
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self.clock = self.renderer.label(time.strftime('%H:%M'), 'center-time', wrap=False)
         header.pack_start(self.clock, True, True, 0)
-        pause = Gtk.ToggleButton(label='Do not disturb')
+        pause = with_icon(Gtk.ToggleButton(label='Do not disturb'), 'notifications-disabled-symbolic',
+                          'hold back all but critical notifications (p)')
         pause.set_active(self.manager.paused)
         pause.connect('toggled', lambda b: self.manager.pause(b.get_active()))
         header.pack_end(pause, False, False, 0)
@@ -318,11 +331,12 @@ class Center:
             text = f'mode {self.manager.mode}' + (f'  ·  {len(self.manager.held_back)} held back'
                                                  if self.manager.held_back else '')
         status.pack_start(self.renderer.label(GLib.markup_escape_text(text), 'appname', wrap=False), True, True, 0)
-        clear = Gtk.Button(label='Clear')
+        clear = with_icon(Gtk.Button(label='Clear'), 'edit-clear-all-symbolic',
+                          'close every notification and forget the history (C)')
         clear.connect('clicked', lambda _b: self.clear())
         status.pack_end(clear, False, False, 0)
-        by_app = Gtk.ToggleButton(label='By app')
-        by_app.set_tooltip_text('history grouped by app, or one list (a)')
+        by_app = with_icon(Gtk.ToggleButton(label='By app'), 'view-app-grid-symbolic',
+                           'history grouped by app, or one list (a)')
         by_app.get_style_context().add_class('center-group-toggle')
         by_app.set_active(self.grouped())
         by_app.connect('toggled', lambda b: b.get_active() != self.grouped() and self.toggle_grouping())
@@ -484,7 +498,7 @@ class Center:
         row.get_style_context().add_class('center-buttons')
         self.button_widgets = []
         for spec in config:
-            button = Gtk.Button(label=spec['label'])
+            button = with_icon(Gtk.Button(label=spec['label']), spec.get('icon'), spec.get('run'))
             button.get_style_context().add_class('center-button')
             button.connect('clicked', self.on_center_button, spec)
             row.add(button)
@@ -569,9 +583,12 @@ class Center:
                 text.pack_start(label, False, False, 0)
         row.pack_start(text, True, True, 0)
         buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
-        for label, method in (('⏮', 'Previous'), ('⏸' if playing['status'] == 'Playing' else '▶', 'PlayPause'),
-                              ('⏭', 'Next')):
-            button = Gtk.Button(label=label)
+        playing_now = playing['status'] == 'Playing'
+        for icon, method, tip in (('media-skip-backward-symbolic', 'Previous', 'previous track (N)'),
+                                  ('media-playback-pause-symbolic' if playing_now else 'media-playback-start-symbolic',
+                                   'PlayPause', 'pause (space)' if playing_now else 'play (space)'),
+                                  ('media-skip-forward-symbolic', 'Next', 'next track (n)')):
+            button = with_icon(Gtk.Button(), icon, tip)
             button.set_relief(Gtk.ReliefStyle.NONE)
             button.connect('clicked', lambda _b, m=method: mpris.command(self.bus, playing['name'], m))
             buttons.pack_start(button, False, False, 0)

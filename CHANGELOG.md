@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-11-27
+
+### Added
+
+- The center's buttons have icons: Do not disturb, By app and Clear show a symbolic theme icon
+  before their label, the player's previous / play-pause / next are icons, and all of them have
+  tooltips naming their key. `center.buttons` take an optional `icon: NAME`.
+
 ## [0.29.1] - 2026-11-27
 
 ### Added
