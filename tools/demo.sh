@@ -54,25 +54,21 @@ for name in "${only[@]}"; do
 done
 [[ $renderer == gtk || $renderer == none ]] || { echo "demo: --renderer is gtk or none" >&2; exit 2; }
 
-# a private session bus: run again inside dbus-run-session (the options are already checked)
-if [[ -z $live && -z ${NOTIFYD_DEMO_BUS:-} ]]; then
-  command -v dbus-run-session >/dev/null || { echo "demo: needs dbus-run-session (or --live)" >&2; exit 1; }
-  [[ $renderer == none || -n ${DISPLAY:-} ]] || { echo "demo: no DISPLAY (use --renderer none)" >&2; exit 1; }
-  # GIO_USE_VFS=local: no gvfs on the private bus (it would start one and fail to mount)
-  NOTIFYD_DEMO_BUS=1 GIO_USE_VFS=local exec dbus-run-session -- "$0" ${step:+--step} ${fast:+--fast} --renderer "$renderer" \
-    ${log:+--log "$log"} "${only[@]/#/--section=}"
-fi
-
 send=$root/bin/notifyd-send
 notifyd=$root/bin/notifyd
-work=$(mktemp -d "${TMPDIR:-/tmp}/notifyd-demo.XXXXXX")
-export NOTIFYD_DEMO_DIR=$work NOTIFYD_DEMO_SEND=$send
-daemon_pid=''
-cleanup() {
-  [[ -n $daemon_pid ]] && kill "$daemon_pid" 2>/dev/null && wait "$daemon_pid" 2>/dev/null
-  rm -rf "$work"
-}
-trap cleanup EXIT
+export NOTIFYD_DEMO_SEND=$send
+
+# a private daemon (tools/with-daemon.sh): run again inside it (the options are already checked)
+if [[ -z $live && -z ${NOTIFYD_PRIVATE_DIR:-} ]]; then
+  exec "$root/tools/with-daemon.sh" --renderer "$renderer" ${log:+--log "$log"} "$root/examples/demo.yaml" -- \
+    "$0" ${step:+--step} ${fast:+--fast} --renderer "$renderer" "${only[@]/#/--section=}"
+fi
+if [[ -n $live ]]; then
+  work=$(mktemp -d "${TMPDIR:-/tmp}/notifyd-demo.XXXXXX")
+  trap 'rm -rf "$work"' EXIT
+else
+  work=$NOTIFYD_PRIVATE_DIR                  # with-daemon.sh removes it
+fi
 trap 'exit 130' INT TERM
 
 if [[ -t 1 && -z ${NO_COLOR:-} ]]; then
@@ -86,32 +82,9 @@ shell() { printf '  %s$ %s%s\n' "$dim" "$*" "$reset"; }     # show what a step r
 pause() { [[ -n $fast ]] || sleep "$1"; }
 clear_all() { [[ -n $live ]] || "$notifyd" ctl close-all >/dev/null 2>&1; }
 
-if [[ -z $live ]]; then
-  export XDG_STATE_HOME=$work/state XDG_CACHE_HOME=$work/cache
-  "$notifyd" daemon -c "$root/examples/demo.yaml" --renderer "$renderer" --log-format json \
-    >"${log:-$work/daemon.log}" 2>&1 &
-  daemon_pid=$!
-  for _ in $(seq 100); do
-    "$notifyd" ctl status >/dev/null 2>&1 && break
-    kill -0 "$daemon_pid" 2>/dev/null || { echo "demo: the daemon did not start:" >&2; cat "${log:-$work/daemon.log}" >&2; exit 1; }
-    sleep 0.1
-  done
-  "$notifyd" ctl status >/dev/null 2>&1 || { echo "demo: the daemon did not answer" >&2; exit 1; }
-fi
-
 # a 96x96 gradient as "cover art" for the pictures section
 cover=$work/cover.png
-python3 - "$cover" <<'EOF'
-import sys
-import gi
-gi.require_version('GdkPixbuf', '2.0')
-from gi.repository import GdkPixbuf, GLib
-size = 96
-data = bytes(v for y in range(size) for x in range(size)
-             for v in (40 + x * 2, 30 + y, 120 + (x + y) // 2))
-GdkPixbuf.Pixbuf.new_from_bytes(GLib.Bytes.new(data), GdkPixbuf.Colorspace.RGB, False, 8, size, size,
-                                size * 3).savev(sys.argv[1], 'png', [], [])
-EOF
+python3 "$root/tools/cover.py" "$cover"
 
 # -- sections ----------------------------------------------------------------------------------------
 

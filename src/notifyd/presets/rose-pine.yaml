@@ -1,0 +1,33 @@
+description: Rosé Pine - background tinted by urgency, frame and title in pine, gold or love
+# Source: d2718nis/rose-pine-dunst rose-pine.conf: per-urgency background and frame/title color (low
+# #26273d/#31748f, normal #362e3c/#f6c177, critical #35263d/#eb6f92), frame 1, radius 2, padding 10.
+# rose-pine/swaync (MIT): text #e0def4, body #908caa, progress #9ccfd8 on #1f1d2e, critical #eb6f92.
+style:
+  background: rgba(54, 46, 60, 0.97)
+  foreground: '#e0def4'
+  radius: 4
+  border-width: 1
+  border-color: '#f6c177'
+  padding: [10, 10]
+  spacing: 4
+  title: { size: 14px, weight: bold }
+  body: { color: '#908caa' }
+  appname: { size: 11px, color: '#c4a7e7' }
+  time: { size: 11px, color: '#6e6a86' }
+  low: { background: 'rgba(38, 39, 61, 0.97)', border-color: '#31748f' }
+  critical: { background: 'rgba(53, 38, 61, 0.97)', border-color: '#eb6f92' }
+  progress: { color: '#9ccfd8', background: '#1f1d2e', height: 6 }
+  button: { background: '#26233a', hover: '#393552', foreground: '#e0def4', radius: 4 }
+  accent: '#c4a7e7'
+  classes:
+    accent: { foreground: '#c4a7e7', weight: bold }
+    muted: { foreground: '#6e6a86' }
+    good: { foreground: '#9ccfd8' }
+    warn: { foreground: '#f6c177' }
+    bad: { foreground: '#eb6f92' }
+    tag: { foreground: '#191724', background: '#ebbcba' }
+  css: |
+    & .notification .title { color: #f6c177; }
+    & .notification.low .title { color: #31748f; }
+    & .notification.critical .title { color: #eb6f92; }
+    & .notification.critical progressbar progress { background-color: #eb6f92; }

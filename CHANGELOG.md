@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-11-27
+
+### Added
+
+- Eleven presets modeled on themes people use with other daemons, each naming its source at the top
+  of its file: `catppuccin-mocha`, `catppuccin-latte` (light), `dracula` (a left stripe colored by
+  urgency, from dracula/swaync), `gruvbox` (wired's default), `nord`, `rose-pine` (background and title
+  tinted by urgency), `kanagawa`, `one-dark`, `solarized-light` (text and frame colored by urgency),
+  `swaync` (SwayNotificationCenter's default) and `xfce-retro` (xfce4-notifyd's Retro). There are 17
+  in all; `docs/presets.md` shows each.
+- `tools/with-daemon.sh`: runs a command against a private notifyd (its own session bus, a config, a
+  temporary history), for the demo and the preview.
+
+### Changed
+
+- `just preview` shows every preset side by side, one sample card each, all on screen at once (one
+  private daemon per column) until Enter; `--urgency critical` compares how each shows urgency, and
+  preset names limit it. `--each` steps through them one at a time with `ctl preview`'s five samples.
+  It used to cycle the presets on the daemon you run.
+
 ## [0.35.1] - 2026-11-27
 
 ### Fixed

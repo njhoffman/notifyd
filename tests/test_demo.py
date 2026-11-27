@@ -43,7 +43,7 @@ def test_the_tour_runs_every_section(tour):
         assert title in result.stdout
     assert result.stdout.rstrip().endswith('done')
     assert 'gvfs' not in result.stderr and "can't be made" not in result.stderr
-    assert list(tmp_path.glob('notifyd-demo.*')) == []           # its temporary directory is removed
+    assert list(tmp_path.glob('notifyd-*')) == []                # its temporary directories are removed
     shown = {e['n']['summary']: e['n'] for e in log if e['event'] in ('shown', 'replaced')}
     assert {'Just a summary', 'Night Drive', 'Downloading', 'Lunch at noon?', 'Backup'} <= set(shown)
     assert shown['Night Drive']['title_end'].endswith('★★★★☆') and shown['Night Drive']['image'].startswith('file://')

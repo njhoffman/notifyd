@@ -176,6 +176,10 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       a rule's explicit colors on top. Done in 0.35.0: it colors every part and urgency (app name
       and time at 0.75 opacity); a matching rule's `foreground` still wins over it entirely.
 
+- [x] **More presets and a side-by-side preview.** (p3) [feature] Eleven presets from a survey of
+      dunst, mako, swaync, wired and xfce4-notifyd themes (Catppuccin, Dracula, Gruvbox, Nord, Rosé
+      Pine, Kanagawa, One Dark, Solarized, swaync, xfce Retro); `just preview` shows them all at once,
+      one private daemon per column. Done in 0.36.0.
 ## 14. Behavior and scripting
 
 - [x] **Fullscreen policy.** (p2) [feature] Override-redirect popups cover fullscreen video and

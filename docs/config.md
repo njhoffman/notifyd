@@ -143,7 +143,9 @@ The shadow comes from the compositor. The windows are named `notifyd`, class `No
 rules can target them (picom's `! name~=''` shadow exclusion does not hit them).
 
 `notifyd ctl preview [PRESET]` shows sample notifications in a preset; `notifyd ctl preset NAME`
-switches until the next reload; `notifyd presets --pick` does both from fzf as you move.
+switches until the next reload; `notifyd presets --pick` does both from fzf as you move. `just preview`
+(`tools/preview.sh`) shows every preset side by side on private daemons, one sample card each, and
+`just preview --each` one at a time; `docs/presets.md` has screenshots and each preset's source.
 
 ## Markup
 

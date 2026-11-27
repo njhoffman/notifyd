@@ -1,0 +1,29 @@
+description: Catppuccin Latte - light off-white card, blue frame, orange frame when critical
+# Source: catppuccin/dunst themes/latte.conf and catppuccin/mako (colors, critical frame #fe640b),
+# catppuccin/swaync (geometry); all MIT. The low frame (surface1) is ours.
+style:
+  background: rgba(239, 241, 245, 0.97)
+  foreground: '#4c4f69'
+  radius: 12
+  border-width: 2
+  border-color: '#1e66f5'
+  padding: [10, 14]
+  spacing: 4
+  title: { size: 14px, weight: bold, color: '#4c4f69' }
+  body: { color: '#5c5f77' }
+  appname: { size: 11px, color: '#1e66f5' }
+  time: { size: 11px, color: '#6c6f85' }
+  low: { border-color: '#bcc0cc' }
+  critical: { border-color: '#fe640b' }
+  progress: { color: '#1e66f5', background: '#ccd0da', height: 6 }
+  button: { background: '#ccd0da', hover: '#bcc0cc', foreground: '#4c4f69', radius: 8 }
+  accent: '#1e66f5'
+  markup-error: '#df8e1d'
+  center-selected: 'rgba(30, 102, 245, 0.6)'
+  classes:
+    accent: { foreground: '#1e66f5', weight: bold }
+    muted: { foreground: '#8c8fa1' }
+    good: { foreground: '#40a02b' }
+    warn: { foreground: '#df8e1d' }
+    bad: { foreground: '#d20f39' }
+    tag: { foreground: '#eff1f5', background: '#8839ef' }

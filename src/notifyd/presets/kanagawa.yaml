@@ -1,0 +1,29 @@
+description: Kanagawa - roomy ink-dark card, very rounded, blue frame, italic title
+# Source: lokesh-krishna/dotfiles kanagawa/config/dunst/dunstrc (MIT): #1f1f28 on #dcd7ba, 2px #7e9cd8
+# frame, radius 15, padding 15/15, monospace 13, italic title (<i>%s</i>), 10px progress bar. Critical
+# and low frames and the classes are from the Kanagawa palette.
+style:
+  font-family: monospace
+  font-size: 12pt
+  background: rgba(31, 31, 40, 0.97)
+  foreground: '#dcd7ba'
+  radius: 15
+  border-width: 2
+  border-color: '#7e9cd8'
+  padding: [15, 15]
+  spacing: 6
+  title: { style: italic, weight: normal, color: '#dcd7ba' }
+  appname: { size: 10pt, color: '#957fb8' }
+  time: { size: 10pt, color: '#727169' }
+  low: { border-color: '#54546d' }
+  critical: { border-color: '#e82424' }
+  progress: { color: '#7e9cd8', background: '#2a2a37', height: 10 }
+  button: { background: '#2a2a37', hover: '#363646', foreground: '#dcd7ba', radius: 10 }
+  accent: '#7e9cd8'
+  classes:
+    accent: { foreground: '#7e9cd8', weight: bold }
+    muted: { foreground: '#727169' }
+    good: { foreground: '#98bb6c' }
+    warn: { foreground: '#e6c384' }
+    bad: { foreground: '#ff5d62' }
+    tag: { foreground: '#1f1f28', background: '#957fb8' }

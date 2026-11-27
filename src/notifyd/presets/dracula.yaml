@@ -1,0 +1,31 @@
+description: Dracula - borderless dark card with a left stripe colored by urgency, red glow when critical
+# Source: dracula/swaync style.css (MIT): #2b2d3b card, 11px radius, 4px purple stripe (low: comment
+# #6272a4, critical: 5px red with a red ring), title #f8f8f2, body #a3a9c9, time #6272a4, critical title
+# and time #ff6e6e, progress #bd93f9 on #21222c. The stripe is an inset box-shadow, as there.
+style:
+  background: rgba(43, 45, 59, 0.97)
+  foreground: '#a3a9c9'
+  radius: 11
+  border-width: 0
+  padding: [11, 14, 11, 16]
+  spacing: 4
+  title: { size: 15px, weight: bold, color: '#f8f8f2' }
+  body: { color: '#a3a9c9' }
+  appname: { size: 11px, color: '#bd93f9' }
+  time: { size: 12px, weight: 500, color: '#6272a4' }
+  progress: { color: '#bd93f9', background: '#21222c', height: 6 }
+  button: { background: '#343748', hover: '#44475a', foreground: '#f8f8f2', radius: 8 }
+  accent: '#bd93f9'
+  classes:
+    accent: { foreground: '#bd93f9', weight: bold }
+    muted: { foreground: '#6272a4' }
+    good: { foreground: '#50fa7b' }
+    warn: { foreground: '#f1fa8c' }
+    bad: { foreground: '#ff5555' }
+    tag: { foreground: '#282a36', background: '#ff79c6' }
+  css: |
+    & .notification { box-shadow: inset 4px 0 0 #bd93f9; }
+    & .notification.low { box-shadow: inset 4px 0 0 #6272a4; }
+    & .notification.critical { box-shadow: inset 5px 0 0 #ff5555, inset 0 0 0 1px rgba(255, 85, 85, 0.85); }
+    & .notification.critical .title, & .notification.critical .time { color: #ff6e6e; }
+    & .notification.critical progressbar progress { background-color: #ff5555; }

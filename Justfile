@@ -13,12 +13,9 @@ lint:
 run *ARGS:
     bin/notifyd daemon {{ ARGS }}
 
-# preview every preset on the running daemon, a few seconds each
-preview:
-    #!/usr/bin/env bash
-    for preset in $(bin/notifyd presets | awk '{ print $1 }'); do
-      echo "$preset"; bin/notifyd ctl preview "$preset"; sleep 4
-    done
+# the presets side by side on private daemons until Enter (`--each`: one at a time; `just preview --help`)
+preview *ARGS:
+    tools/preview.sh {{ ARGS }}
 
 # symlink bin/notifyd, bin/notifyd-send and the man pages into ~/.local (never over a real file) and write the completions
 install:

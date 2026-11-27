@@ -1,0 +1,27 @@
+description: Nord - slate card, muted frame, a large frost-cyan title
+# Source: zoddDev/Nord .config/dunst/dunstrc: #2E3440 on #D8DEE9 text, 2px #4C566A frame, radius 6,
+# padding 8/13, title #88C0D0 x-large. Critical and low frames, progress and classes are from the Nord
+# palette (aurora red #bf616a).
+style:
+  background: rgba(46, 52, 64, 0.97)
+  foreground: '#d8dee9'
+  radius: 6
+  border-width: 2
+  border-color: '#4c566a'
+  padding: [8, 13]
+  spacing: 4
+  title: { size: 16px, weight: bold, color: '#88c0d0' }
+  appname: { size: 11px, color: '#81a1c1' }
+  time: { size: 11px, color: '#616e88' }
+  low: { border-color: '#3b4252' }
+  critical: { border-color: '#bf616a' }
+  progress: { color: '#88c0d0', background: '#3b4252', height: 6 }
+  button: { background: '#3b4252', hover: '#434c5e', foreground: '#eceff4', radius: 4 }
+  accent: '#88c0d0'
+  classes:
+    accent: { foreground: '#88c0d0', weight: bold }
+    muted: { foreground: '#616e88' }
+    good: { foreground: '#a3be8c' }
+    warn: { foreground: '#ebcb8b' }
+    bad: { foreground: '#bf616a' }
+    tag: { foreground: '#2e3440', background: '#81a1c1' }

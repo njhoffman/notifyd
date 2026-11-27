@@ -1,0 +1,28 @@
+description: Catppuccin Mocha - dark navy card, blue frame, peach frame when critical
+# Source: catppuccin/dunst themes/mocha.conf and catppuccin/mako (colors, critical frame #fab387),
+# catppuccin/swaync src/_theme.scss (12px radius, title/body/time colors); all MIT. The low frame
+# (surface1) is ours.
+style:
+  background: rgba(30, 30, 46, 0.96)
+  foreground: '#cdd6f4'
+  radius: 12
+  border-width: 2
+  border-color: '#89b4fa'
+  padding: [10, 14]
+  spacing: 4
+  title: { size: 14px, weight: bold, color: '#cdd6f4' }
+  body: { color: '#bac2de' }
+  appname: { size: 11px, color: '#89b4fa' }
+  time: { size: 11px, color: '#a6adc8' }
+  low: { border-color: '#45475a' }
+  critical: { border-color: '#fab387' }
+  progress: { color: '#89b4fa', background: '#313244', height: 6 }
+  button: { background: '#313244', hover: '#45475a', foreground: '#cdd6f4', radius: 8 }
+  accent: '#89b4fa'
+  classes:
+    accent: { foreground: '#89b4fa', weight: bold }
+    muted: { foreground: '#6c7086' }
+    good: { foreground: '#a6e3a1' }
+    warn: { foreground: '#f9e2af' }
+    bad: { foreground: '#f38ba8' }
+    tag: { foreground: '#1e1e2e', background: '#cba6f7' }

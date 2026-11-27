@@ -1,0 +1,28 @@
+description: SwayNotificationCenter's default - translucent gray card, hairline light border, large round corners
+# Source: ErikReider/SwayNotificationCenter data/style/style.scss (GPL-3.0; values only): rgba(48, 48, 48,
+# 0.8), white text, 1px rgba(255, 255, 255, 0.15) border, 12px radius, 16px bold summary and time, 15px
+# body, buttons rgb(78, 78, 78). swaync draws no urgency difference; the red critical border is ours
+# (GNOME's #e01b24). The soft shadow comes from the compositor.
+style:
+  background: rgba(48, 48, 48, 0.8)
+  foreground: '#ffffff'
+  radius: 12
+  border-width: 1
+  border-color: 'rgba(255, 255, 255, 0.15)'
+  padding: [10, 12]
+  spacing: 4
+  title: { size: 16px, weight: bold, color: '#ffffff' }
+  body: { size: 15px }
+  appname: { size: 12px, opacity: 0.7 }
+  time: { size: 13px, weight: bold, opacity: 0.8 }
+  critical: { border-color: '#e01b24' }
+  progress: { color: '#ffffff', background: 'rgba(255, 255, 255, 0.15)', height: 6 }
+  button: { background: 'rgb(78, 78, 78)', hover: 'rgb(98, 98, 98)', foreground: '#ffffff', radius: 8 }
+  accent: '#3584e4'
+  classes:
+    accent: { foreground: '#78aeed', weight: bold }
+    muted: { alpha: 60% }
+    good: { foreground: '#8ff0a4' }
+    warn: { foreground: '#f8e45c' }
+    bad: { foreground: '#ff7b63' }
+    tag: { foreground: '#303030', background: '#deddda' }

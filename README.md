@@ -6,7 +6,8 @@ combines the best parts of deadd-notification-center and dunst:
 - deadd's look as the default: a black translucent card, no frame, shadow from the compositor
 - a short YAML config, with an importer for an existing deadd config
 - rules that restyle, retime, re-icon, rewrite or hide notifications as they arrive
-- preset styles you can switch between and preview live
+- 17 preset styles (deadd, dunst, swaync, Catppuccin, Dracula, Gruvbox, Nord, Rosé Pine, Kanagawa,
+  Solarized, ...) you can switch between and preview live, or all side by side with `just preview`
 - full Pango markup, plus named styles (`<span class="accent">`) that follow the preset
 - `notifyd-send` (also `notifyd send`), notify-send and notify-send.py in one, with flags for notifyd's hints;
   it works with any notification daemon
@@ -47,6 +48,7 @@ notifyd-send --title-end '★ 4.5' --fg '#ffd7d7' --bg '#5a1d1d' 'Song' 'Artist'
 notifyd ctl watch            # the live, colored event log
 notifyd ctl history
 notifyd presets --pick       # browse presets with a live preview
+just preview                 # every preset side by side (--each: one at a time; --urgency critical)
 notifyd rules --app MPD --summary 'Song'   # which rules match, and the result
 ```
 

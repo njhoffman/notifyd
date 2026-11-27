@@ -91,6 +91,18 @@ def test_bundled_presets_load_and_have_valid_colors():
                     assert item.endswith(')'), f'{name}.{key}: {item}'
 
 
+def test_bundled_presets_have_the_documented_classes_and_a_source():
+    from pathlib import Path
+
+    import notifyd
+    bundled = sorted((Path(notifyd.__file__).parent / 'presets').glob('*.yaml'))
+    assert len(bundled) >= 17
+    for path in bundled:
+        style = load_preset(path.stem)['style']
+        assert {'accent', 'muted', 'good', 'warn', 'bad', 'tag'} <= set(style.get('classes', {})), path.stem
+        assert {'background', 'foreground'} <= set(style), path.stem
+
+
 def test_deadd_preset_matches_deadd_css():
     style = load_preset('deadd')['style']
     assert style['background'] == 'rgba(0, 0, 0, 0.8)'

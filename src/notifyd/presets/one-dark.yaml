@@ -1,0 +1,29 @@
+description: One Dark - square gray box, thick frame and text colored by urgency
+# Source: NeuralNine/config-files old_configs/.config/dunst/dunstrc: #282c34, 3px frame, radius 0,
+# padding 8/8, monospace; text low #98c379, normal #abb2bf, critical #e06c75; frame low #56b6c2,
+# normal #61afef, critical #be5046. Progress and classes are from the One Dark palette.
+style:
+  font-family: monospace
+  background: rgba(40, 44, 52, 0.97)
+  foreground: '#abb2bf'
+  radius: 0
+  border-width: 3
+  border-color: '#61afef'
+  padding: [8, 8]
+  spacing: 3
+  title: { weight: bold }
+  appname: { size: 10pt }
+  time: { size: 10pt }
+  low: { foreground: '#98c379', border-color: '#56b6c2' }
+  normal: { foreground: '#abb2bf', border-color: '#61afef' }
+  critical: { foreground: '#e06c75', border-color: '#be5046' }
+  progress: { color: '#61afef', background: '#3e4451', height: 6 }
+  button: { background: '#3e4451', hover: '#4b5263', foreground: '#abb2bf', radius: 0 }
+  accent: '#61afef'
+  classes:
+    accent: { foreground: '#61afef', weight: bold }
+    muted: { foreground: '#5c6370' }
+    good: { foreground: '#98c379' }
+    warn: { foreground: '#e5c07b' }
+    bad: { foreground: '#e06c75' }
+    tag: { foreground: '#282c34', background: '#c678dd' }

@@ -1,0 +1,28 @@
+description: xfce4-notifyd's Retro - sticky-note yellow, gray text, hairline frame
+# Source: xfce4-notifyd themes/gtk-3.20/Retro/gtk.css (GPL-2.0; values only): #f9edbe, #555555 text,
+# 1px border shade(bg, 0.8), radius 6, padding 20, bold summary, 6px progress shade(#555, 1.2).
+# Retro has no urgency difference; the critical border and the classes are ours.
+style:
+  background: '#f9edbe'
+  foreground: '#555555'
+  radius: 6
+  border-width: 1
+  border-color: '#c7be98'
+  padding: [16, 20]
+  spacing: 5
+  title: { size: 14px, weight: bold, color: '#444444' }
+  appname: { size: 11px, color: '#857a52' }
+  time: { size: 11px, color: '#857a52' }
+  critical: { border-color: '#b03a2e', background: '#fbe3c4' }
+  progress: { color: '#666666', background: '#e8dca8', height: 6 }
+  button: { background: '#efe2ac', hover: '#e4d69a', foreground: '#555555', radius: 4 }
+  accent: '#8a6d00'
+  markup-error: '#b03a2e'
+  center-selected: 'rgba(85, 85, 85, 0.6)'
+  classes:
+    accent: { foreground: '#8a6d00', weight: bold }
+    muted: { foreground: '#9a9070' }
+    good: { foreground: '#4e7a27' }
+    warn: { foreground: '#a86b00' }
+    bad: { foreground: '#b03a2e' }
+    tag: { foreground: '#f9edbe', background: '#555555' }

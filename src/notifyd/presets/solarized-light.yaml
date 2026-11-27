@@ -1,0 +1,31 @@
+description: Solarized light - parchment card, frame and text colored by urgency (blue, green, red)
+# Source: olsonbg/dotfiles config/dunst/dunstrc (GPL-3.0; colors and layout only): #fdf6e3 for every
+# urgency, 3px frame, padding 10/10, frame and text low #268bd2, normal #859900, critical #dc322f.
+# Progress and classes are from the Solarized palette.
+style:
+  font-family: monospace
+  background: rgba(253, 246, 227, 0.98)
+  foreground: '#859900'
+  radius: 0
+  border-width: 3
+  border-color: '#859900'
+  padding: [10, 10]
+  spacing: 4
+  title: { weight: bold }
+  appname: { size: 10pt, opacity: 0.8 }
+  time: { size: 10pt, color: '#93a1a1' }
+  low: { foreground: '#268bd2', border-color: '#268bd2' }
+  normal: { foreground: '#859900', border-color: '#859900' }
+  critical: { foreground: '#dc322f', border-color: '#dc322f' }
+  progress: { color: '#268bd2', background: '#eee8d5', height: 6 }
+  button: { background: '#eee8d5', hover: '#e4ddc8', foreground: '#586e75', radius: 0 }
+  accent: '#268bd2'
+  markup-error: '#cb4b16'
+  center-selected: 'rgba(38, 139, 210, 0.6)'
+  classes:
+    accent: { foreground: '#268bd2', weight: bold }
+    muted: { foreground: '#93a1a1' }
+    good: { foreground: '#859900' }
+    warn: { foreground: '#b58900' }
+    bad: { foreground: '#dc322f' }
+    tag: { foreground: '#fdf6e3', background: '#6c71c4' }

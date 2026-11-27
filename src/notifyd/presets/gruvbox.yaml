@@ -1,0 +1,27 @@
+description: Gruvbox dark - warm brown-gray card, thick cream frame, no frame when low, red when critical
+# Source: wired-notify's default wired.ron (MIT): #282828, 3px #ebdbb2 border, rounding 3, low border
+# #282828 (it disappears), critical #fb4934, bold #ebdbb2 summary. iruzo/gruvbox-swaync (MIT): time
+# #83a598. Progress and class colors are from the Gruvbox palette.
+style:
+  background: rgba(40, 40, 40, 0.97)
+  foreground: '#ebdbb2'
+  radius: 3
+  border-width: 3
+  border-color: '#ebdbb2'
+  padding: [8, 10]
+  spacing: 4
+  title: { size: 14px, weight: bold, color: '#ebdbb2' }
+  appname: { size: 11px, color: '#fabd2f' }
+  time: { size: 11px, color: '#83a598' }
+  low: { border-color: '#282828' }
+  critical: { border-color: '#fb4934' }
+  progress: { color: '#fabd2f', background: '#3c3836', height: 6 }
+  button: { background: '#3c3836', hover: '#504945', foreground: '#ebdbb2', radius: 3 }
+  accent: '#fabd2f'
+  classes:
+    accent: { foreground: '#fabd2f', weight: bold }
+    muted: { foreground: '#928374' }
+    good: { foreground: '#b8bb26' }
+    warn: { foreground: '#fe8019' }
+    bad: { foreground: '#fb4934' }
+    tag: { foreground: '#282828', background: '#83a598' }

@@ -1,6 +1,6 @@
 # The config of `tools/demo.sh` (`just demo`): a private daemon shows the tour with these settings, and
 # each rule below is what one step of it demonstrates. The apps are named demo-* so the rules catch only
-# the demo's notifications. NOTIFYD_DEMO_DIR and NOTIFYD_DEMO_SEND are set by the demo.
+# the demo's notifications. NOTIFYD_PRIVATE_DIR (tools/with-daemon.sh) and NOTIFYD_DEMO_SEND (the demo) are set for it.
 
 preset: tokyonight
 width: 380
@@ -33,7 +33,7 @@ rules:
   # rules: a command run for each match, with the notification as JSON on stdin
   - name: hook
     match: { category: '/^demo\./' }
-    run: 'printf "%s (%s)\n" "$NOTIFYD_SUMMARY" "$NOTIFYD_RULES" >> "$NOTIFYD_DEMO_DIR/run.log"'
+    run: 'printf "%s (%s)\n" "$NOTIFYD_SUMMARY" "$NOTIFYD_RULES" >> "$NOTIFYD_PRIVATE_DIR/run.log"'
 
   # rules: notifyd ctl mode dnd holds back everything but critical
   - name: do-not-disturb
