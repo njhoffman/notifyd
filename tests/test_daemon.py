@@ -892,3 +892,38 @@ def test_ctl_action_without_an_id(bus, daemon):
     gdbus(bus, 'Notify', 'Claude Code', '0', '', 'waiting', '', "['default', 'Open']", '{}', '0')
     assert run(bus, 'ctl', 'action').returncode == 0
     assert run(bus, 'ctl', 'list', '--ids').stdout.strip() == ''          # invoked, so it closed
+
+
+def test_a_save_through_a_missing_file_reloads_once_and_never_the_defaults(bus, daemon, tmp_path):
+    config = tmp_path / 'notifyd.yaml'
+    daemon('history: {size: 300}\n', '--renderer', 'none')
+    for i in range(3):
+        run(bus, 'ctl', 'close', run(bus, 'send', '-p', f'n{i}').stdout.strip())
+    def reloads():
+        return [e for e in events(tmp_path) if e['event'] == 'reload']
+    before = len(reloads())
+    backup = tmp_path / 'notifyd.yaml~'
+    config.rename(backup)                               # vim: the old file renamed away...
+    time.sleep(0.05)
+    config.write_text('history: {size: 300}\ntimeout: 3s\n')   # ...then the new one written
+    backup.unlink()
+    assert wait_until(lambda: len(reloads()) > before, 5)
+    time.sleep(1)
+    assert len(reloads()) == before + 1                 # one reload for the save
+    status = dict([*line.split(None, 1), ''][:2] for line in run(bus, 'ctl', 'status').stdout.splitlines())
+    assert status['config'].endswith('notifyd.yaml')
+    config.unlink()                                     # removed for good: the last config stays
+    time.sleep(1)
+    assert len(reloads()) == before + 1
+
+
+def test_replace_keeps_the_old_daemons_last_history(bus, daemon):
+    old = daemon('', '--renderer', 'none')
+    first = run(bus, 'send', '-p', 'closed before').stdout.strip()
+    run(bus, 'ctl', 'close', first)
+    for name in ('open one', 'open two'):
+        run(bus, 'send', '-t', '0', name)                    # still open when it is replaced
+    daemon('', '--renderer', 'none', '--replace')
+    assert old.wait(10) == 0                                 # replaced: a clean exit (no systemd restart)
+    summaries = [e['summary'] for e in json.loads(run(bus, 'ctl', 'history', '--json').stdout)]
+    assert sorted(summaries) == ['closed before', 'open one', 'open two']   # its shutdown's entries too

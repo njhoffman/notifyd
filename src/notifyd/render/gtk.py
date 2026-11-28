@@ -292,6 +292,9 @@ class GtkRenderer:
             n = self.manager.active.get(nid)
             if n:
                 self.update(n)
+        self.center.dirty = True       # its styles went with the rest: built again (now if it is open)
+        if self.center.visible:
+            self.center.refresh()
 
     # -- windows --------------------------------------------------------
     def fits(self, n):

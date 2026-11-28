@@ -12,23 +12,23 @@ Reviewed: 2026-11-27
 
 ## 18. Review of the daemon lifecycle, 0.51.9-0.52.1 and the documented CLI
 
-- [ ] **Saving the config in an editor reloads the defaults first.** (p2) [bug] An editor that saves by
+- [x] **Saving the config in an editor reloads the defaults first.** (p2) [bug] An editor that saves by
       renaming the old file and writing a new one (vim's backup-then-write), or rm and recreate, fires
       `watch_config` (`daemon.py:155`) while the file is missing; `load_config` takes a missing file as
       the defaults, so for a moment rules and preset are the defaults, open popups are restyled twice,
       and `history.resize(100)` cuts a larger history (250 became 100; the file loses them at its next
       rewrite). Skip watcher events while the path is missing, and debounce them (one save made three
       reloads).
-- [ ] **`--replace` loses the old daemon's last history entries and state.** (p2) [bug] The new daemon
+- [x] **`--replace` loses the old daemon's last history entries and state.** (p2) [bug] The new daemon
       loads history.jsonl and state.json before it owns the bus name (`daemon.py:187`); the old one's
       `shutdown()` then appends its open notifications and saves state, which the new one never reads
       (4 lines in the file, 1 in memory; a `ctl forget` rewrote it to 0). Load history and state after
       owning the name, or reread them on NameAcquired.
-- [ ] **`ctl preset` drops the open center's styles.** (p2) [bug] `Manager.restyle` (0.51.10) reloads the
+- [x] **`ctl preset` drops the open center's styles.** (p2) [bug] `Manager.restyle` (0.51.10) reloads the
       renderer, which clears `styles` and loads only the popups' CSS, but emits no event, so an open
       center is not rebuilt: its panel and cards fall back to the theme until something else rebuilds it.
       Mark the center dirty (or emit the event) in `restyle`.
-- [ ] **A replaced systemd daemon restarts every 5 s for good.** (p2) [bug] With `notifyd daemon
+- [x] **A replaced systemd daemon restarts every 5 s for good.** (p2) [bug] With `notifyd daemon
       --replace` running in the foreground (the README suggests it), the unit's daemon exits and
       `Restart=always`/`RestartSec=5` starts it again and again (under the start limit); each one loads
       state.json, restores held ones and rewrites it in `shutdown()` though it never owned the name.

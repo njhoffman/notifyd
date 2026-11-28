@@ -357,3 +357,16 @@ def test_the_open_centers_card_styles_are_kept_and_loaded_together(display):
         manager.close(popup)                                                # used to prune the cards' scopes
         assert kept <= set(renderer.styles)
     """)
+
+
+def test_a_preset_switch_restyles_the_open_center(display):
+    run_gtk(display, """
+        manager, renderer = setup('position: {follow: none}\\ncenter: {keyboard: false}')
+        manager.close(manager.notify('a', summary='in the history'))
+        center = renderer.center
+        center.toggle('show')
+        manager.config.settings['preset'] = 'dracula'              # what ctl preset does
+        manager.restyle()
+        assert center.built[0] in renderer.styles                    # its panel style is back
+        assert center.card_scopes and center.card_scopes <= set(renderer.styles)
+    """)

@@ -1,6 +1,7 @@
 """`notifyd daemon`: wires config, log, manager, renderer and the D-Bus server into a main loop."""
 
 import signal
+from pathlib import Path
 
 from gi.repository import Gio, GLib
 
@@ -47,6 +48,7 @@ def set_process_name(name='notifyd'):
 # what previews override: shown long enough to look at, never skipped, and no side effects (rule
 # commands, buttons, sounds) or history entries from samples that happen to match the user's rules
 LOCK_POLL = 2   # seconds between screen-lock checks (lock.pause)
+RELOAD_SETTLE_MS = 300   # quiet time after a config file event before reloading (one reload per save)
 PREVIEW_EXTRA = {'timeout': 15000, 'skip': False, 'run': None, 'filter': None, 'sound': False, 'buttons': [],
                  'history': {'keep': False}}
 
@@ -138,6 +140,9 @@ class Daemon:
         def acquired(_conn, owned):
             self.acquired.add(owned)
             if owned == BUS_NAME:
+                # only now: a daemon this one replaced has saved its history and state by the time it lets go
+                self.manager.load_saved()
+                self.manager.start()               # a timed pause that ran out meanwhile shows its held ones now
                 preset = self.manager.config.settings['preset']
                 self.log.info(f'notifyd {__version__} owns {BUS_NAME}; preset {preset}, renderer {self.renderer_name}')
 
@@ -157,14 +162,31 @@ class Daemon:
         tuned with the center and popups open (they follow at once)."""
         events = (Gio.FileMonitorEvent.CHANGES_DONE_HINT, Gio.FileMonitorEvent.CREATED,
                   Gio.FileMonitorEvent.MOVED_IN, Gio.FileMonitorEvent.RENAMED, Gio.FileMonitorEvent.DELETED)
+        path = Path(self.config_path).expanduser()
+        pending = []
+
+        def settled():
+            # one reload per save, once the editor is done: a save that renames the old file away (vim's
+            # backup) or removes and recreates it passes through moments with no file, which would load
+            # the defaults (and cut a larger history down to their size)
+            pending.clear()
+            if path.exists():
+                self.reload()
+            return False
 
         def changed(source, file, other, event):
             names = [f.get_basename() for f in (file, other) if f is not None]
-            if event in events and (source is config or any(n.endswith('.yaml') for n in names)):
-                self.reload()
-        config = Gio.File.new_for_path(str(self.config_path)).monitor_file(Gio.FileMonitorFlags.WATCH_MOVES, None)
-        config.connect('changed', changed)
-        monitors = [config]
+            if event in events and (source in configs or any(n.endswith('.yaml') for n in names)):
+                if pending:
+                    GLib.source_remove(pending.pop())
+                pending.append(GLib.timeout_add(RELOAD_SETTLE_MS, settled))
+        configs = []
+        watched = [path] + ([path.resolve()] if path.is_symlink() else [])   # a linked config: its target too
+        for each in watched:
+            monitor = Gio.File.new_for_path(str(each)).monitor_file(Gio.FileMonitorFlags.WATCH_MOVES, None)
+            monitor.connect('changed', changed)
+            configs.append(monitor)
+        monitors = list(configs)
         presets = preset_dirs()[0]
         if presets.is_dir():
             monitor = Gio.File.new_for_path(str(presets)).monitor_directory(Gio.FileMonitorFlags.WATCH_MOVES, None)
@@ -187,8 +209,7 @@ class Daemon:
         self.manager = Manager(config, self.log, GLibScheduler(), history_path=history_path,
                                state_path=history_default_path().with_name('state.json'),
                                runner=Runner(self.log), filter_runner=Filter(), sound=SoundPlayer(self.log),
-                               idle=idle,
-                               thumbs_path=art.cache_dir().with_name('thumbs'))
+                               idle=idle, thumbs_path=art.cache_dir().with_name('thumbs'), load_saved=False)
         try:
             self.renderer = self.make_renderer()
         except RuntimeError as exc:
@@ -199,7 +220,6 @@ class Daemon:
         connection = connection or Gio.bus_get_sync(Gio.BusType.SESSION, None)
         self.loop = GLib.MainLoop()
         self.server = Server(connection, self.manager, self, self.log)
-        self.manager.start()                      # a timed pause that ran out meanwhile shows its held ones now
         owners = [self.own(connection, CONTROL_NAME), self.own(connection, BUS_NAME)]
         signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, self.stop)
         signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, self.stop)
@@ -211,7 +231,8 @@ class Daemon:
         try:
             self.loop.run()
         finally:
-            self.manager.shutdown()
+            if BUS_NAME in self.acquired:         # one that never owned the name leaves history and state alone
+                self.manager.shutdown()
             for owner in owners:
                 Gio.bus_unown_name(owner)
             self.server.unregister()

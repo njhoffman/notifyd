@@ -79,7 +79,8 @@ class NullRenderer:
 
 class Manager:
     def __init__(self, config, log, scheduler, renderer=None, on_closed=None, on_action=None, history_path=None,
-                 state_path=None, runner=None, sound=None, idle=None, thumbs_path=None, filter_runner=None):
+                 state_path=None, runner=None, sound=None, idle=None, thumbs_path=None, filter_runner=None,
+                 load_saved=True):
         self.config = config
         self.log = log
         self.scheduler = scheduler
@@ -104,7 +105,8 @@ class Manager:
         self.mode_timer = None
         self.missed = 0             # expired without being clicked or closed since the center was last opened
         self.locked = False     # the screen is locked (lock.pause): hold back everything, critical too
-        self.history = History(config.settings['history']['size'], history_path, log)
+        self.history_path = history_path
+        self.history = History(config.settings['history']['size'], None, log)   # load_saved() reads the file
         self.runner = runner or (lambda command, n, what='run', env=None: None)
         # filter_runner(command, n, timeout_ms, done): done(result, error) later; none: shown unfiltered
         self.filter_runner = filter_runner or (lambda command, n, timeout_ms, done: done({}, None))
@@ -114,6 +116,19 @@ class Manager:
         self.state_path = Path(state_path) if state_path else None
         self.thumbs_path = Path(thumbs_path) if thumbs_path else None   # image-data kept for the history
         self.thumb_seq = itertools.count()       # in thumbnail names: two closes in one millisecond differ
+        self.mode = 'normal'
+        self.saved_timers = None
+        self.loaded = False
+        if load_saved:
+            self.load_saved()
+
+    def load_saved(self):
+        """Read the history and state files: the daemon does it once it owns the bus name, so a daemon it
+        replaces (--replace) has written its last entries and state by then."""
+        if self.loaded:
+            return
+        self.loaded = True
+        self.history = History(self.config.settings['history']['size'], self.history_path, self.log)
         state = self._load_state()
         self.mode = state.get('mode') or 'normal'
         self.missed = state.get('missed') if isinstance(state.get('missed'), int) else 0

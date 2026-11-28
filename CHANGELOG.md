@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.52.2] - 2026-11-28
+
+### Fixed
+
+- Saving the config reloads once the editor is done (one reload per save, not three), and never from
+  a moment when the file is missing: an editor that renames the old file away before writing the new one
+  (vim's backup) or removes and recreates it made the daemon load the defaults for a moment, dropping its
+  rules and preset and cutting a larger history down to 100 entries. A symlinked config is followed to
+  its target.
+- `notifyd daemon --replace` reads the history and state files only once it owns the notification bus
+  name, so the entries and state the replaced daemon saved on its way out are kept.
+- A daemon that never got the bus name (another one runs) exits without touching the history or state
+  files, and the systemd unit restarts it only on failure: with `notifyd daemon --replace` in a terminal,
+  the unit's replaced daemon came back every 5 seconds, rewriting the state each time.
+- `notifyd ctl preset` (and a reload) rebuilds an open notification center, whose styles went with the
+  rest (0.51.10).
+
 ## [0.52.1] - 2026-11-28
 
 ### Fixed
