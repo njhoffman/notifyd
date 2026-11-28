@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.51.9] - 2026-11-28
+
+### Fixed
+
+- A rule's `body: {max-lines: N}` sets the body's line cap as documented; it was taken for a body
+  rewrite and made every notification the rule matched fail.
+- Rewrite templates (`summary`, `body`, `app`, `stack-tag`) are checked when the config loads:
+  `'set {x'`, `'{0}'` and the like are config errors (`notifyd check` names them) instead of
+  failing each matching notification. Literal braces are written `{{` and `}}`.
+
 ## [0.51.8] - 2026-11-28
 
 ### Fixed

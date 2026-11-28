@@ -228,3 +228,17 @@ def test_css_values_cannot_end_their_rule():
     from notifyd.render.css import declarations
     assert declarations({'color': 'red', 'background-color': 'red; } * { opacity: 0', 'border': None,
                          'font-family': '"x" /* y */'}) == 'color: red;'
+
+
+def test_a_rules_body_mapping_is_the_setting_not_a_rewrite():
+    n = resolved("rules:\n  - match: {app: x}\n    body: {max-lines: 2}\n", app='x', body='kept as sent')
+    assert n.settings['body'] == {'max-lines': 2} and n.body == 'kept as sent'
+    n = resolved("rules:\n  - match: {app: x}\n    body: '{body} (rewritten)'\n", app='x', body='b')
+    assert n.body == 'b (rewritten)'
+
+
+@pytest.mark.parametrize('template', ['set {x', '{0}', '{a.b}', '{summary!z}', '[1, 2]'])
+def test_bad_rewrite_templates_are_config_errors(template):
+    value = template if template.startswith('[') else f'"{template}"'
+    with pytest.raises(ConfigError):
+        load_config(text=f'rules:\n  - match: {{app: x}}\n    summary: {value}\n')

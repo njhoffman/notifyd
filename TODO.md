@@ -12,7 +12,7 @@ Reviewed: 2026-11-27
 
 ## 17. Review of the renderer, the center and the config contracts
 
-- [ ] **A rule's `body: {max-lines: N}` breaks every notification it matches.** (p1) [bug] `body` is
+- [x] **A rule's `body: {max-lines: N}` breaks every notification it matches.** (p1) [bug] `body` is
       also a rewrite key (`rules.py:44`), so the mapping becomes a format template and `resolve` raises
       `ValueError: Space not allowed in string format specifier` on each Notify; `notifyd check` says
       ok, and the docs say a rule takes any key above, `body.max-lines` included. Tell the two apart by

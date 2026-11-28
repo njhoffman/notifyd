@@ -127,9 +127,20 @@ def compile_rule(raw, index):
         else:
             raise ConfigError(f'{where}: match: unknown field {key!r} '
                               f'(known: {", ".join(sorted([*MATCH_FIELDS, "hint"]))})')
-    rewrite = {k: raw.pop(k) for k in list(raw) if k in REWRITE_KEYS}
+    # text rewrites the field; `body` as a mapping ({max-lines: 2}) is the body setting, not a rewrite
+    rewrite = {k: raw.pop(k) for k in list(raw) if k in REWRITE_KEYS and not isinstance(raw[k], dict)}
     if 'urgency' in rewrite and rewrite['urgency'] not in URGENCY_NAMES:
         raise ConfigError(f'{where}: urgency: expected one of {", ".join(URGENCY_NAMES)}')
+    for key, template in rewrite.items():
+        if key == 'urgency':
+            continue
+        if not isinstance(template, (str, int, float)) or isinstance(template, bool):
+            raise ConfigError(f'{where}: {key}: expected a template such as "{{summary}} (x)"')
+        try:
+            str(template).format_map(_Fields())
+        except (ValueError, IndexError, AttributeError, KeyError, TypeError) as exc:
+            raise ConfigError(f'{where}: {key}: bad template {template!r}: {exc} '
+                              '(write {{ and }} for literal braces)') from exc
     unknown = [k for k in raw if k not in SETTING_KEYS]
     if unknown:
         raise ConfigError(f'{where}: unknown key(s) {", ".join(map(repr, unknown))}')
