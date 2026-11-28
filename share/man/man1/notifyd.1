@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.49.3" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.49.4" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -351,7 +351,7 @@ Close everything shown or waiting.
 .BR pause ", " resume ", " toggle " [\fB\-\-for\fR \fIduration\fR]"
 Hold back all but critical notifications; resume shows what was held back. The paused state and what is held back survive a restart of the daemon.
 .B \-\-for
-(30m, 1h, 90s) resumes on its own after that long, also across a restart; a plain pause or resume
+(30m, 1h, 90s; at most 30 days) resumes on its own after that long, also across a restart; a plain pause or resume
 replaces it.
 .TP
 .BR mode " [\fIname\fR] [\fB\-\-for\fR \fIduration\fR]"

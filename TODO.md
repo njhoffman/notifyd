@@ -42,7 +42,7 @@ Reviewed: 2026-11-27
       `filter-timeout` each get a popup; `close_all`, `close_matching` and `shutdown` skip them
       (one shows after "close all"; shutdown sends no NotificationClosed for it). `pop()` also lacks
       `'filter': None` in `extra`, so a popped entry is filtered a second time.
-- [ ] **A very long `--for` breaks the state.** (p3) [bug] `GLib.timeout_add` overflows past about
+- [x] **A very long `--for` breaks the state.** (p3) [bug] `GLib.timeout_add` overflows past about
       49 days (`ctl pause --for 1200h`): `pause_until` is set but `paused` stays False. Cap `--for`
       (say 30 days) in `duration_seconds` and set state only after the timer is made.
 - [ ] **README is behind.** (p3) [docs] It lists neither the dunst importer nor 0.40-0.49 (filters,

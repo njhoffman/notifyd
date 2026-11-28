@@ -254,6 +254,6 @@ def test_for_durations():
     from notifyd.cli import duration_seconds
     given = (None, '1h', '30m', '90s', '1500ms')
     assert [duration_seconds(v, 'pause --for') for v in given] == [None, 3600, 1800, 90, 2]
-    for bad in ('30', 'soon', '0s'):
+    for bad in ('30', 'soon', '0s', '721h'):
         with pytest.raises(SystemExit):
             duration_seconds(bad, 'pause --for')

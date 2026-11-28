@@ -1135,3 +1135,14 @@ def test_a_replace_that_moves_to_another_stack_refills_the_old_one(make_manager)
     assert m.waiting == [waits]
     m.notify('a', summary='vol 50', timeout=0, hints={'x-dunst-stack-tag': 't'})   # replaces it, other stack
     assert m.waiting == [] and set(m.displayed) == {first, waits}
+
+
+def test_a_timed_pause_or_mode_is_at_most_30_days(make_manager):
+    m, *_ = make_manager()
+    with pytest.raises(ValueError, match='30 days'):
+        m.pause(True, 31 * 86400)
+    with pytest.raises(ValueError, match='30 days'):
+        m.set_mode('focus', 31 * 86400)
+    assert not m.paused and m.pause_until is None and m.mode == 'normal' and m.mode_until is None
+    m.pause(True, 30 * 86400)
+    assert m.paused and m.pause_until

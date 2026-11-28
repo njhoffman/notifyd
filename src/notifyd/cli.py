@@ -51,6 +51,8 @@ def duration_seconds(value, where):
         raise SystemExit(f'notifyd ctl {exc}') from exc
     if ms <= 0:
         raise SystemExit(f'notifyd ctl {where}: expected a duration above 0, got {value!r}')
+    if ms > 30 * 86400 * 1000:
+        raise SystemExit(f'notifyd ctl {where}: at most 30 days (720h), got {value!r}')
     return -(-ms // 1000)
 
 

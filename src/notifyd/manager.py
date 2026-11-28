@@ -39,6 +39,7 @@ def _span(seconds):
     return ''.join(f'{v}{u}' for v, u in ((hours, 'h'), (minutes, 'm'), (secs, 's')) if v) or '0s'
 
 
+MAX_TIMED = 30 * 86400   # s: the longest timed pause or mode (GLib timers end at about 49 days)
 MIN_RESUME_MS = 1000   # a notification left by the pointer stays at least this long
 IDLE_RECHECK_MS = 2000  # while the user is idle, expiry is asked again this often
 
@@ -582,6 +583,8 @@ class Manager:
     def pause(self, on=True, seconds=None):
         """Pause (do not disturb) or resume; SECONDS ends a pause on its own after that long. Any pause or
         resume replaces a timed one."""
+        if seconds and not 0 < seconds <= MAX_TIMED:
+            raise ValueError(f'pause --for: at most {MAX_TIMED // 86400} days')
         timed = self.pause_until is not None
         self._cancel_pause_timer()
         if on and seconds:
@@ -676,6 +679,8 @@ class Manager:
     def set_mode(self, mode, seconds=None):
         """Switch to MODE; SECONDS switches back to the mode before it after that long (the one before a
         timed mode when one is running). Any switch replaces a timed one."""
+        if seconds and not 0 < seconds <= MAX_TIMED:
+            raise ValueError(f'mode --for: at most {MAX_TIMED // 86400} days')
         after = self.mode_after if self.mode_until is not None else self.mode
         timed = self.mode_until is not None
         self._cancel_timer_handle('mode_timer')
@@ -702,8 +707,8 @@ class Manager:
         self.pause_until = None
 
     def _time_pause(self, until):
-        self.pause_until = until
         self.pause_timer = self.scheduler.call_later(max(until - time.time(), 0) * 1000, self._pause_over)
+        self.pause_until = until
 
     def _pause_over(self):
         self.pause_timer = None
@@ -712,8 +717,8 @@ class Manager:
             self.pause(False)
 
     def _time_mode(self, until, after):
-        self.mode_until, self.mode_after = until, after
         self.mode_timer = self.scheduler.call_later(max(until - time.time(), 0) * 1000, self._mode_over)
+        self.mode_until, self.mode_after = until, after
 
     def _mode_over(self):
         after = self.mode_after or 'normal'

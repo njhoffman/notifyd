@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.49.4] - 2026-11-27
+
+### Fixed
+
+- `ctl pause --for` and `ctl mode --for` take at most 30 days. Longer ones overflowed GLib's timer and
+  left a pause end in the state with the daemon not paused.
+
 ## [0.49.3] - 2026-11-27
 
 ### Fixed
