@@ -223,3 +223,21 @@ def test_a_config_file_that_is_not_utf8(tmp_path):
     path.write_bytes(b'timeout: 5s\n# caf\xe9\n')
     with pytest.raises(ConfigError, match='not UTF-8'):
         load_config(path)
+
+
+@pytest.mark.parametrize('text', [
+    'max-visible: many', 'stack-duplicates: "no"', 'position: {margin: "30 5"}', 'position: {margin: [1, 2, 3]}',
+    'center: {width: wide}', 'center: {cards: lots}', 'center: {side: middle}', 'center: {group: "yes"}',
+    'click: {left: open-it}', 'click: {left: "exec:"}', 'click: {top: dismiss}', 'click: dismiss',
+    'log: {level: chatty}', 'log: {format: xml}', 'history: {keep: 1}',
+    'rules:\n  - match: {app: x}\n    preset: nosuchpreset\n',
+])
+def test_values_that_would_fail_at_runtime_are_config_errors(text):
+    with pytest.raises(ConfigError):
+        load_config(text=text)
+
+
+def test_good_shapes_still_load():
+    config = load_config(text='max-visible: 3\nposition: {margin: [30, 5.5]}\nclick: {middle: "exec: true"}\n'
+                              'center: {side: left, cards: 10}\nlog: {level: warn}\n')
+    assert config.settings['max-visible'] == 3 and config.settings['click']['middle'] == 'exec: true'

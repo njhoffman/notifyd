@@ -129,7 +129,8 @@ def format_duration(ms):
 # settings the renderer reads as whole numbers: (path, may be negative)
 NUMBER_KEYS = ((('width',), False), (('image', 'size'), False), (('image', 'margin-right'), True),
                (('icon', 'size'), False), (('title', 'max-lines'), False), (('body', 'max-lines'), False),
-               (('position', 'monitor'), False), (('history', 'size'), False),
+               (('position', 'monitor'), False), (('history', 'size'), False), (('max-visible',), False),
+               (('center', 'width'), False), (('center', 'cards'), False),
                (('position', 'gap'), True))
 
 
@@ -268,7 +269,60 @@ def normalize(settings, where='config'):
         raise ConfigError(f'{where}: fullscreen: expected show or delay, got {settings["fullscreen"]!r}')
     if 'markup' in settings and settings['markup'] not in ('full', 'strip', 'plain'):
         raise ConfigError(f'{where}: markup: expected full, strip or plain, got {settings["markup"]!r}')
+    _check_shapes(settings, where)
     return warnings
+
+
+# settings that must be true or false (a string such as "no" would count as true)
+BOOL_KEYS = (('stack-duplicates',), ('indicate-waiting',), ('skip',), ('copy-code',), ('history', 'keep'),
+             ('history', 'persist'), ('center', 'hide-on-leave'), ('center', 'mpris'), ('center', 'volume'),
+             ('center', 'modes'), ('center', 'keyboard'), ('center', 'remote-art'), ('center', 'group'))
+# settings with a fixed set of values (anything else silently did nothing)
+CHOICE_KEYS = {('center', 'side'): ('left', 'right'), ('log', 'level'): ('debug', 'info', 'warn', 'error'),
+               ('log', 'format'): ('pretty', 'json'), ('log', 'color'): ('auto', 'always', 'never')}
+CLICK_VALUES = ('dismiss', 'dismiss-all', 'default-action', 'none')
+
+
+def _get_path(settings, path):
+    parent = settings
+    for key in path[:-1]:
+        parent = parent.get(key) if isinstance(parent, dict) else None
+    if isinstance(parent, dict) and path[-1] in parent:
+        return True, parent[path[-1]]
+    return False, None
+
+
+def _check_shapes(settings, where):
+    """Booleans, choices, margins, click values and a rule's preset: values that would fail or do nothing
+    at runtime are config errors, so `notifyd check` finds them."""
+    for path in BOOL_KEYS:
+        present, value = _get_path(settings, path)
+        if present and not isinstance(value, bool):
+            raise ConfigError(f'{where}: {".".join(path)}: expected true or false, got {value!r}')
+    for path, choices in CHOICE_KEYS.items():
+        present, value = _get_path(settings, path)
+        if present and value not in choices:
+            raise ConfigError(f'{where}: {".".join(path)}: expected one of {", ".join(choices)}, got {value!r}')
+    present, margin = _get_path(settings, ('position', 'margin'))
+    if present:
+        values = margin if isinstance(margin, list) else [margin]
+        if not 1 <= len(values) <= 2 or not all(isinstance(v, (int, float)) and not isinstance(v, bool)
+                                                 for v in values):
+            raise ConfigError(f'{where}: position.margin: expected a number or [vertical, horizontal], '
+                              f'got {margin!r}')
+    click = settings.get('click')
+    if isinstance(click, dict):
+        for button, value in click.items():
+            if button not in ('left', 'middle', 'right'):
+                raise ConfigError(f'{where}: click.{button}: expected left, middle or right')
+            if not (value in CLICK_VALUES or (isinstance(value, str) and value.startswith('exec:')
+                                               and value[len('exec:'):].strip())):
+                raise ConfigError(f'{where}: click.{button}: expected one of {", ".join(CLICK_VALUES)} or '
+                                  f'"exec: COMMAND", got {value!r}')
+    elif 'click' in settings:
+        raise ConfigError(f'{where}: click: expected {{left: ..., middle: ..., right: ...}}')
+    if where != 'config' and 'preset' in settings:
+        load_preset(settings['preset'])          # a rule's preset: fail early, as the config's does
 
 
 @dataclass

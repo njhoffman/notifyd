@@ -437,11 +437,17 @@ def import_command(args):
 
 
 def load_or_exit(path):
+    """The config at PATH (the default one when None); a config error, or a PATH given that does not exist,
+    prints it and exits 2."""
     from notifyd.config import ConfigError, load_config
+    if path is not None and not Path(path).expanduser().exists():
+        print(f'notifyd: {path}: no such file', file=sys.stderr)
+        raise SystemExit(2)
     try:
         return load_config(path)
     except ConfigError as exc:
-        raise SystemExit(f'notifyd: {exc}') from exc
+        print(f'notifyd: {exc}', file=sys.stderr)
+        raise SystemExit(2) from exc
 
 
 def picture_warnings(config):

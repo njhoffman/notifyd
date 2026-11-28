@@ -218,9 +218,12 @@ class GtkRenderer:
     def style_for(self, n):
         try:
             preset = load_preset(n.settings.get('preset') or 'deadd')['style']
-        except ConfigError as exc:
+        except ConfigError as exc:                # the config's own preset, else deadd
             self.log.warn(str(exc))
-            preset = load_preset('deadd')['style']
+            try:
+                preset = load_preset(self.manager.config.settings.get('preset') or 'deadd')['style']
+            except ConfigError:
+                preset = load_preset('deadd')['style']
         style = resolve_style(preset, n.settings.get('style'))
         scope = style_class(style)
         if scope not in self.styles:

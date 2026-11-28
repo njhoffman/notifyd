@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.52.0] - 2026-11-28
+
+### Changed
+
+- More settings are checked when the config loads, so `notifyd check` finds what used to fail or do
+  nothing at runtime: `max-visible`, `center.width` and `center.cards` must be numbers; the on/off
+  settings (`stack-duplicates`, `indicate-waiting`, `center.*`, `history.keep`, ...) true or false
+  (`"no"` counted as true); `center.side`, `log.level`, `log.format` and `log.color` one of their
+  values; `position.margin` a number or [vertical, horizontal]; `click.*` dismiss, dismiss-all,
+  default-action, none or "exec: COMMAND"; and a rule's `preset` must exist. A config the daemon loaded
+  before may now be refused: `notifyd check` says what to change.
+- `notifyd check` (and `notifyd rules`) exit 2 for a config error, as documented (it was 1, as for
+  warnings), and `-c PATH` with a path that does not exist is an error instead of checking the
+  defaults.
+- A notification whose rule names a preset that cannot be loaded falls back to the config's preset,
+  not to deadd.
+
 ## [0.51.10] - 2026-11-28
 
 ### Fixed

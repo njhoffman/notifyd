@@ -257,3 +257,13 @@ def test_for_durations():
     for bad in ('30', 'soon', '0s', '721h'):
         with pytest.raises(SystemExit):
             duration_seconds(bad, 'pause --for')
+
+
+def test_check_exits_2_for_errors_and_a_missing_path(tmp_path, capsys):
+    bad = tmp_path / 'bad.yaml'
+    bad.write_text('max-visible: many\n')
+    for path in (bad, tmp_path / 'typo.yaml'):
+        with pytest.raises(SystemExit) as exit_info:
+            main(['check', '-c', str(path)])
+        assert exit_info.value.code == 2
+    assert 'no such file' in capsys.readouterr().err

@@ -27,7 +27,7 @@ Reviewed: 2026-11-27
       (`daemon.py:101`) changes the config and reloads the renderer, but `style_for` reads each
       notification's own `settings['preset']`, which only `Manager._restyle` updates; open, waiting and
       held ones keep the old look (`presets --pick` too). Go through `Manager.reload`'s path.
-- [ ] **`notifyd check` passes settings that fail at runtime.** (p2) [bug] `max-visible: many` (every
+- [x] **`notifyd check` passes settings that fail at runtime.** (p2) [bug] `max-visible: many` (every
       Notify raises TypeError, `manager.py:313`), `stack-duplicates: "no"` (truthy), `position.margin:
       '30 5'`, `center.width`/`center.cards: lots`, `center.side: middle`, `click.left: open-it` (does
       nothing), `log.level: chatty`; a rule's unknown `preset` (warns, then falls back to deadd, not the
@@ -37,7 +37,7 @@ Reviewed: 2026-11-27
       the center is hidden, `on_volume_level` (`center.py:281`) records the level but does not mark the
       center dirty, so the next open only updates live parts and the row never appears (a stale row stays
       when pactl goes away). Set `dirty` when the row appears or goes, visible or not.
-- [ ] **`notifyd check` exits 1 for errors, not 2.** (p3) [bug] The help and man page say errors exit 2;
+- [x] **`notifyd check` exits 1 for errors, not 2.** (p3) [bug] The help and man page say errors exit 2;
       `load_or_exit` raises `SystemExit(str)` (exit 1, as for warnings). Exit 2 as documented.
 - [ ] **Rules accept history settings that only work globally.** (p3) [bug] `history.size` and
       `history.persist` in a rule are ignored (only `history.keep` is per notification); `persist` is
