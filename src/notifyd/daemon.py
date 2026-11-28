@@ -104,8 +104,7 @@ class Daemon:
         except ConfigError as exc:
             return f'error: {exc}'
         self.manager.config.settings['preset'] = name
-        if self.renderer is not None and hasattr(self.renderer, 'reload'):
-            self.renderer.reload()
+        self.manager.restyle()                    # open ones too, not only what comes next
         self.log.info(f'preset {name} (until the next reload)')
         return f'preset {name}'
 

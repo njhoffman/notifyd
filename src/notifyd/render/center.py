@@ -227,8 +227,14 @@ class Center:
         # A grab (the mode picker's menu opening) also sends a leave: only a real one hides it.
         if event.mode != Gdk.CrossingMode.NORMAL:
             return
-        if event.detail != Gdk.NotifyType.INFERIOR and self.settings().get('hide-on-leave', True):
-            self.hide()
+        if event.detail == Gdk.NotifyType.INFERIOR or not self.settings().get('hide-on-leave', True):
+            return
+        # a popup or the help mapping under the pointer sends a leave too: the pointer is still over us
+        x, y = self.window.get_position()
+        width, height = self.window.get_size()
+        if x <= event.x_root < x + width and y <= event.y_root < y + height:
+            return
+        self.hide()
 
     def on_event(self, event):
         if event['event'] not in REFRESH_EVENTS:

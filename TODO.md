@@ -18,12 +18,12 @@ Reviewed: 2026-11-27
       ok, and the docs say a rule takes any key above, `body.max-lines` included. Tell the two apart by
       type (a mapping is the setting, text the rewrite) and validate rewrite templates in `check`
       (`summary: 'set {x'` passes and fails at runtime).
-- [ ] **The center hides itself when a popup or its own overlay opens under the pointer.** (p2) [bug]
+- [x] **The center hides itself when a popup or its own overlay opens under the pointer.** (p2) [bug]
       `on_leave` (`center.py:226`) treats the LeaveNotify X sends when another of notifyd's windows maps
       under the pointer as a real leave: a popup arriving over the center's corner (they overlap), or
       `?`/`i` opening the help or details under it, closes the center, overlay and keyboard grab. Hide
       only when the pointer is really outside the center's rectangle (`x_root`/`y_root`).
-- [ ] **`ctl preset NAME` leaves open popups in the old preset.** (p2) [bug] `set_preset`
+- [x] **`ctl preset NAME` leaves open popups in the old preset.** (p2) [bug] `set_preset`
       (`daemon.py:101`) changes the config and reloads the renderer, but `style_for` reads each
       notification's own `settings['preset']`, which only `Manager._restyle` updates; open, waiting and
       held ones keep the old look (`presets --pick` too). Go through `Manager.reload`'s path.

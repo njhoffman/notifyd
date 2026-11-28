@@ -1249,3 +1249,13 @@ def test_a_stack_over_max_visible_after_a_change_queues_its_newest(make_manager)
     assert ('close', chat) in renderer.calls
     m.close(volume)
     assert m.displayed == [chat] and m.waiting == []
+
+
+def test_a_preset_switch_restyles_what_is_open(make_manager):
+    m, *_ = make_manager('preset: deadd\nrules:\n  - match: {app: own}\n    preset: nord\n')
+    nid = m.notify('a', summary='open')
+    own = m.notify('own', summary='its rule picks nord')
+    m.config.settings['preset'] = 'dracula'                          # what Daemon.set_preset does
+    m.restyle()
+    assert m.active[nid].settings['preset'] == 'dracula'
+    assert m.active[own].settings['preset'] == 'nord'                 # a rule's preset still wins

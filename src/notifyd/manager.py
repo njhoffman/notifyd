@@ -872,6 +872,12 @@ class Manager:
     def reload(self, config):
         self.config = config
         self.history.resize(config.settings['history']['size'])
+        self.restyle()
+        self.log.emit('reload', message=str(config.path or 'defaults'))
+
+    def restyle(self):
+        """Apply the config (its rules, preset, positions) again to everything open, waiting and held, draw
+        it again, and refill the stacks: after a reload or a preset switch."""
         for n in self.active.values():
             self._restyle(n)
         renderer_reload = getattr(self.renderer, 'reload', None)
@@ -883,7 +889,6 @@ class Manager:
         self._trim_stacks()                       # stacks and max-visible may have changed
         self._fill_waiting()
         self._waiting_changed()
-        self.log.emit('reload', message=str(config.path or 'defaults'))
 
     def _trim_stacks(self):
         """A stack over max-visible (after a reload, or a replace that moved one between stacks) sends its

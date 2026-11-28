@@ -280,3 +280,27 @@ def test_a_sender_cannot_style_other_popups(display):
         assert 'drawn without its style' in stream.getvalue()
         assert all(renderer.windows[nid].get_visible() for nid in (bad, typo, good))
     """)
+
+
+def test_the_center_stays_when_a_window_opens_under_the_pointer(display):
+    run_gtk(display, """
+        from gi.repository import Gdk
+        manager, renderer = setup('position: {follow: none}\\ncenter: {keyboard: false}')
+        center = renderer.center
+        center.toggle('show')
+        while Gtk.events_pending():
+            Gtk.main_iteration()
+        x, y = center.window.get_position()
+        width, height = center.window.get_size()
+
+        def leave(px, py):
+            event = Gdk.Event.new(Gdk.EventType.LEAVE_NOTIFY)
+            event.crossing.mode, event.crossing.detail = Gdk.CrossingMode.NORMAL, Gdk.NotifyType.NONLINEAR
+            event.crossing.x_root, event.crossing.y_root = px, py
+            center.on_leave(None, event.crossing)
+
+        leave(x + width - 10, y + 10)          # a popup mapped over its corner, pointer still inside
+        assert center.visible
+        leave(x - 50, y + 10)                  # the pointer really left
+        assert not center.visible
+    """)

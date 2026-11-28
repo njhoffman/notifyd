@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.51.10] - 2026-11-28
+
+### Fixed
+
+- The notification center no longer closes when a popup, or its own help or details window, opens
+  under the pointer: only the pointer really leaving it counts (`center.hide-on-leave`).
+- `notifyd ctl preset NAME` (and `notifyd presets --pick`) restyles the notifications already open,
+  waiting or held, not only new ones; a rule's own `preset` still wins.
+
 ## [0.51.9] - 2026-11-28
 
 ### Fixed
