@@ -9,7 +9,7 @@ import re
 
 import yaml
 
-from notifyd.config import format_duration, load_preset
+from notifyd.config import ConfigError, format_duration, load_preset, parse_duration
 
 DEADD_MATCH = {'app-name': 'app', 'title': 'summary', 'body': 'body', 'app-icon': 'icon', 'urgency': 'urgency'}
 HIDE_WHEN_EMPTY = {'app-icon': 'app-icon', 'app-name': 'app-name', 'title': 'title', 'body': 'body',
@@ -51,7 +51,10 @@ def import_deadd_yaml(data, report):
     notification = data.get('notification') or {}
     timeout = _get(notification, 'popup', 'default-timeout')
     if timeout is not None:
-        out['timeout'] = format_duration(int(timeout))
+        try:
+            out['timeout'] = format_duration(parse_duration(timeout, 'notification.popup.default-timeout'))
+        except ConfigError as exc:
+            report.append(f'{exc} (ignored)')
     if _get(notification, 'popup', 'max-lines-in-body') is not None:
         out['body'] = {'max-lines': _get(notification, 'popup', 'max-lines-in-body')}
     icon_size = _get(notification, 'app-icon', 'icon-size')
@@ -68,12 +71,17 @@ def import_deadd_yaml(data, report):
     if _get(notification, 'popup', 'click-behavior'):
         report.append('notification.popup.click-behavior: set click.left/right in the notifyd config instead')
     for key in data:
-        if key not in ('width', 'margin-top', 'margin-right', 'follow-mouse', 'monitor', 'notification'):
+        if key not in ('width', 'margin-top', 'margin-right', 'follow-mouse', 'monitor', 'notification',
+                       'notification-center'):
             report.append(f'{key}: no notifyd equivalent (ignored)')
     if data.get('notification-center') is not None:
-        report.append('notification-center: the notification center is not built yet (ignored)')
+        report.append('notification-center: not imported; notifyd\'s center has its own settings (center.*)')
     rules = []
     for index, mod in enumerate(notification.get('modifications') or []):
+        if not isinstance(mod, dict) or not isinstance(mod.get('match') or {}, dict) \
+                or not isinstance(mod.get('modify') or {}, dict):
+            report.append(f'modifications[{index}]: expected match: {{...}} and modify: {{...}} (skipped)')
+            continue
         rule = {}
         match = {}
         for key, value in (mod.get('match') or {}).items():
@@ -194,7 +202,14 @@ def strip_preset_values(style, preset_style):
 def import_deadd(yml_text, css_text=None):
     """(config dict, report lines)."""
     report = []
-    data = yaml.safe_load(yml_text) or {}
+    try:
+        data = yaml.safe_load(yml_text) or {}
+    except yaml.YAMLError as exc:
+        raise ConfigError(f'not valid YAML: {exc}') from exc
+    if not isinstance(data, dict):
+        raise ConfigError('expected a mapping of settings at the top')
+    if not isinstance(data.get('notification') or {}, dict):
+        raise ConfigError('notification: expected a mapping')
     config = {'preset': 'deadd', **import_deadd_yaml(data, report)}
     if css_text:
         style = strip_preset_values(import_deadd_css(css_text, report), load_preset('deadd')['style'])

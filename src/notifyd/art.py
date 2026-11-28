@@ -23,6 +23,7 @@ USER_AGENT = 'notifyd'
 
 _pending = set()       # URLs being fetched
 _lock = threading.Lock()
+_prune_lock = threading.Lock()
 
 
 def remote(url):
@@ -102,17 +103,29 @@ def _get(url):
         tmp = path.with_name(path.name + '.tmp')
         tmp.write_bytes(data)
         tmp.replace(path)
-        _prune(path.parent)
     except OSError:
         return None
+    _prune(path.parent)                          # a failed prune does not lose the download
     return path
 
 
+def _mtime(path):
+    try:
+        return path.stat().st_mtime
+    except OSError:                              # pruned by another download meanwhile
+        return 0
+
+
 def _prune(directory):
-    files = sorted((p for p in directory.iterdir() if p.is_file() and not p.name.endswith('.tmp')),
-                   key=lambda p: p.stat().st_mtime, reverse=True)
-    for old in files[KEEP:]:
+    """Keep the KEEP most recently used covers; one prune at a time (downloads run in threads)."""
+    with _prune_lock:
         try:
-            old.unlink()
+            files = sorted((p for p in directory.iterdir() if p.is_file() and not p.name.endswith('.tmp')),
+                           key=_mtime, reverse=True)
         except OSError:
-            pass
+            return
+        for old in files[KEEP:]:
+            try:
+                old.unlink()
+            except OSError:
+                pass

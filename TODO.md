@@ -64,21 +64,25 @@ Reviewed: 2026-11-27
 - [x] **A sound-file hint can pass options to the player.** (p3) [bug] `effects.py:126` runs
       `[paplay, value]` without `--`, so `--server=...` is an option; `file://` URIs are not
       percent-decoded (`%20` paths fail). Add `--`, refuse values starting with `-`, unquote URIs.
-- [ ] **Odd MPRIS metadata breaks the center.** (p3) [bug] A non-dict `Metadata`, a non-str title or
+- [x] **Odd MPRIS metadata breaks the center.** (p3) [bug] A non-dict `Metadata`, a non-str title or
       album, or an artist list with non-str items make `rebuild` fail while that player is active
       (`mpris.py:47`, `center.py:599`); coerce or drop them. `mpris:artUrl` lets any local MPRIS client
       make notifyd fetch any http URL, localhost included: allow only https, or not loopback/private
-      addresses.
+      addresses. Done in 0.51.7 (metadata coerced). artUrl kept as is: a local MPRIS client that can
+      make notifyd fetch a URL can fetch it itself, so a block adds no protection and would break
+      covers from a media server on the LAN (http://192.168...).
 - [x] **A filter whose grandchild holds stdout hangs that notification.** (p3) [bug] After the timeout
       `effects.py:94` calls `communicate()` without a timeout: a setsid'd grandchild keeping the pipe
       blocks the thread and the notification stays in `filtering`, never shown. Answer first, then reap
       with a timeout (or close the pipes).
-- [ ] **Small robustness gaps.** (p3) [bug] Two art downloads can prune at once and lose a finished
+- [x] **Small robustness gaps.** (p3) [bug] Two art downloads can prune at once and lose a finished
       download to a vanished `stat()` (`art.py:111`); the `_desktop_icons` cache grows with every
       distinct `desktop-entry` (`images.py:92`; bound it); CloseNotification of an unknown id returns
       success where spec 1.2 asks for an empty D-Bus error; the deadd importer gives tracebacks for
       `default-timeout: 5s`, a non-mapping `match`, a top-level list or bad YAML, and reports
-      `notification-center` twice.
+      `notification-center` twice. Done in 0.51.7, except CloseNotification: an unknown id still
+      returns success on purpose, as dunst does, since clients close notifications that already expired
+      and an error only puts warnings in their logs.
 - [ ] **The default-action key takes empty keys and a lone reply.** (p3) [bug] `default_target`
       (`manager.py:517`) counts a sender's action with key `''` as its single action (ActionInvoked(id,
       '') goes out) and a lone `inline-reply` as the default (the key opens the reply field instead);

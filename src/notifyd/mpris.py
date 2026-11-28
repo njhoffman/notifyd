@@ -43,17 +43,26 @@ def command(connection, name, method):
     connection.call(name, PATH, PLAYER, method, None, None, Gio.DBusCallFlags.NONE, 1000, None, None, None)
 
 
+def _text(value):
+    return value if isinstance(value, str) else ''
+
+
 def _state(name, props):
-    meta = props.get('Metadata') or {}
+    """A player's state from its properties; metadata of the wrong type (any player can publish any) is
+    left out rather than breaking the center."""
+    meta = props.get('Metadata')
+    meta = meta if isinstance(meta, dict) else {}
     artist = meta.get('xesam:artist') or []
+    artists = [a for a in artist if isinstance(a, str)] if isinstance(artist, list) else [_text(artist)]
+    status = props.get('PlaybackStatus')
     return {
         'name': name,
         'player': name[len(PREFIX):].split('.')[0],
-        'status': props.get('PlaybackStatus', 'Stopped'),
-        'title': meta.get('xesam:title') or '',
-        'artist': ', '.join(artist) if isinstance(artist, list) else str(artist),
-        'album': meta.get('xesam:album') or '',
-        'art': meta.get('mpris:artUrl') or '',
+        'status': status if isinstance(status, str) else 'Stopped',
+        'title': _text(meta.get('xesam:title')),
+        'artist': ', '.join(a for a in artists if a),
+        'album': _text(meta.get('xesam:album')),
+        'art': _text(meta.get('mpris:artUrl')),
     }
 
 

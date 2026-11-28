@@ -214,3 +214,17 @@ def test_dunst_monitor_by_index_or_name():
         assert config['position']['monitor'] == expected
     config, _report = import_dunst('[global]\n    monitor = 0\n    follow = none\n')
     assert config['position'] == {'follow': 'none'}                   # 0 is the default
+
+
+def test_deadd_import_reports_bad_input_instead_of_failing():
+    import pytest
+
+    from notifyd.config import ConfigError
+    config, report = import_deadd('notification: {popup: {default-timeout: 5s}}')
+    assert config['timeout'] == '5s'
+    config, report = import_deadd('notification: {modifications: [{match: [x], modify: {}}]}\nnotification-center: {}')
+    assert any('modifications[0]: expected match' in line for line in report) and 'rules' not in config
+    assert sum('notification-center' in line for line in report) == 1          # once, and not "not built yet"
+    for text in ('- a\n- b', 'a: [', 'notification: 5'):
+        with pytest.raises(ConfigError):
+            import_deadd(text)

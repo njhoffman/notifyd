@@ -90,6 +90,7 @@ def prune_thumbnails(directory, keep_names):
 
 
 _desktop_icons = {}
+DESKTOP_ICONS_KEPT = 256   # entries looked up; a sender can send any desktop-entry, so the cache is capped
 
 
 def desktop_icon(entry):
@@ -98,6 +99,8 @@ def desktop_icon(entry):
     if not entry:
         return ''
     if entry not in _desktop_icons:
+        if len(_desktop_icons) >= DESKTOP_ICONS_KEPT:
+            _desktop_icons.pop(next(iter(_desktop_icons)))   # the oldest lookup
         icon = ''
         for name in dict.fromkeys((entry, entry.lower())):
             name = name.removesuffix('.desktop')

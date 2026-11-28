@@ -402,7 +402,7 @@ def icons_command(args):
 # -- import, check, rules -----------------------------------------------------------
 
 def import_command(args):
-    from notifyd.config import default_path
+    from notifyd.config import ConfigError, default_path
     from notifyd.importer import dump_config, import_deadd, import_dunst
     home = Path(os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config')
 
@@ -414,7 +414,10 @@ def import_command(args):
     if args.source == 'deadd':
         yml = Path(args.yml) if args.yml else home / 'deadd' / 'deadd.yml'
         css = Path(args.css) if args.css else yml.with_suffix('.css')
-        config, report = import_deadd(read(yml), css.read_text() if css.is_file() else None)
+        try:
+            config, report = import_deadd(read(yml), css.read_text() if css.is_file() else None)
+        except ConfigError as exc:
+            raise SystemExit(f'notifyd import: {yml}: {exc}') from exc
         text = dump_config(config, 'deadd-notification-center')
     else:
         config, report = import_dunst(read(Path(args.rc) if args.rc else home / 'dunst' / 'dunstrc'))

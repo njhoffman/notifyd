@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.51.7] - 2026-11-27
+
+### Fixed
+
+- A media player's metadata of the wrong type (a number for the title, a list with numbers in it for
+  the artist) is left out instead of breaking the notification center while that player is active.
+- Two cover downloads finishing together no longer lose one to the other's cache prune.
+- The desktop-entry icon cache is capped (256), since senders can send any desktop-entry.
+- `notifyd import deadd` reports what it cannot use instead of a traceback: `default-timeout: 5s`
+  is read as a duration, a malformed modification is skipped, and bad YAML or a config that is not a
+  mapping is an error with the file name. `notification-center` is reported once, and no longer as
+  "not built yet".
+
 ## [0.51.6] - 2026-11-27
 
 ### Fixed
