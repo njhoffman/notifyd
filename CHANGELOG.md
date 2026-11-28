@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.51.6] - 2026-11-27
+
+### Fixed
+
+- `notifyd-send` reports numbers it cannot send as usage errors instead of tracebacks: `-r`/`--close`
+  outside 0 to 4294967295, `-t` outside -1 to 2147483647, and `byte:`/`int:` hints out of range.
+- A `sound-file` or `sound-name` hint is never taken as one of the player's options (`--server=...`);
+  `file://` URIs are percent-decoded, so paths with spaces play.
+- A `filter` command whose own child keeps its output open no longer holds the notification back
+  forever: it shows unchanged at the timeout as intended.
+
 ## [0.51.5] - 2026-11-27
 
 ### Fixed

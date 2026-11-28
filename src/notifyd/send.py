@@ -82,6 +82,9 @@ def parse_hint(text):
             parsed = value.lower() in ('true', '1')
         else:
             parsed = value
+        low, high = {'i': (-2 ** 31, 2 ** 31 - 1), 'y': (0, 255)}.get(signature, (None, None))
+        if low is not None and not low <= parsed <= high:
+            raise ValueError(value)
     except ValueError as exc:
         raise SendError(f'hint {text!r}: {value!r} is not a valid {kind}') from exc
     return name, GLib.Variant(signature, parsed)
@@ -231,7 +234,7 @@ def build_parser(prog='notifyd send', standalone=False):
     note.add_argument('-a', '--app-name', default=None, metavar='NAME',
                       help='the sending application (rules match on it; default notifyd-send)')
     note.add_argument('-u', '--urgency', choices=sorted(URGENCIES), default=None, help='low, normal or critical')
-    note.add_argument('-t', '--expire-time', type=int, default=-1, metavar='MS',
+    note.add_argument('-t', '--expire-time', type=EXPIRE_MS, default=-1, metavar='MS',
                       help='how long to show it, ms (0: until closed; rules may override)')
     note.add_argument('-i', '--icon', default='', metavar='ICON', help='app icon: an icon name or a path')
     note.add_argument('-c', '--category', default=None, metavar='TYPE', help='category hint, e.g. email.arrived')
@@ -269,12 +272,14 @@ def build_parser(prog='notifyd send', standalone=False):
     acting.add_argument('--dont-quit-on-action', '--dontQuitOnAction', dest='dont_quit', action='store_true',
                         help='after an action, keep waiting (and printing) until it closes')
     acting.add_argument('-w', '--wait', action='store_true', help='wait until it is closed')
-    acting.add_argument('-r', '--replace-id', '--replaces-id', dest='replace_id', type=int, default=0, metavar='ID',
+    acting.add_argument('-r', '--replace-id', '--replaces-id', dest='replace_id', type=NOTIFICATION_ID, default=0,
+                        metavar='ID',
                         help='replace notification ID')
     acting.add_argument('--replace-name', '--replaces-process', dest='replace_name', default=None, metavar='NAME',
                         help='replace the last notification sent with this NAME')
     acting.add_argument('-p', '--print-id', action='store_true', help='print the notification id')
-    close = acting.add_argument('--close', type=int, default=None, metavar='ID', help='close notification ID and exit')
+    close = acting.add_argument('--close', type=NOTIFICATION_ID, default=None, metavar='ID',
+                                help='close notification ID and exit')
     close.complete = 'ids'
 
     other = parser.add_argument_group('other')
@@ -381,6 +386,23 @@ class Waiter:
         finally:
             for sub in self.subscriptions:
                 self.connection.signal_unsubscribe(sub)
+
+
+def bounded_int(low, high, what):
+    """An argparse type: a whole number from LOW to HIGH (D-Bus sends ids as uint32, timeouts as int32)."""
+    def parse(text):
+        try:
+            value = int(text)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f'{text!r} is not a whole number') from None
+        if not low <= value <= high:
+            raise argparse.ArgumentTypeError(f'{what} must be {low} to {high}, got {value}')
+        return value
+    return parse
+
+
+NOTIFICATION_ID = bounded_int(0, 2 ** 32 - 1, 'an id')
+EXPIRE_MS = bounded_int(-1, 2 ** 31 - 1, 'the time in ms (-1: the server decides)')
 
 
 def main(argv=None, out=None, err=None, prog='notifyd send', standalone=False):

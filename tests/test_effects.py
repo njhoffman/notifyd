@@ -176,3 +176,18 @@ def test_filter_failures_come_back_as_errors():
     started = time.monotonic()
     assert run_filter('sleep 5; echo "{}"', timeout_ms=200) == (None, 'no answer in 200 ms')
     assert time.monotonic() - started < 2                                    # killed, not waited for
+
+
+def test_a_filter_answers_on_time_even_when_its_child_keeps_the_pipe():
+    started = time.monotonic()
+    result = run_filter('setsid sh -c "sleep 30" & sleep 30', timeout_ms=300)
+    assert result == (None, 'no answer in 300 ms') and time.monotonic() - started < 3
+
+
+def test_sound_hints_are_never_player_options():
+    player = SoundPlayer()
+    player.file_player, player.name_player = 'paplay', 'canberra-gtk-play'
+    assert player.command('file:///home/me/my%20bell.oga') == ['paplay', '/home/me/my bell.oga']
+    assert player.command('--server=x/y') == ['paplay', './--server=x/y']
+    assert player.command('--device=x') is None
+    assert player.command('message-new-instant') == ['canberra-gtk-play', '-i', 'message-new-instant']

@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import threading
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 from gi.repository import Gio, GLib
 
@@ -91,8 +92,14 @@ class Filter:
                 out, err = proc.communicate(data, timeout=max(timeout_ms, 1) / 1000)
             except subprocess.TimeoutExpired:
                 _kill(proc)
-                proc.communicate()
-                answer(None, f'no answer in {timeout_ms} ms')
+                answer(None, f'no answer in {timeout_ms} ms')   # first: the notification must not wait on us
+                try:
+                    proc.communicate(timeout=5)
+                except subprocess.TimeoutExpired:      # a child of its own (setsid) still holds the pipes
+                    for pipe in (proc.stdin, proc.stdout, proc.stderr):
+                        if pipe:
+                            pipe.close()
+                    proc.wait()
                 return
             except OSError as exc:
                 answer(None, exc.strerror)
@@ -123,9 +130,15 @@ class SoundPlayer:
         self.name_player = shutil.which('canberra-gtk-play')
 
     def command(self, sound):
+        """The player's command for SOUND (a path, a file:// URI or a sound name). A sender's hint is never
+        taken as an option: a path starting with '-' is passed as ./PATH, such a name is refused."""
         if '/' in sound or sound.startswith('file://'):
-            path = sound.removeprefix('file://')
+            path = unquote(urlparse(sound).path) if sound.startswith('file://') else sound
+            if path.startswith('-'):
+                path = './' + path
             return [self.file_player, path] if self.file_player else None
+        if sound.startswith('-'):
+            return None
         return [self.name_player, '-i', sound] if self.name_player else None
 
     def __call__(self, sound):

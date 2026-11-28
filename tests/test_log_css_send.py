@@ -288,3 +288,17 @@ def test_the_log_file_is_private(tmp_path):
     log.configure(color='never', file=str(path))
     log.info('a body with 123456')
     assert path.exists() and oct(os.stat(path).st_mode & 0o777) == '0o600'
+
+
+@pytest.mark.parametrize('argv', [['-r', '-5', 'x'], ['--close', '-1'], ['-t', '3000000000', 'x'],
+                                  ['-r', '99999999999', 'x'], ['-t', 'soon', 'x']])
+def test_send_refuses_numbers_out_of_range(argv, capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        build_parser().parse_args(argv)
+    assert exit_info.value.code == 2 and 'error:' in capsys.readouterr().err
+
+
+@pytest.mark.parametrize('hint', ['byte:x:300', 'int:x:3000000000', 'int:x:1e11', 'byte:x:-1'])
+def test_send_hints_out_of_range(hint):
+    with pytest.raises(SendError):
+        parse_hint(hint)

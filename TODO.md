@@ -58,10 +58,10 @@ Reviewed: 2026-11-27
       Prefer a number after "is"/":" following the word, skip amounts after currency words, and require
       "code" not be preceded by zip/error/status/area/review. Lost since 0.49.5: "Your token is 482913",
       "Enter 482913 to verify your account".
-- [ ] **notifyd-send gives tracebacks for out-of-range numbers.** (p3) [bug] `-r -5`, `--close -1`,
+- [x] **notifyd-send gives tracebacks for out-of-range numbers.** (p3) [bug] `-r -5`, `--close -1`,
       `-t 3000000000`, `byte:x:300`, `int:x:1e11` raise OverflowError, and an ids file holding `[]` or
       `{"x":"a"}` TypeError/ValueError (`send.py:153`, `:364`); turn them into usage errors.
-- [ ] **A sound-file hint can pass options to the player.** (p3) [bug] `effects.py:126` runs
+- [x] **A sound-file hint can pass options to the player.** (p3) [bug] `effects.py:126` runs
       `[paplay, value]` without `--`, so `--server=...` is an option; `file://` URIs are not
       percent-decoded (`%20` paths fail). Add `--`, refuse values starting with `-`, unquote URIs.
 - [ ] **Odd MPRIS metadata breaks the center.** (p3) [bug] A non-dict `Metadata`, a non-str title or
@@ -69,7 +69,7 @@ Reviewed: 2026-11-27
       (`mpris.py:47`, `center.py:599`); coerce or drop them. `mpris:artUrl` lets any local MPRIS client
       make notifyd fetch any http URL, localhost included: allow only https, or not loopback/private
       addresses.
-- [ ] **A filter whose grandchild holds stdout hangs that notification.** (p3) [bug] After the timeout
+- [x] **A filter whose grandchild holds stdout hangs that notification.** (p3) [bug] After the timeout
       `effects.py:94` calls `communicate()` without a timeout: a setsid'd grandchild keeping the pipe
       blocks the thread and the notification stays in `filtering`, never shown. Answer first, then reap
       with a timeout (or close the pipes).
