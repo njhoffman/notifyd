@@ -18,7 +18,7 @@ Reviewed: 2026-11-27
       `displayed` with timers but no window, take max-visible room, expire unseen into `missed`, and
       send no NotificationClosed. Defer the resume (and the timed mode switch) until the daemon is
       wired, e.g. a `Manager.start()` the daemon calls after attaching both.
-- [ ] **A replacement still in its filter is lost when the old one closes.** (p2) [bug] B replaces A
+- [x] **A replacement still in its filter is lost when the old one closes.** (p2) [bug] B replaces A
       (same id) and waits for its filter; A expires or is dismissed: `close(A)` pops
       `filtering[A]` too (`manager.py:409`), so B never shows though its sender holds that id.
       `close()` should only drop a pending filter when nothing with that id is active, or admit B
@@ -37,7 +37,7 @@ Reviewed: 2026-11-27
       [bug] `_replace` (`manager.py:278`) neither rechecks room in the new stack nor calls
       `_fill_waiting` for the old: with `max-visible: 1` the old stack stays empty while its
       waiting one keeps waiting, and the next arrival jumps ahead of it.
-- [ ] **Notifications in their filter are invisible to replace, dedup, list and close.** (p3) [bug]
+- [x] **Notifications in their filter are invisible to replace, dedup, list and close.** (p3) [bug]
       `_replace_target` only looks in `active`, so stack-tag and group-by replacements arriving within
       `filter-timeout` each get a popup; `close_all`, `close_matching` and `shutdown` skip them
       (one shows after "close all"; shutdown sends no NotificationClosed for it). `pop()` also lacks

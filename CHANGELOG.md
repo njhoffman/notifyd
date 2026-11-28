@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.49.2] - 2026-11-27
+
+### Fixed
+
+- An update that replaces an open notification while its `filter` runs is no longer lost when the
+  open one closes first (it expired or was dismissed): it shows as a new notification once the filter
+  answers.
+- Notifications still waiting for their filter count for stack-tag, `group-by` and duplicate
+  replacement, so a burst of filtered volume notifications replaces one popup instead of opening one
+  each. `ctl close-all` and `ctl close --app ...` close them too.
+- A notification brought back from the history (`ctl pop`) is not filtered a second time.
+
 ## [0.49.1] - 2026-11-27
 
 ### Fixed

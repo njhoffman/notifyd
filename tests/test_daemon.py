@@ -848,13 +848,16 @@ def test_editing_the_config_or_a_preset_reloads(bus, daemon, tmp_path):
 
 def test_ctl_timed_pause_mode_close_by_fields_and_missed(bus, daemon):
     daemon('timeout: 300ms', '--renderer', 'none')
-    assert run(bus, 'ctl', 'pause', '--for', '3s').stdout.strip() == 'paused'
-    assert run(bus, 'ctl', 'mode', 'focus', '--for', '3s').stdout.strip() == 'focus'
+    # long enough to read back on a busy machine (each ctl call starts python)
+    assert run(bus, 'ctl', 'pause', '--for', '30s').stdout.strip() == 'paused'
+    assert run(bus, 'ctl', 'mode', 'focus', '--for', '30s').stdout.strip() == 'focus'
 
     def status():
         return dict([*line.split(None, 1), ''][:2] for line in run(bus, 'ctl', 'status').stdout.splitlines())
     now = status()
     assert now['paused'] == 'True' and now['paused_until'] != 'None' and now['mode_until'] != 'None'
+    run(bus, 'ctl', 'pause', '--for', '1s')                                            # timed again, short
+    run(bus, 'ctl', 'mode', 'focus', '--for', '1s')
     assert wait_until(lambda: run(bus, 'ctl', 'mode').stdout.strip() == 'normal', 8)   # back on their own
     assert wait_until(lambda: status()['paused'] == 'False', 5)
     assert run(bus, 'ctl', 'pause', '--for', '30', check=False).returncode != 0        # a unit is needed

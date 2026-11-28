@@ -145,6 +145,8 @@ class Manager:
         target = self._replace_target(n)
         n.id = target or self._free_replaces_id(n) or self._new_id()
         self.filtering.pop(n.id, None)            # a newer one with its id: the older filter's answer is moot
+        if target not in self.active:             # it replaced one still in its filter: that one never showed
+            target = 0
         if n.settings.get('filter'):
             self.filtering[n.id] = (n, target)
             self.filter_runner(n.settings['filter'], n, int(n.settings.get('filter-timeout') or 500),
@@ -253,24 +255,32 @@ class Manager:
         self.next_id = self.next_id + 1 if self.next_id < 0xFFFFFFFF else 1
         return nid
 
+    def _open_and_filtering(self):
+        """(id, notification) of what is open, then of what waits for its filter (not open yet)."""
+        return [*self.active.items(),
+                *((nid, pending[0]) for nid, pending in self.filtering.items() if nid not in self.active)]
+
     def _replace_target(self, n):
-        if n.replaces_id and n.replaces_id in self.active:
+        """The id N replaces: its replaces_id, the same app and stack tag, its group-by group or an identical
+        one (stack-duplicates), open or still in its filter; else 0."""
+        if n.replaces_id and (n.replaces_id in self.active or n.replaces_id in self.filtering):
             return n.replaces_id
+        others = self._open_and_filtering()
         tag = n.stack_tag
         if tag:
-            for nid, other in self.active.items():
+            for nid, other in others:
                 if other.app == n.app and other.stack_tag == tag:
                     return nid
         group = n.settings.get('group-by') or []
         if group:
             key = [getattr(n, field) for field in group]
-            for nid, other in self.active.items():
+            for nid, other in others:
                 if [getattr(other, field) for field in group] == key:
                     n.duplicates = other.duplicates + 1
                     n.grouped = True
                     return nid
         if n.settings.get('stack-duplicates'):
-            for nid, other in self.active.items():
+            for nid, other in others:
                 if (other.app, other.summary, other.body, other.urgency) == (n.app, n.summary, n.body, n.urgency):
                     n.duplicates = other.duplicates + 1
                     return nid
@@ -406,10 +416,14 @@ class Manager:
             self._start_timer(n, max(remaining, MIN_RESUME_MS))
 
     # -- closing --------------------------------------------------------
-    def close(self, nid, reason=CLOSED, quiet=False):
-        pending = self.filtering.pop(nid, None)   # closed while its filter runs: it never shows
+    def close(self, nid, reason=CLOSED, quiet=False, pending_too=False):
+        """Close NID. A replacement of it still in its filter (same id) stays and shows as a new one when
+        the filter answers, unless PENDING_TOO (close all, close by fields)."""
+        if pending_too and nid in self.active:
+            self.filtering.pop(nid, None)
         n = self.active.pop(nid, None)
         if n is None:
+            pending = self.filtering.pop(nid, None)   # closed while its filter runs: it never shows
             if pending is None:
                 return False
             if not quiet:
@@ -462,16 +476,18 @@ class Manager:
                         for key, value in criteria.items()]
         except ConfigError as exc:
             raise ValueError(str(exc)) from exc
-        ids = [nid for nid, n in list(self.active.items())
+        ids = [nid for nid, n in self._open_and_filtering()
                if all(matcher(_normalize_actual(get(n))) is not None for get, matcher in matchers)]
         for nid in ids:
-            self.close(nid, reason)
+            self.close(nid, reason, pending_too=True)
         return len(ids)
 
     def close_all(self, reason=DISMISSED):
+        # a replacement still in its filter goes with the one it replaces (same id), one not open yet too
         ids = list(self.displayed) + list(self.waiting) + list(self.deferred)
+        ids += [nid for nid in self.filtering if nid not in self.active]
         for nid in ids:
-            self.close(nid, reason)
+            self.close(nid, reason, pending_too=True)
         return len(ids)
 
     def invoke(self, nid, key):
@@ -805,7 +821,7 @@ class Manager:
         hints = self.entry_hints(entry)
         # a look back, not a new arrival: rules style it again, but their commands and sounds stay quiet
         return self.notify(entry.get('app', ''), 0, entry.get('app_icon', ''), entry.get('summary', ''),
-                           entry.get('body', ''), [], hints, extra={'run': None, 'sound': False},
+                           entry.get('body', ''), [], hints, extra={'run': None, 'filter': None, 'sound': False},
                            sender=entry.get('sender'))
 
     # settings a reload carries over to open notifications: their look, not their clock or actions

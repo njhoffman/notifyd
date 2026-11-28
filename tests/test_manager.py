@@ -1081,3 +1081,36 @@ def test_a_timed_pause_that_ran_out_waits_for_the_daemon_to_be_wired(tmp_path):
     m.start()
     assert not m.paused and len(m.displayed) == 1
     assert [call[0] for call in renderer.calls] == ['show']       # drawn by the real renderer
+
+
+def test_a_replacement_in_its_filter_survives_the_old_one_closing(make_manager):
+    filters = PendingFilters()
+    m, scheduler, _r, _e, closed, _a = make_manager('rules:\n  - match: {summary: /update/}\n'
+                                                    '    filter: tidy\n', filter_runner=filters)
+    first = m.notify('app', summary='progress 10', timeout=1000)
+    update = m.notify('app', summary='update 20', replaces_id=first)
+    assert update == first and first in m.filtering
+    scheduler.advance(1000)                                          # the old one expires meanwhile
+    assert closed == [(first, EXPIRED)] and first in m.filtering
+    filters.answer(0, {})
+    assert m.active[first].summary == 'update 20' and first in m.displayed   # shown as a new one
+
+
+def test_filtering_ones_count_for_replace_close_all_and_close_by_fields(make_manager):
+    filters = PendingFilters()
+    m, _s, _r, _e, closed, _a = make_manager(FILTERED, filter_runner=filters)
+    a = m.notify('chat', summary='vol 10', hints={'x-dunst-stack-tag': 'vol'})
+    b = m.notify('chat', summary='vol 20', hints={'x-dunst-stack-tag': 'vol'})   # replaces the pending one
+    assert b == a and len(m.filtering) == 1
+    filters.answer(0, {})                                             # the superseded answer: dropped
+    filters.answer(1, {})
+    assert [n.summary for n in m.active.values()] == ['vol 20']
+    pending = m.notify('chat', summary='still filtering')
+    assert m.close_matching({'summary': '/filtering/'}) == 1 and closed[-1] == (pending, CLOSED)
+    shown = m.notify('chat', summary='shown')
+    filters.answer(3, {})
+    m.notify('chat', summary='its update', replaces_id=shown)        # pending, replacing an open one
+    m.notify('chat', summary='not open yet')
+    assert m.close_all() == 3                                        # vol 20, shown (its update goes too), not open yet
+    filters.answer(4, {}), filters.answer(5, {})
+    assert m.active == {} and m.filtering == {}                      # the update did not come back
