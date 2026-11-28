@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.51.1] - 2026-11-27
+
+### Fixed
+
+- A sender can no longer restyle or hide other notifications through dunst's color hints
+  (`bgcolor`, `fgcolor`, `frcolor`, `hlcolor`): a hint is used only when it is a color (#rgb,
+  #rrggbb, rgb()/rgba(), a name; dunst's #rrggbbaa now works too), and no style value can end its CSS
+  rule. A hint like `red; } * { opacity: 0; }` used to hide every later popup and the center.
+- A style value GTK cannot read (a typo such as `radius: 5 px`) costs only the notifications using it
+  their style, with an error in the log; it used to drop the style of every popup.
+
 ## [0.51.0] - 2026-11-27
 
 ### Added

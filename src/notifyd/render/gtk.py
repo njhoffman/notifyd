@@ -224,9 +224,20 @@ class GtkRenderer:
         style = resolve_style(preset, n.settings.get('style'))
         scope = style_class(style)
         if scope not in self.styles:
-            self.styles[scope] = build_css(style, scope)
+            self.styles[scope] = self.checked_css(build_css(style, scope), n)
             self.load_css()
         return scope, style
+
+    def checked_css(self, css, n):
+        """CSS when GTK parses it on its own, else '' (N keeps the theme's look) with the error logged: all
+        scopes share one provider, so one bad value (a style typo such as `radius: 5 px`) would otherwise
+        drop every popup's style."""
+        try:
+            Gtk.CssProvider().load_from_data(css.encode())
+        except GLib.Error as exc:
+            self.log.error(f'#{n.id} style CSS: {exc.message}; drawn without its style')
+            return ''
+        return css
 
     STYLE_SLACK = 8   # unused scopes kept before pruning, so a close does not reload the CSS each time
 

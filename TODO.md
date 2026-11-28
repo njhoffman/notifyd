@@ -12,13 +12,15 @@ Reviewed: 2026-11-27
 
 ## 16. Review of 0.49.1-0.51.0 and older modules
 
-- [ ] **A color hint can inject CSS into every popup.** (p1) [bug] `hint_style` (`rules.py:176`) puts
+- [x] **A color hint can inject CSS into every popup.** (p1) [bug] `hint_style` (`rules.py:176`) puts
       the `bgcolor`/`fgcolor`/`frcolor`/`hlcolor` strings into the style unchecked and `render/css.py`
       writes them raw into the screen-wide provider: `-h 'string:bgcolor:red; } * { opacity: 0; } .zz {'`
       hides every later popup (critical too) and the center; a malformed one (`red}}{{`) fails
       `load_from_data` and drops all styles. Accept a hint only when `Gdk.RGBA.parse` takes it (or a
       strict #rgb/rgba() pattern), and validate style values from the config (`radius: "5 px"` breaks
-      all styles the same way) into a ConfigError.
+      all styles the same way) into a ConfigError. Done in 0.51.1: hints must be colors (`css_color`),
+      no CSS value can end its rule, and each style's CSS is parsed alone first, so a bad config value
+      costs only its own notifications their style (logged) instead of a ConfigError.
 - [ ] **The sender's close leaves its filtered update to show.** (p2) [bug] Since 0.49.2 `close()` keeps
       a pending replacement unless `pending_too`; `sender_close` and `ctl close ID` (`server.py:283`) do
       not pass it, so CloseNotification(1) right after an update of 1 with a `filter:` sends

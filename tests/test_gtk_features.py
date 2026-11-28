@@ -265,3 +265,18 @@ def test_copy_a_one_time_code(display):
         assert Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).wait_for_text() is None
         assert Gtk.Clipboard.get(Gdk.SELECTION_PRIMARY).wait_for_text() == 'mine'
     """)
+
+
+def test_a_sender_cannot_style_other_popups(display):
+    run_gtk(display, """
+        manager, renderer = setup('position: {follow: none}\\nrules:\\n  - match: {app: typo}\\n'
+                                  '    style: {radius: 5 px}\\n')
+        bad = manager.notify('evil', summary='x', hints={'bgcolor': 'red; } * { opacity: 0; } .zz {'})
+        assert '* {' not in '\\n'.join(renderer.styles.values())        # no rule of the sender's
+        typo = manager.notify('typo', summary='bad style value')
+        good = manager.notify('fine', summary='still styled')
+        scope = renderer.window_scopes[good]
+        assert renderer.styles[scope] and not renderer.styles[renderer.window_scopes[typo]]   # only its own
+        assert 'drawn without its style' in stream.getvalue()
+        assert all(renderer.windows[nid].get_visible() for nid in (bad, typo, good))
+    """)

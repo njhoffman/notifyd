@@ -22,6 +22,7 @@ picking another preset, a preview) can be on screen together.
 
 import hashlib
 import json
+import re
 
 from notifyd.config import deep_merge
 
@@ -49,8 +50,18 @@ def font_family(value):
     return value if value.startswith(('"', "'")) or ',' in value else f'"{value}"'
 
 
+# what could end a declaration or a rule: a value holding one could add CSS of its own
+_UNSAFE = re.compile(r'[{};]|/\*|\*/|\n')
+
+
+def safe_value(value):
+    return value is not None and not _UNSAFE.search(str(value))
+
+
 def declarations(props):
-    return ' '.join(f'{key}: {value};' for key, value in props.items() if value is not None)
+    """KEY: VALUE; for each set value, leaving out any that could end its rule (a value is never more
+    than one value)."""
+    return ' '.join(f'{key}: {value};' for key, value in props.items() if safe_value(value))
 
 
 def block(selector, props):

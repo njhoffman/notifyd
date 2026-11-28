@@ -2,7 +2,7 @@ import pytest
 
 from notifyd.config import ConfigError, load_config
 from notifyd.model import Notification
-from notifyd.rules import resolve
+from notifyd.rules import hint_style, resolve
 
 
 def resolved(config_text, **fields):
@@ -208,3 +208,23 @@ def test_one_action_to_drop_may_be_given_alone():
 def test_bad_run_on_raises(rule):
     with pytest.raises(ConfigError):
         load_config(text='rules:\n  ' + rule + '\n')
+
+
+@pytest.mark.parametrize('value, css', [
+    ('#e0af68', '#e0af68'), ('#f00', '#f00'), (' red ', 'red'), ('rgba(1, 2, 3, 0.5)', 'rgba(1, 2, 3, 0.5)'),
+    ('#ff000080', 'rgba(255, 0, 0, 0.502)'),                 # dunst's #rrggbbaa: GTK 3 CSS lacks it
+    ('#f008', 'rgba(255, 0, 0, 0.533)'),
+    ('red; } * { opacity: 0; } .zz {', None),                 # a sender adding rules of its own
+    ('red}}{{', None), ('url(file:///x)', None), ('', None), (5, None),
+])
+def test_color_hints_must_be_colors(value, css):
+    from notifyd.rules import css_color
+    assert css_color(value) == css
+    style = hint_style({'bgcolor': value})
+    assert style.get('background') == css
+
+
+def test_css_values_cannot_end_their_rule():
+    from notifyd.render.css import declarations
+    assert declarations({'color': 'red', 'background-color': 'red; } * { opacity: 0', 'border': None,
+                         'font-family': '"x" /* y */'}) == 'color: red;'

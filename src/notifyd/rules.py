@@ -173,13 +173,39 @@ def _apply_rewrite(n, rewrite, captures):
             setattr(n, key, str(template).format_map(fields))
 
 
+_HEX = re.compile(r'#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})')
+_RGB = re.compile(r'rgba?\(\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*,\s*\d{1,3}%?\s*(,\s*(0|1|0?\.\d+|\d{1,3}%)\s*)?\)')
+_NAME = re.compile(r'[a-zA-Z]{3,20}')
+
+
+def css_color(value):
+    """VALUE as a CSS color GTK 3 reads, or None when it is not one: #rgb, #rrggbb, rgb()/rgba(), a color
+    name; #rgba and #rrggbbaa (dunst's form, which GTK 3's CSS lacks) become rgba(). Only these get from a
+    sender's hint into the stylesheet, so a hint cannot add rules of its own."""
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    found = _HEX.fullmatch(value)
+    if found:
+        digits = found.group(1)
+        if len(digits) in (3, 6):
+            return value
+        if len(digits) == 4:
+            digits = ''.join(c * 2 for c in digits)
+        r, g, b, a = (int(digits[i:i + 2], 16) for i in range(0, 8, 2))
+        return f'rgba({r}, {g}, {b}, {round(a / 255, 3)})'
+    if _RGB.fullmatch(value) or _NAME.fullmatch(value):
+        return value
+    return None
+
+
 def hint_style(hints, rules_set_foreground=False):
     """The style dunst's color hints in HINTS ask for. fgcolor is left out when RULES_SET_FOREGROUND (a matching
     rule's foreground wins over it, parts and all)."""
     style = {}
     for hint, path in COLOR_HINTS.items():
-        value = hints.get(hint)
-        if not (isinstance(value, str) and value) or (hint == 'fgcolor' and rules_set_foreground):
+        value = css_color(hints.get(hint))
+        if value is None or (hint == 'fgcolor' and rules_set_foreground):
             continue
         if len(path) == 1:
             style[path[0]] = value
