@@ -543,7 +543,7 @@ class Manager:
     def _copy_code(self, n):
         """Put N's one-time code on the clipboard (the renderer's), then close N unless resident."""
         copy = getattr(self.renderer, 'copy_text', None)
-        if copy is None or copy(n.code) is False:
+        if copy is None or copy(n.code, int(n.settings.get('copy-code-clear') or 0)) is False:
             self.log.warn(f'#{n.id} code not copied: no clipboard (needs the GTK renderer)')
             return False
         self.log.emit('action', n, action=COPY_CODE_ACTION, reason='copied')

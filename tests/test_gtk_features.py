@@ -253,4 +253,15 @@ def test_copy_a_one_time_code(display):
         buttons[0].clicked()
         assert Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).wait_for_text() == '482913'
         assert nid not in manager.active
+        import time
+        from gi.repository import GLib
+        renderer.copy_text('111222', 200)                       # cleared after 200 ms
+        renderer.copy_text('333444', 200)
+        Gtk.Clipboard.get(Gdk.SELECTION_PRIMARY).set_text('mine', -1)   # copied since: kept
+        end = time.monotonic() + 1
+        while time.monotonic() < end:
+            GLib.MainContext.default().iteration(False)
+            time.sleep(0.01)
+        assert Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).wait_for_text() is None
+        assert Gtk.Clipboard.get(Gdk.SELECTION_PRIMARY).wait_for_text() == 'mine'
     """)

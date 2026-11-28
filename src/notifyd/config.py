@@ -45,6 +45,7 @@ DEFAULTS = {
     'sound': None,               # a sound file or freedesktop sound name; false: silent (else the sender's hints)
     'buttons': [],               # extra buttons that run commands: [{label: Next, run: playerctl next}]
     'copy-code': True,           # a "Copy 123456" button when the text holds a one-time code
+    'copy-code-clear': 60000,    # ms until a copied code leaves the clipboard (if still there); 0 never
     'actions': {'drop': []},     # the sender's actions left out, by key or label (text or /regex/)
     'run': None,                 # a shell command run for each matching notification (NOTIFYD_* env, JSON on stdin)
     'run-on': ['receive'],       # when run runs: any of receive, action (one is invoked), close
@@ -63,7 +64,7 @@ DEFAULTS = {
 }
 
 TOP_LEVEL = set(DEFAULTS)
-DURATION_KEYS = ('timeout', 'timeout-critical', 'idle-threshold', 'filter-timeout')
+DURATION_KEYS = ('timeout', 'timeout-critical', 'idle-threshold', 'filter-timeout', 'copy-code-clear')
 GROUP_FIELDS = ('app', 'summary', 'category', 'urgency')
 FOLLOW = ('mouse', 'focus', 'none')
 ANCHORS = tuple(f'{v}-{h}' for v in ('top', 'bottom') for h in ('left', 'center', 'right'))

@@ -593,13 +593,22 @@ class GtkRenderer:
         return entry, row
 
     @staticmethod
-    def copy_text(text):
-        """TEXT on the clipboard (and the primary selection, for a middle click), offered to a clipboard
-        manager so it outlives notifyd."""
-        for selection in (Gdk.SELECTION_CLIPBOARD, Gdk.SELECTION_PRIMARY):
-            clipboard = Gtk.Clipboard.get(selection)
+    def copy_text(text, clear_ms=0):
+        """TEXT on the clipboard (and the primary selection, for a middle click). After CLEAR_MS (0: never)
+        both are cleared if they still hold it, so a one-time code does not linger for a later paste;
+        without clearing it is offered to a clipboard manager, so it outlives notifyd."""
+        clipboards = [Gtk.Clipboard.get(selection) for selection in (Gdk.SELECTION_CLIPBOARD, Gdk.SELECTION_PRIMARY)]
+        for clipboard in clipboards:
             clipboard.set_text(text, -1)
-            clipboard.store()
+            if not clear_ms:
+                clipboard.store()
+        if clear_ms:
+            def clear():
+                for clipboard in clipboards:
+                    if clipboard.wait_for_text() == text:   # what was copied since stays
+                        clipboard.clear()
+                return False
+            GLib.timeout_add(clear_ms, clear)
         return True
 
     def start_reply(self, nid):

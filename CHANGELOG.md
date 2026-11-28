@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.50.0] - 2026-11-27
+
+### Added
+
+- A copied one-time code leaves the clipboard and the primary selection after `copy-code-clear`
+  (default 1m) if they still hold it, so a later paste or middle click does not bring it back;
+  anything copied since stays. `never` keeps it (offered to a clipboard manager as before).
+
 ## [0.49.5] - 2026-11-27
 
 ### Fixed

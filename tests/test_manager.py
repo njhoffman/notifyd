@@ -1044,8 +1044,8 @@ class Clipboard:
     def __init__(self):
         self.copied = []
 
-    def copy_text(self, text):
-        self.copied.append(text)
+    def copy_text(self, text, clear_ms=0):
+        self.copied.append((text, clear_ms))
 
 
 def test_a_one_time_code_gets_a_copy_button(make_manager):
@@ -1055,7 +1055,7 @@ def test_a_one_time_code_gets_a_copy_button(make_manager):
     nid = m.notify('Signal', summary='Ann', body='<b>Your login code is 734 912</b>', actions=['default', 'Open'])
     assert m.active[nid].actions[-1] == ('notifyd-copy-code', 'Copy 734912')
     assert m.invoke(nid, 'notifyd-copy-code') is True
-    assert clipboard.copied == ['734912'] and actions == []          # the sender hears nothing
+    assert clipboard.copied == [('734912', 60000)] and actions == []  # the sender hears nothing
     assert closed == [(nid, DISMISSED)]
     plain = m.notify('chat', summary='lunch at 1230?')
     assert m.active[plain].actions == []

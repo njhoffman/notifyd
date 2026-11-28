@@ -48,7 +48,7 @@ Reviewed: 2026-11-27
 - [ ] **README is behind.** (p3) [docs] It lists neither the dunst importer nor 0.40-0.49 (filters,
       per-rule stacks, inline reply, timed do not disturb, copy-code); `docs/design.md:33`'s pipeline
       has no filter step.
-- [ ] **One-time codes linger on the clipboard.** (p3) [feature] copy-code puts the code in the
+- [x] **One-time codes linger on the clipboard.** (p3) [feature] copy-code puts the code in the
       clipboard and the primary selection with no expiry, where a later middle click pastes it.
       Clear both after a minute (only if they still hold the code), like password managers do.
 
