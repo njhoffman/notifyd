@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.51.5] - 2026-11-27
+
+### Fixed
+
+- `copy-code` copies the code, not the first number after the word: "Your OTP for txn of Rs 5000 is
+  482913" (the form Indian bank texts use) copies 482913, and amounts with decimals no longer hide it.
+  A code counts right after its word ("login code: 734 912", "PIN 5521"), after "is" later in the
+  sentence, or before "is your ... code" / "to verify"; "Zip code 90210", "Error code 5003",
+  "code review for PR 4821" and "pin the 2023 roadmap" get no button. "Your token is 482913" and
+  "Enter 482913 to verify" work again (lost in 0.49.5).
+
 ## [0.51.4] - 2026-11-27
 
 ### Fixed

@@ -218,6 +218,17 @@ def test_a_class_can_space_out_the_lines_it_is_on():
     ('Your order 123456 has been pinned', None),
     ('Call 555-1234 to verify', None),
     ('Battery 2048 mAh, check the code', None),     # digits first need "is/as your ... code"
+    ('Your OTP for txn of Rs 5000 is 482913', '482913'),                 # the code, not the amount
+    ('OTP for transaction of INR 2,500.00 at AMAZON is 482913', '482913'),
+    ('Your token is 482913', '482913'),
+    ('Enter 482913 to verify your account', '482913'),
+    ('FB-48291 is your Facebook confirmation code', '48291'),
+    ('Your Amazon OTP is 123 456', '123456'),
+    ('Zip code 90210', None),                       # codes of other kinds
+    ('Error code 5003', None),
+    ('Exit code 1, status code 1234', None),
+    ('code review for PR 4821', None),
+    ('can you pin the 2023 roadmap?', None),
     ('', None),
 ])
 def test_one_time_code(text, code):

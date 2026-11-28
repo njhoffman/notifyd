@@ -51,7 +51,7 @@ Reviewed: 2026-11-27
 - [x] **The log file is world-readable.** (p2) [bug] `log.py:111` opens it with `open(path, 'a')`
       (0644 under the usual umask) though it holds summaries and bodies, one-time codes too; use
       `files.py`'s private mode (0600).
-- [ ] **copy-code picks the wrong number or a non-code.** (p2) [bug] `_CODE_AFTER` takes the first
+- [x] **copy-code picks the wrong number or a non-code.** (p2) [bug] `_CODE_AFTER` takes the first
       number after the word: "Your OTP for txn of Rs 5000 is 482913" copies 5000 (Indian bank SMS use
       this form), "OTP for transaction of INR 2,500.00 at AMAZON is 482913" finds nothing; "Zip code
       90210", "Error code 5003", "code review for PR 4821", "can you pin the 2023 roadmap?" get a button.

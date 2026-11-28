@@ -51,14 +51,22 @@ _A_TAG = re.compile(r'''<(?:a((?:\s+(?:href|title)\s*=\s*(?:"[^"]*"|'[^']*'))+)\
 _HREF = re.compile(r'''\shref\s*=\s*(["'])(.*?)\1''', re.S)
 LINK_SCHEMES = ('http', 'https', 'mailto')
 
-# a one-time code: a whole word that says so ("Barcode" and "pinned" do not), then within a few words 4-8
-# digits, maybe split 3+3 or 4+4 ("login code: 734 912"); or the digits first, then "is/as your ... code"
-# ("482913 is your Google verification code", "Use 5521 as your PIN")
-_CODE_WORDS = (r'\b(?:code|otp|passcode|pass\s+code|pin|2fa|verification|'
+# one-time codes: 4-8 digits (or 3+3 / 4+4 with a space or dash) said to be a code by a whole word
+_CODE_WORDS = (r'\b(?:code|otp|passcode|pass\s+code|pin|2fa|verification|token|'
                r'one[-\s]?time\s+(?:code|password|passcode|pin))\b')
 _CODE = r'(?<![\w.,/:+-])(?:[A-Za-z]{1,2}-)?(\d{3,4}[ -]\d{3,4}|\d{4,8})(?![\w/:%-]|[.,]\d)'
-_CODE_AFTER = re.compile(_CODE_WORDS + r'\W+(?:\w+\W+){0,4}?' + _CODE, re.I)
+_PLAIN_CODE = r'(?<![\w.,/:+-])(\d{4,8})(?![\w/:%-]|[.,]\d)'
+# "code" that names something else: a zip code, an error or status code, ...
+_NOT_A_CODE = re.compile(r'\b(?:zip|postal|post|area|country|error|status|exit|return|response|http|source|'
+                         r'promo|discount|dress|qr|bar)\s+$', re.I)
+# right after the word: "login code: 734 912", "PIN 5521", "verification code is 123456"
+_CODE_NEXT = re.compile(_CODE_WORDS + r'(?:\s+(?:number|code|no\.?))?\s*(?:\bis\b\s*)?[:=#-]?\s*' + _CODE, re.I)
+# further on, after "is" in the same sentence: "Your OTP for txn of Rs 5000 is 482913"
+_CODE_IS = re.compile(_CODE_WORDS + r'(?:[^.!?\n]|\.(?=\d)){0,80}?\bis\b\s*:?\s*' + _CODE, re.I)   # 2,500.00 is no end
+# digits first: "482913 is your Google verification code", "Use 5521 as your PIN"
 _CODE_BEFORE = re.compile(_CODE + r'\s+(?:is|as)\s+(?:(?:your|the|a)\s+)?(?:[\w-]+\s+){0,3}?' + _CODE_WORDS, re.I)
+# "Enter 482913 to verify your account" (unsplit digits: "Call 555-1234 to verify" is a phone number)
+_CODE_TO = re.compile(_PLAIN_CODE + r'\s+to\s+(?:verify|confirm|sign\s*in|log\s*in|continue)\b', re.I)
 
 
 def pango_view(text):
@@ -102,10 +110,15 @@ def plain_text(markup):
 
 def one_time_code(text):
     """The one-time code in TEXT (plain text), digits only, or None: 4-8 digits (or 3+3 / 4+4 with a
-    space or dash) near a word such as code, OTP, PIN, passcode or verification, before or after it."""
-    for pattern in (_CODE_AFTER, _CODE_BEFORE):
-        found = pattern.search(text or '')
-        if found:
+    space or dash) right after a word such as code, OTP, PIN, passcode or verification, after "is"
+    later in that sentence, or before "is/as your ... code" or "to verify". A zip, error or status code
+    is not one."""
+    text = text or ''
+    for pattern in (_CODE_NEXT, _CODE_IS, _CODE_BEFORE, _CODE_TO):
+        for found in pattern.finditer(text):
+            starts_at_word = pattern in (_CODE_NEXT, _CODE_IS)
+            if starts_at_word and _NOT_A_CODE.search(text[:found.start()]):   # "Zip code 90210"
+                continue
             digits = re.sub(r'\D', '', found.group(1))
             if 4 <= len(digits) <= 8:
                 return digits
