@@ -125,3 +125,20 @@ def test_body_line_spacing_puts_a_gap_between_wrapped_lines(display):
         gap = spaced.get_allocated_height() - plain.get_allocated_height()
         assert gap == (lines - 1) * 3, (gap, lines)                      # and given room for it
     """)
+
+
+def test_popups_are_announced_to_screen_readers(display):
+    run_gtk(display, """
+        from gi.repository import Atk
+        manager, renderer = setup()
+        normal = manager.notify('mail', summary='<b>New</b> mail', body='from <i>Ann</i> &amp; Bo')
+        accessible = renderer.windows[normal].get_accessible()
+        assert accessible.get_role() == Atk.Role.NOTIFICATION
+        assert (accessible.get_name(), accessible.get_description()) == ('New mail', 'from Ann & Bo')
+        critical = manager.notify('bat', summary='battery low', hints={'urgency': 2})
+        assert renderer.windows[critical].get_accessible().get_role() == Atk.Role.ALERT
+        untitled = manager.notify('app', summary='')
+        assert renderer.windows[untitled].get_accessible().get_name() == 'app'      # never nameless
+        manager.notify('mail', summary='replaced', body='', replaces_id=normal)
+        assert renderer.windows[normal].get_accessible().get_name() == 'replaced'   # kept current
+    """)

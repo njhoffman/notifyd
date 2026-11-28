@@ -168,9 +168,9 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [x] **Center buttons that run commands.** (p3) [feature] A configured row of buttons or toggles
       (with a state command), e.g. wifi, bluetooth, displayd layouts. Upstream: swaync
       buttons-grid, swaync#277.
-- [ ] **Accessibility.** (p3) [feature] Set an ATK role and accessible name and description on
+- [x] **Accessibility.** (p3) [feature] Set an ATK role and accessible name and description on
       popups so Orca announces them; there is no `get_accessible` call today. Upstream: wired#20,
-      swaync#48.
+      swaync#48. Done in 0.41.0.
 - [x] **`fgcolor` leaves the title and header in the preset's colors.** (p3) [bug] dunst's
       `fgcolor` hint (`notifyd-send --fg`) maps to the style key `foreground` only
       (`rules.py:38`), but presets give `title`, `appname` and `time` their own `color`, which

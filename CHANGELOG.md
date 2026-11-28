@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-11-27
+
+### Added
+
+- Popups tell screen readers (Orca) what they are: the notification role (alert for a critical one),
+  the summary as their name and the body as their description, without markup. A replaced
+  notification updates them.
+
 ## [0.40.1] - 2026-11-27
 
 ### Fixed

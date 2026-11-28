@@ -22,7 +22,8 @@ import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gdk', '3.0')
 gi.require_version('GdkPixbuf', '2.0')
-from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
+gi.require_version('Atk', '1.0')
+from gi.repository import Atk, Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
 
 from notifyd.config import ConfigError, load_preset  # noqa: E402
 from notifyd.icons import current_theme_name, why_missing  # noqa: E402
@@ -32,7 +33,7 @@ from notifyd.images import (  # noqa: E402, F401
     image_data_problem,
     pixbuf_from_image_data,
 )
-from notifyd.markup import action_link, cap_lines, markup_error, prepare, safe_link, split_action_links  # noqa: E402
+from notifyd.markup import action_link, cap_lines, markup_error, plain_text, prepare, safe_link, split_action_links  # noqa: E402
 from notifyd.model import TITLE_END_HINT  # noqa: E402
 from notifyd.render.center import Center  # noqa: E402
 from notifyd.render.css import build_css, resolve_style, style_class  # noqa: E402
@@ -398,6 +399,7 @@ class GtkRenderer:
             context.remove_class(name)
         context.add_class(scope)
         self.window_scopes[n.id] = scope
+        self.announce(window, n)
         width = int(settings.get('width') or 350)
         window.set_size_request(width, -1)
         window.set_default_size(width, -1)
@@ -574,6 +576,17 @@ class GtkRenderer:
                 reason += '; `notifyd icons PATTERN` lists the theme\'s icons'
             self.log.warn(f'#{n.id} {what} {source!r}: {reason}')
         return pixbuf
+
+    @staticmethod
+    def announce(window, n):
+        """Give N's popup WINDOW an accessible role, name and description, so a screen reader (Orca)
+        announces it: a notification (an alert when critical), its summary and its body as text."""
+        def text(value):
+            return value if n.settings.get('markup', 'full') == 'plain' else plain_text(value or '')
+        accessible = window.get_accessible()
+        accessible.set_role(Atk.Role.ALERT if n.urgency_name == 'critical' else Atk.Role.NOTIFICATION)
+        accessible.set_name(text(n.summary) or n.app or 'notification')
+        accessible.set_description(text(n.body))
 
     def markup_flag(self, summary, body, mode, classes, title_end=None):
         """A "markup error" label when SUMMARY, BODY or TITLE_END (the title-end hint) is invalid markup
