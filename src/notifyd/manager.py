@@ -299,6 +299,9 @@ class Manager:
             else:
                 self._start_timer(n)
         self.log.emit('replaced', n, **({'reason': reason} if reason else {}))
+        if n.id in self.displayed and n.stack != old.stack:   # a rule moved it: the stack it left has room
+            self._fill_waiting()
+            self._waiting_changed()
 
     def _stack_count(self, stack):
         return sum(1 for nid in self.displayed if nid in self.active and self.active[nid].stack == stack)
@@ -824,15 +827,18 @@ class Manager:
                            entry.get('body', ''), [], hints, extra={'run': None, 'filter': None, 'sound': False},
                            sender=entry.get('sender'))
 
-    # settings a reload carries over to open notifications: their look, not their clock or actions
+    # settings a reload carries over to open notifications: their look and place (position: which stack),
+    # not their clock or actions
     RELOAD_LOOK = ('preset', 'style', 'hide', 'markup', 'image', 'icon', 'title', 'body', 'width',
-                   'timeout-bar', 'fade', 'class')
+                   'timeout-bar', 'fade', 'class', 'position')
 
     def reload(self, config):
         self.config = config
         self.history.resize(config.settings['history']['size'])
         for n in self.active.values():
             self._restyle(n)
+        self._fill_waiting()                      # stacks and max-visible may have changed: room for some
+        self._waiting_changed()
         self.log.emit('reload', message=str(config.path or 'defaults'))
 
     def _restyle(self, n):

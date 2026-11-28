@@ -23,7 +23,7 @@ Reviewed: 2026-11-27
       `filtering[A]` too (`manager.py:409`), so B never shows though its sender holds that id.
       `close()` should only drop a pending filter when nothing with that id is active, or admit B
       as a new notification when its target is gone (as `_filtered` already does).
-- [ ] **A reload leaves open popups in the old corner.** (p2) [bug] `position` became a
+- [x] **A reload leaves open popups in the old corner.** (p2) [bug] `position` became a
       per-notification setting (0.47.0) but is not in `RELOAD_LOOK` (`manager.py:803`), so after a
       change to `position.anchor` and `ctl reload` open, waiting and held ones keep the old stack while
       new ones start another. Carry `position` over on reload like the look.
@@ -33,7 +33,7 @@ Reviewed: 2026-11-27
       it as the only action `click.right: default-action` copies and closes. Word boundaries on the
       code words, drop the broad ones (security, token, login) unless "code" follows, and skip
       4-digit years 19xx/20xx and phone-shaped 3-4 splits next to "call".
-- [ ] **A replace that moves a notification to another stack does not refill the one it left.** (p3)
+- [x] **A replace that moves a notification to another stack does not refill the one it left.** (p3)
       [bug] `_replace` (`manager.py:278`) neither rechecks room in the new stack nor calls
       `_fill_waiting` for the old: with `max-visible: 1` the old stack stays empty while its
       waiting one keeps waiting, and the next arrival jumps ahead of it.

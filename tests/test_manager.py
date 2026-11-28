@@ -1114,3 +1114,24 @@ def test_filtering_ones_count_for_replace_close_all_and_close_by_fields(make_man
     assert m.close_all() == 3                                        # vol 20, shown (its update goes too), not open yet
     filters.answer(4, {}), filters.answer(5, {})
     assert m.active == {} and m.filtering == {}                      # the update did not come back
+
+
+def test_a_reload_moves_open_notifications_to_the_new_position(make_manager):
+    m, *_ = make_manager('max-visible: 1\n')
+    first = m.notify('a', summary='one', timeout=0)
+    waits = m.notify('a', summary='two', timeout=0)
+    old_stack = m.active[first].stack
+    m.reload(load_config(text='max-visible: 2\nposition: {anchor: bottom-left}\n'))
+    assert m.active[first].settings['position']['anchor'] == 'bottom-left'
+    assert m.active[first].stack != old_stack and m.active[first].stack == m.active[waits].stack
+    assert m.displayed == [waits, first] and m.waiting == []          # the new room is used at once
+
+
+def test_a_replace_that_moves_to_another_stack_refills_the_old_one(make_manager):
+    m, *_ = make_manager('max-visible: 1\nrules:\n  - match: {summary: /^vol/}\n'
+                         '    position: {anchor: bottom-center}\n')
+    first = m.notify('a', summary='one', timeout=0, hints={'x-dunst-stack-tag': 't'})
+    waits = m.notify('a', summary='two', timeout=0)
+    assert m.waiting == [waits]
+    m.notify('a', summary='vol 50', timeout=0, hints={'x-dunst-stack-tag': 't'})   # replaces it, other stack
+    assert m.waiting == [] and set(m.displayed) == {first, waits}

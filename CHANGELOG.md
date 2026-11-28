@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.49.3] - 2026-11-27
+
+### Fixed
+
+- `ctl reload` moves open, waiting and held notifications to a changed `position` (or a rule's): they
+  used to stay in the old corner while new ones started another stack. A larger `max-visible` shows
+  waiting ones at once.
+- A replacement that a rule's `position` puts in another stack frees its place in the old one, so the
+  oldest waiting notification there shows (it used to wait while the stack stood empty). The stack it
+  moves to may hold one over `max-visible` until one closes.
+
 ## [0.49.2] - 2026-11-27
 
 ### Fixed
