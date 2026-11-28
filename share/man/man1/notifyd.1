@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.46.0" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.47.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -574,8 +574,12 @@ which runs it and dismisses) and
 .PP
 A rule is a
 .B match
-plus any of those keys except the daemon-wide ones (position, max\-visible, indicate\-waiting, log,
-click, center, lock, rules), applied in order to the notifications it matches:
+plus any of those keys except the daemon-wide ones (max\-visible, indicate\-waiting, log,
+click, center, lock, rules), applied in order to the notifications it matches. A rule's
+.B position
+(anchor, margin, gap, follow, monitor) puts them in a stack of their own, with its own
+.B max\-visible
+room:
 .PP
 .RS
 .nf

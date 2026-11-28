@@ -1,5 +1,6 @@
 """A notification as received, plus what the rules made of it."""
 
+import json
 import time
 from dataclasses import dataclass, field
 
@@ -14,6 +15,8 @@ TAG_HINTS = ('x-dunst-stack-tag', 'x-canonical-private-synchronous', 'synchronou
 
 # markup drawn at the right end of the title line (a rating, a count): never cut, the title is
 TITLE_END_HINT = 'x-notifyd-title-end'
+# the position keys that tell stacks apart
+STACK_KEYS = ('anchor', 'margin', 'gap', 'follow', 'monitor')
 
 
 @dataclass
@@ -85,6 +88,13 @@ class Notification:
         """The x-notifyd-title-end hint's markup, or '' when it is not set or blank."""
         value = self.hints.get(TITLE_END_HINT)
         return value if isinstance(value, str) and value.strip() else ''
+
+    @property
+    def stack(self):
+        """Which stack of popups it goes in: the same position (anchor, margin, gap, follow, monitor) is the
+        same stack; a rule's `position` starts another one."""
+        position = self.settings.get('position') or {}
+        return json.dumps({key: position.get(key) for key in STACK_KEYS}, sort_keys=True, default=str)
 
     @property
     def action_icons(self):

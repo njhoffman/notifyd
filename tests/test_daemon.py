@@ -379,7 +379,7 @@ newest = manager.displayed[0]
 assert manager.active[newest].duplicates == 2
 x1, y1 = renderer.windows[newest].get_position()
 assert renderer.windows[first].get_position()[1] > y1   # older ones go below
-assert renderer.area is not None
+assert renderer.areas
 renderer.screen.emit('monitors-changed')
 renderer.center.toggle('show')
 assert renderer.center.visible
@@ -390,7 +390,7 @@ assert len(manager.history) == 0
 renderer.center.refresh()
 assert renderer.center.toggle() is False
 assert 'monitors changed' in stream.getvalue()
-assert renderer.area is not None                        # laid out again on the new geometry
+assert renderer.areas                                   # laid out again on the new geometry
 
 # links: GtkLabel renders them, only http(s)/mailto open, a link click never dismisses
 from gi.repository import Gio, Gtk, Pango
@@ -472,7 +472,8 @@ shown, waiting = list(manager.displayed), list(manager.waiting)
 assert shown and waiting and len(shown) + len(waiting) == len(tall), (shown, waiting)
 assert waiting == tall[len(shown):]                              # in arrival order
 bottom = max(w.get_position()[1] + w.get_preferred_size()[1].height for w in renderer.windows.values())
-assert bottom <= renderer.area.y + renderer.area.height, bottom
+area = next(iter(renderer.areas.values()))
+assert bottom <= area.y + area.height, bottom
 assert renderer.measured is None                                # the measuring window went to show() or away
 manager.close(shown[-1])
 assert manager.displayed[0] == waiting[0] and manager.waiting == waiting[1:]
@@ -639,7 +640,7 @@ assert not any(label.get_visible() for label in renderer.waiting_labels.values()
 manager.config.settings['max-visible'] = 6
 
 manager.close_all()
-assert renderer.area is None and renderer.windows == {}
+assert renderer.areas == {} and renderer.windows == {}
 print('ok', x1, y1)
 """
 

@@ -201,9 +201,11 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       back while logind `LockedHint` or `org.freedesktop.ScreenSaver` says locked and replay on
       unlock through the pause path (`pause-when-locked`). Upstream: dunst#1495, wired#12,
       swaync#496.
-- [ ] **Per-rule position or a second stack.** (p3) [feature] Rules cannot set `position`, so a
+- [x] **Per-rule position or a second stack.** (p3) [feature] Rules cannot set `position`, so a
       volume OSD cannot sit centered while chat stays top-right: one stack per anchor. Needs a
       design note first (`layout`). Upstream: dunst#265, dunst#1561.
+      Done in 0.47.0: a rule's `position` makes a stack per distinct position, each with its own
+      `max-visible` room, waiting order and `+N`.
 - [x] **Monitor by name; follow keyboard focus.** (p3) [feature] `position.monitor` is an index
       that moves when displayd changes the layout; match `Gdk.Monitor.get_model()` and add
       `follow: focus` (the active window's monitor). Upstream: dunst#1398, dunst#1545, deadd#196. Done in 0.44.0.

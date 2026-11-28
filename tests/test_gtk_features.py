@@ -171,3 +171,29 @@ def test_opening_the_center_clears_the_missed_count(display):
         assert manager.missed == 0
         renderer.center.toggle('hide')
     """)
+
+
+def test_a_rule_position_draws_a_second_stack(display):
+    run_gtk(display, '''
+        manager, renderer = setup('position: {follow: none, anchor: top-right}\\nmax-visible: 1\\n'
+                                  'rules:\\n  - match: {app: Volume}\\n'
+                                  '    position: {anchor: bottom-center, margin: 40}\\n')
+        chat = manager.notify('chat', summary='message', timeout=0)
+        waits = manager.notify('chat', summary='another', timeout=0)
+        volume = manager.notify('Volume', summary='50%', timeout=0)
+        vol_waits = [manager.notify('Volume', summary=f'{v}%', timeout=0) for v in (60, 70)]
+        while Gtk.events_pending():
+            Gtk.main_iteration()
+        assert manager.displayed == [volume, chat] and manager.waiting == [waits, *vol_waits]
+        assert len(renderer.areas) == 2
+        (cx, cy), (vx, vy) = renderer.windows[chat].get_position(), renderer.windows[volume].get_position()
+        width = renderer.windows[volume].get_size()[0]
+        assert cy < 100 and vy > 800                                  # top-right and bottom of a 1024 screen
+        assert cx > vx and abs(vx + width // 2 - 640) <= 2            # the volume one is centered
+        labels = {nid: label for nid, label in renderer.waiting_labels.items() if label.get_visible()}
+        assert {nid: label.get_text() for nid, label in labels.items()} == {chat: '+1', volume: '+2'}
+        manager.close(volume)
+        assert vol_waits[0] in manager.displayed and waits in manager.waiting
+        manager.close_all()
+        assert renderer.areas == {}
+    ''')

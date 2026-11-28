@@ -65,6 +65,7 @@ TOP_LEVEL = set(DEFAULTS)
 DURATION_KEYS = ('timeout', 'timeout-critical', 'idle-threshold', 'filter-timeout')
 GROUP_FIELDS = ('app', 'summary', 'category', 'urgency')
 FOLLOW = ('mouse', 'focus', 'none')
+ANCHORS = tuple(f'{v}-{h}' for v in ('top', 'bottom') for h in ('left', 'center', 'right'))
 RUN_EVENTS = ('receive', 'action', 'close')
 HIDE_PARTS = {'app-icon', 'app-name', 'time', 'title', 'body', 'image', 'actions', 'progress'}
 
@@ -153,6 +154,9 @@ def _check_position(settings, where):
     position = settings.get('position')
     if not isinstance(position, dict):
         return
+    if 'anchor' in position and position['anchor'] not in ANCHORS:
+        raise ConfigError(f'{where}: position.anchor: expected one of {", ".join(ANCHORS)}, '
+                          f'got {position["anchor"]!r}')
     if 'follow' in position and position['follow'] not in FOLLOW:
         raise ConfigError(f'{where}: position.follow: expected one of {", ".join(FOLLOW)}, '
                           f'got {position["follow"]!r}')

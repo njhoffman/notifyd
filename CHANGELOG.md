@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.47.0] - 2026-11-27
+
+### Added
+
+- A rule can set `position` (`anchor`, `margin`, `gap`, `follow`, `monitor`): what it matches goes in
+  a stack of its own, laid out from its own anchor on its own monitor, so a volume bar can sit at the
+  bottom center while chat stacks at the top right. Each stack has its own `max-visible` room, waiting
+  order and `+N`, so a full chat stack never holds the volume bar back.
+
+### Changed
+
+- An unknown `position.anchor` is a config error; it used to fall back to the right edge.
+
 ## [0.46.0] - 2026-11-27
 
 ### Added

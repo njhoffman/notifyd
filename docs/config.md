@@ -19,11 +19,11 @@ that stays until it is fixed, and the old config is kept. `notifyd check` valida
 | `width` | `350` | px |
 | `timeout` | `8s` | `8000`, `8s`, `1500ms`, `2m`, `1h`, `never` |
 | `timeout-critical` | `never` | for critical notifications no rule gives a timeout |
-| `max-visible` | `6` | more wait until one closes (`0`: no limit); one that would not fit in the monitor's work area waits too (oldest first), except the first on screen |
-| `indicate-waiting` | `true` | the last popup of the stack shows `+N` while N wait for room (`max-visible`, or no space on screen); daemon-wide |
+| `max-visible` | `6` | more wait until one closes (`0`: no limit), in each stack (a rule's `position` makes another); one that would not fit in the monitor's work area waits too (oldest first), except the first on screen |
+| `indicate-waiting` | `true` | the last popup of each stack shows `+N` while N wait for room in it (`max-visible`, or no space on screen); daemon-wide |
 | `group-by` | `[]` | e.g. `[app]`: a new notification with the same values replaces the open one, shown `×N` (fields: app, summary, category, urgency; set it in a rule to group one app only) |
 | `stack-duplicates` | `true` | an identical notification (app, summary, body, urgency) replaces the open one, shown `×N` |
-| `position.anchor` | `top-right` | `top-`/`bottom-` + `left`/`center`/`right` |
+| `position.anchor` | `top-right` | `top-`/`bottom-` + `left`/`center`/`right`; a rule's `position` starts a stack of its own (see Rules) |
 | `position.margin` | `[30, 5]` | `[vertical, horizontal]` from the anchored edges |
 | `position.gap` | `10` | between notifications |
 | `position.follow` | `mouse` | `mouse`: the monitor under the pointer; `focus`: the focused window's; `none`: `position.monitor` (also when no window has focus) |
@@ -54,9 +54,19 @@ that stays until it is fixed, and the old config is kept. `notifyd check` valida
 ## Rules
 
 Each rule has an optional `name`, a `match`, and any of the keys above except the daemon-wide ones
-(`position`, `max-visible`, `indicate-waiting`, `log`, `click`, `center`, `lock`, `rules`), which a
+(`max-visible`, `indicate-waiting`, `log`, `click`, `center`, `lock`, `rules`), which a
 rule refuses as unknown. Rules apply in order; each sees what earlier rules rewrote,
 and later ones override earlier ones. A rule's `timeout` wins over the one the sender asked for.
+
+A rule's `position` (any of `anchor`, `margin`, `gap`, `follow`, `monitor`, on top of the config's)
+puts what it matches in a stack of its own, laid out from its own anchor with its own `max-visible`
+room and `+N`, so a volume bar can sit at the bottom center while chat stacks at the top right:
+
+```yaml
+rules:
+  - match: { app: Volume }
+    position: { anchor: bottom-center, margin: 80 }
+```
 
 ```yaml
 rules:

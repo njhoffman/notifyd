@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from notifyd.config import load_config
+from notifyd.config import ConfigError, load_config
 from notifyd.model import CLOSED, DISMISSED, EXPIRED, UNDEFINED
 
 
@@ -996,3 +996,29 @@ def test_close_by_criteria(make_manager):
         m.close_matching({})
     with pytest.raises(ValueError, match='bad regex'):
         m.close_matching({'app': '/[/'})
+
+
+def test_a_rule_position_makes_its_own_stack_with_its_own_room(make_manager):
+    m, *_ = make_manager('max-visible: 2\n'
+                         'rules:\n'
+                         '  - match: {app: Volume}\n'
+                         '    position: {anchor: bottom-center, margin: 80}\n')
+    chat = [m.notify('chat', summary=f'c{i}', timeout=0) for i in range(3)]
+    assert m.waiting == [chat[2]]                                    # the main stack is full
+    volume = m.notify('Volume', summary='50%', timeout=0)
+    assert volume in m.displayed                                     # its stack has room of its own
+    assert m.active[volume].stack != m.active[chat[0]].stack
+    second = m.notify('Volume', summary='other', timeout=0)
+    third = m.notify('Volume', summary='third', timeout=0)
+    assert m.waiting == [chat[2], third]
+    m.close(second)                                                  # room in the volume stack only
+    assert m.waiting == [chat[2]] and third in m.displayed
+    m.close(chat[0])
+    assert m.waiting == [] and chat[2] in m.displayed
+
+
+def test_rule_positions_are_checked():
+    for bad in ("position: {anchor: middle}", "position: {follow: keyboard}"):
+        with pytest.raises(ConfigError):
+            load_config(text=f'rules:\n  - match: {{app: x}}\n    {bad}\n')
+    assert load_config(text='rules:\n  - match: {app: x}\n    position: {anchor: top-left}\n').rules

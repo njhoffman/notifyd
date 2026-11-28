@@ -42,7 +42,7 @@ COLOR_HINTS = {'fgcolor': ('foreground',), 'bgcolor': ('background',), 'frcolor'
 FG_PARTS = {'title': {}, 'title-end': {}, 'body': {}, 'count': {}, 'appname': {'opacity': 0.75},
             'time': {'opacity': 0.75}}
 REWRITE_KEYS = {'summary', 'body', 'app', 'urgency', 'stack-tag'}
-SETTING_KEYS = TOP_LEVEL - {'rules', 'log', 'click', 'max-visible', 'position', 'center', 'lock',
+SETTING_KEYS = TOP_LEVEL - {'rules', 'log', 'click', 'max-visible', 'center', 'lock',
                             'indicate-waiting'}
 
 

@@ -209,7 +209,7 @@ class GtkRenderer:
         self.styles = {}     # scope class -> css
         self.window_scopes = {}   # notification id -> the scope class its window uses
         self.windows = {}    # id -> Gtk.Window
-        self.area = None     # the work area the stack is on; chosen when the first one opens
+        self.areas = {}      # stack -> the work area it is on; chosen when its first one opens
         # displayd (xrandr) changing the layout: lay out again on the new geometry
         self.screen.connect('monitors-changed', self.on_monitors_changed)
         self.center = Center(self)
@@ -264,16 +264,18 @@ class GtkRenderer:
         now, unshown, to measure it, and show() uses it. The first one always fits, so a very tall
         notification still shows."""
         self.discard_measured()
-        shown = [w for nid, w in self.windows.items() if nid in self.manager.displayed and nid != n.id]
+        active = self.manager.active
+        shown = [w for nid, w in self.windows.items() if nid in self.manager.displayed and nid != n.id
+                 and nid in active and active[nid].stack == n.stack]
         if not shown:
             return True
         window = self.new_window(n)
         self.measured = (n, window)
-        position = self.manager.config.settings['position']
+        position = n.settings.get('position') or self.manager.config.settings['position']
         margin = position.get('margin', [30, 5])
         margin_v = margin if isinstance(margin, (int, float)) else margin[0]
         gap = int(position.get('gap', 10))
-        area = self.area or self.monitor_geometry()
+        area = self.areas.get(n.stack) or self.monitor_geometry(position)
         used = margin_v + sum(self.window_height(w) + gap for w in shown)
         if used + self.window_height(window) + margin_v <= area.height:
             return True
@@ -357,8 +359,6 @@ class GtkRenderer:
             else:
                 self.stop_fade(window)         # a fade-in must not touch it once it is destroyed
                 window.destroy()
-        if not self.windows:
-            self.area = None
         self.layout()
 
     def fade(self, window, start, end, ms, then=None):
@@ -385,7 +385,7 @@ class GtkRenderer:
             GLib.source_remove(source)
 
     def on_monitors_changed(self, _screen):
-        self.area = None
+        self.areas.clear()
         self.log.info('monitors changed; placing notifications again')
         self.layout()
 
@@ -678,9 +678,10 @@ class GtkRenderer:
         return (style.get(n.urgency_name) or {}).get('foreground') or style.get('foreground')
 
     # -- placement ------------------------------------------------------
-    def monitor_geometry(self):
+    def monitor_geometry(self, position=None):
+        """The work area of the monitor POSITION (default: the config's) puts a stack on."""
         display = Gdk.Display.get_default()
-        position = self.manager.config.settings['position']
+        position = position or self.manager.config.settings['position']
         monitor = None
         follow = position.get('follow')
         if follow == 'mouse':
@@ -730,26 +731,44 @@ class GtkRenderer:
                 and frame.x + frame.width >= geometry.x + geometry.width
                 and frame.y + frame.height >= geometry.y + geometry.height):
             return False
-        area = self.area or self.monitor_geometry()
+        area = self.areas.get(self.main_stack()) or self.monitor_geometry()
         return display.get_monitor_at_point(area.x + area.width // 2, area.y + area.height // 2) == monitor
 
+    def main_stack(self):
+        """The stack of a notification no rule moves: the config's own position."""
+        from notifyd.model import Notification
+        return Notification(settings={'position': self.manager.config.settings['position']}).stack
+
+    def stacks(self):
+        """{stack: [ids on screen, newest first]} for the windows there are."""
+        out = {}
+        for nid in self.manager.displayed:
+            n = self.manager.active.get(nid)
+            if n is not None and nid in self.windows:
+                out.setdefault(n.stack, []).append(nid)
+        return out
+
     def layout(self):
-        if not self.windows:
-            return
-        position = self.manager.config.settings['position']
+        stacks = self.stacks()
+        for stack in [s for s in self.areas if s not in stacks]:
+            del self.areas[stack]                # an emptied stack picks its monitor again next time
+        for stack, ids in stacks.items():
+            self.layout_stack(stack, ids)
+        self.waiting_changed()
+
+    def layout_stack(self, stack, ids):
+        """Place one stack's windows (IDS, newest first) from its anchor, on the monitor it opened on."""
+        position = self.manager.active[ids[0]].settings.get('position') or self.manager.config.settings['position']
         anchor = position.get('anchor', 'top-right')
         margin = position.get('margin', [30, 5])
         margin_v, margin_h = (margin, margin) if isinstance(margin, (int, float)) else (margin[0], margin[-1])
         gap = int(position.get('gap', 10))
-        # one monitor for the whole stack: the one under the pointer when the first opened
-        if self.area is None:
-            self.area = self.monitor_geometry()
-        area = self.area
+        if stack not in self.areas:
+            self.areas[stack] = self.monitor_geometry(position)
+        area = self.areas[stack]
         offset = margin_v
-        for nid in self.manager.displayed:
-            window = self.windows.get(nid)
-            if window is None:
-                continue
+        for nid in ids:
+            window = self.windows[nid]
             _minimum, natural = window.get_preferred_size()
             width, height = max(window.get_size()[0], natural.width), natural.height
             if anchor.endswith('left'):
@@ -764,7 +783,6 @@ class GtkRenderer:
                 y = area.y + offset
             window.move(int(x), int(y))
             offset += height + gap
-        self.waiting_changed()
 
     # -- input ----------------------------------------------------------
     def on_enter(self, _widget, event, nid):
@@ -779,13 +797,20 @@ class GtkRenderer:
 
     def waiting_changed(self):
         """Show +N on the last popup of the stack while N wait for room (indicate-waiting)."""
-        count = len(self.manager.waiting)
-        shown = [nid for nid in self.manager.displayed if nid in self.windows]
-        last = shown[-1] if shown and count and self.manager.config.settings.get('indicate-waiting', True) else None
+        active = self.manager.active
+        waiting = {}
+        for nid in self.manager.waiting:
+            if nid in active:
+                waiting[active[nid].stack] = waiting.get(active[nid].stack, 0) + 1
+        counts = {}                               # the last popup of each stack -> how many wait for it
+        if self.manager.config.settings.get('indicate-waiting', True):
+            for stack, ids in self.stacks().items():
+                if waiting.get(stack):
+                    counts[ids[-1]] = waiting[stack]
         for nid, label in self.waiting_labels.items():
-            if nid == last:
-                label.set_text(f'+{count}')
-                label.set_tooltip_text(f'{count} more waiting for room')
+            if nid in counts:
+                label.set_text(f'+{counts[nid]}')
+                label.set_tooltip_text(f'{counts[nid]} more waiting for room')
                 label.show()
             else:
                 label.hide()

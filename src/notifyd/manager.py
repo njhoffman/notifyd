@@ -285,9 +285,27 @@ class Manager:
                 self._start_timer(n)
         self.log.emit('replaced', n, **({'reason': reason} if reason else {}))
 
-    def _room(self):
+    def _stack_count(self, stack):
+        return sum(1 for nid in self.displayed if nid in self.active and self.active[nid].stack == stack)
+
+    def _room(self, n):
+        """Whether N's stack has room under max-visible (each stack counts its own)."""
         limit = self.config.settings.get('max-visible') or 0
-        return not limit or len(self.displayed) < limit
+        return not limit or self._stack_count(n.stack) < limit
+
+    def _fill_waiting(self):
+        """Show what waits, oldest first, as far as its stack has room; in each stack one that does not fit
+        stops the ones after it (they keep their order), while other stacks go on."""
+        blocked = set()
+        for nid in list(self.waiting):
+            n = self.active.get(nid)
+            if n is None or n.stack in blocked:
+                continue
+            if self._room(n) and self._fits(n):
+                self.waiting.remove(nid)
+                self._show(n)
+            else:
+                blocked.add(n.stack)
 
     def _waiting_changed(self):
         """The waiting queue grew or shrank: the renderer's +N follows (when it has one)."""
@@ -304,11 +322,11 @@ class Manager:
         return fits is None or fits(n)
 
     def _place(self, n):
-        if self._room() and self._fits(n):
+        if self._room(n) and self._fits(n):
             self._show(n)
         else:
             self.waiting.append(n.id)
-            self.log.emit('waiting', n, reason=f'{len(self.displayed)} on screen')
+            self.log.emit('waiting', n, reason=f'{self._stack_count(n.stack)} on screen')
             self._waiting_changed()
 
     def _render(self, what, nid, arg):
@@ -413,9 +431,7 @@ class Manager:
                 self._save_state()
         if held:
             self._save_state()
-        # oldest first; one that does not fit on screen yet stops the rest (they keep their order)
-        while self.waiting and self._room() and self._fits(self.active[self.waiting[0]]):
-            self._show(self.active[self.waiting.pop(0)])
+        self._fill_waiting()
         self._waiting_changed()
         return True
 
