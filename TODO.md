@@ -10,6 +10,46 @@ center after popups + history) are under Completed.
 
 Reviewed: 2026-11-27
 
+## 18. Review of the daemon lifecycle, 0.51.9-0.52.1 and the documented CLI
+
+- [ ] **Saving the config in an editor reloads the defaults first.** (p2) [bug] An editor that saves by
+      renaming the old file and writing a new one (vim's backup-then-write), or rm and recreate, fires
+      `watch_config` (`daemon.py:155`) while the file is missing; `load_config` takes a missing file as
+      the defaults, so for a moment rules and preset are the defaults, open popups are restyled twice,
+      and `history.resize(100)` cuts a larger history (250 became 100; the file loses them at its next
+      rewrite). Skip watcher events while the path is missing, and debounce them (one save made three
+      reloads).
+- [ ] **`--replace` loses the old daemon's last history entries and state.** (p2) [bug] The new daemon
+      loads history.jsonl and state.json before it owns the bus name (`daemon.py:187`); the old one's
+      `shutdown()` then appends its open notifications and saves state, which the new one never reads
+      (4 lines in the file, 1 in memory; a `ctl forget` rewrote it to 0). Load history and state after
+      owning the name, or reread them on NameAcquired.
+- [ ] **`ctl preset` drops the open center's styles.** (p2) [bug] `Manager.restyle` (0.51.10) reloads the
+      renderer, which clears `styles` and loads only the popups' CSS, but emits no event, so an open
+      center is not rebuilt: its panel and cards fall back to the theme until something else rebuilds it.
+      Mark the center dirty (or emit the event) in `restyle`.
+- [ ] **A replaced systemd daemon restarts every 5 s for good.** (p2) [bug] With `notifyd daemon
+      --replace` running in the foreground (the README suggests it), the unit's daemon exits and
+      `Restart=always`/`RestartSec=5` starts it again and again (under the start limit); each one loads
+      state.json, restores held ones and rewrites it in `shutdown()` though it never owned the name.
+      Save state only after owning the bus name, and use `Restart=on-failure` with a clean exit when
+      the name is taken.
+- [ ] **`ctl` usage errors exit 1, not 2.** (p3) [bug] The man page says 2 for usage errors; `close` with
+      neither id nor fields, `close 5 --app x`, `forget` with no argument, `mode --for` without a name and
+      `pause --for 10`/`bogus` exit 1 (`SystemExit(str)`, `cli.py:47`, `:97-132`). `ctl forget 9999`
+      prints `forgot 0` and exits 0 while `pop`/`close`/`action` of an unknown id exit 1. `pause --for
+      never` is refused although the error text suggests "never"; `resume --for` shows the top-level usage.
+- [ ] **`import deadd` drops the popup margins without a note.** (p3) [bug] deadd keeps
+      `notification.popup.margin-top`, `margin-right` and `margin-between` (the reference config has 50,
+      50, 20); the importer reads only the top-level margins (`importer.py:42`, `:58`), so they become
+      `[0, 0]` and no gap, with no `note:`. Map them to `position.margin` and `gap`; `--css` with a
+      missing path is also ignored silently.
+- [ ] **Small CLI and daemon gaps.** (p3) [bug] `notifyd help ctl <TAB>` completes top-level commands in
+      bash and fish; the man page's `rules` says `--timeout ms` (it takes durations); no session bus gives
+      a raw GError traceback (`daemon.py:199`); the logind lock check is a 500 ms `call_sync` on the main
+      loop every 2 s (`effects.py:229`; make it async); `ctl bar` refuses a valid `{shown:02d}` and misses
+      `{shown:>2}` when deciding whether to show; a symlinked config is not followed by the file monitor.
+
 ## Completed
 
 ### 1. Decisions (completed 2026-11-10)
