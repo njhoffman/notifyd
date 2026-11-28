@@ -10,48 +10,6 @@ center after popups + history) are under Completed.
 
 Reviewed: 2026-11-27
 
-## 15. Review of 0.40-0.49
-
-- [x] **A timed pause that ran out while notifyd was down shows ghost popups.** (p2) [bug]
-      `Manager.__init__` restores the held ones, then `_restore_timers` resumes (`manager.py:122`),
-      before `daemon.py:201` attaches the GTK renderer and `:204` the server: they land in
-      `displayed` with timers but no window, take max-visible room, expire unseen into `missed`, and
-      send no NotificationClosed. Defer the resume (and the timed mode switch) until the daemon is
-      wired, e.g. a `Manager.start()` the daemon calls after attaching both.
-- [x] **A replacement still in its filter is lost when the old one closes.** (p2) [bug] B replaces A
-      (same id) and waits for its filter; A expires or is dismissed: `close(A)` pops
-      `filtering[A]` too (`manager.py:409`), so B never shows though its sender holds that id.
-      `close()` should only drop a pending filter when nothing with that id is active, or admit B
-      as a new notification when its target is gone (as `_filtered` already does).
-- [x] **A reload leaves open popups in the old corner.** (p2) [bug] `position` became a
-      per-notification setting (0.47.0) but is not in `RELOAD_LOOK` (`manager.py:803`), so after a
-      change to `position.anchor` and `ctl reload` open, waiting and held ones keep the old stack while
-      new ones start another. Carry `position` over on reload like the look.
-- [x] **`copy-code` false positives.** (p2) [bug] `one_time_code` (`markup.py`) matches code words
-      inside words and next to unrelated numbers: "Barcode 123456 scanned", "Security update 2024
-      available", "Call 555-1234 to verify", "Downloaded 2048 tokens" all give a Copy button, and with
-      it as the only action `click.right: default-action` copies and closes. Word boundaries on the
-      code words, drop the broad ones (security, token, login) unless "code" follows, and skip
-      4-digit years 19xx/20xx and phone-shaped 3-4 splits next to "call".
-- [x] **A replace that moves a notification to another stack does not refill the one it left.** (p3)
-      [bug] `_replace` (`manager.py:278`) neither rechecks room in the new stack nor calls
-      `_fill_waiting` for the old: with `max-visible: 1` the old stack stays empty while its
-      waiting one keeps waiting, and the next arrival jumps ahead of it.
-- [x] **Notifications in their filter are invisible to replace, dedup, list and close.** (p3) [bug]
-      `_replace_target` only looks in `active`, so stack-tag and group-by replacements arriving within
-      `filter-timeout` each get a popup; `close_all`, `close_matching` and `shutdown` skip them
-      (one shows after "close all"; shutdown sends no NotificationClosed for it). `pop()` also lacks
-      `'filter': None` in `extra`, so a popped entry is filtered a second time.
-- [x] **A very long `--for` breaks the state.** (p3) [bug] `GLib.timeout_add` overflows past about
-      49 days (`ctl pause --for 1200h`): `pause_until` is set but `paused` stays False. Cap `--for`
-      (say 30 days) in `duration_seconds` and set state only after the timer is made.
-- [x] **README is behind.** (p3) [docs] It lists neither the dunst importer nor 0.40-0.49 (filters,
-      per-rule stacks, inline reply, timed do not disturb, copy-code); `docs/design.md:33`'s pipeline
-      has no filter step.
-- [x] **One-time codes linger on the clipboard.** (p3) [feature] copy-code puts the code in the
-      clipboard and the primary selection with no expiry, where a later middle click pastes it.
-      Clear both after a minute (only if they still hold the code), like password managers do.
-
 ## Completed
 
 ### 1. Decisions (completed 2026-11-10)
@@ -475,3 +433,45 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       `ctl close --app ...`, and `{missed}` in `ctl bar --format`.
 - [x] **Copy a one-time code.** (p3) [feature] Detect an OTP code in the body and add a "Copy
       123456" button (`Gtk.Clipboard`). Upstream: swaync#766. Done in 0.49.0 (`copy-code`).
+
+### 15. Review of 0.40-0.49 (completed 2026-11-27)
+
+- [x] **A timed pause that ran out while notifyd was down shows ghost popups.** (p2) [bug]
+      `Manager.__init__` restores the held ones, then `_restore_timers` resumes (`manager.py:122`),
+      before `daemon.py:201` attaches the GTK renderer and `:204` the server: they land in
+      `displayed` with timers but no window, take max-visible room, expire unseen into `missed`, and
+      send no NotificationClosed. Defer the resume (and the timed mode switch) until the daemon is
+      wired, e.g. a `Manager.start()` the daemon calls after attaching both.
+- [x] **A replacement still in its filter is lost when the old one closes.** (p2) [bug] B replaces A
+      (same id) and waits for its filter; A expires or is dismissed: `close(A)` pops
+      `filtering[A]` too (`manager.py:409`), so B never shows though its sender holds that id.
+      `close()` should only drop a pending filter when nothing with that id is active, or admit B
+      as a new notification when its target is gone (as `_filtered` already does).
+- [x] **A reload leaves open popups in the old corner.** (p2) [bug] `position` became a
+      per-notification setting (0.47.0) but is not in `RELOAD_LOOK` (`manager.py:803`), so after a
+      change to `position.anchor` and `ctl reload` open, waiting and held ones keep the old stack while
+      new ones start another. Carry `position` over on reload like the look.
+- [x] **`copy-code` false positives.** (p2) [bug] `one_time_code` (`markup.py`) matches code words
+      inside words and next to unrelated numbers: "Barcode 123456 scanned", "Security update 2024
+      available", "Call 555-1234 to verify", "Downloaded 2048 tokens" all give a Copy button, and with
+      it as the only action `click.right: default-action` copies and closes. Word boundaries on the
+      code words, drop the broad ones (security, token, login) unless "code" follows, and skip
+      4-digit years 19xx/20xx and phone-shaped 3-4 splits next to "call".
+- [x] **A replace that moves a notification to another stack does not refill the one it left.** (p3)
+      [bug] `_replace` (`manager.py:278`) neither rechecks room in the new stack nor calls
+      `_fill_waiting` for the old: with `max-visible: 1` the old stack stays empty while its
+      waiting one keeps waiting, and the next arrival jumps ahead of it.
+- [x] **Notifications in their filter are invisible to replace, dedup, list and close.** (p3) [bug]
+      `_replace_target` only looks in `active`, so stack-tag and group-by replacements arriving within
+      `filter-timeout` each get a popup; `close_all`, `close_matching` and `shutdown` skip them
+      (one shows after "close all"; shutdown sends no NotificationClosed for it). `pop()` also lacks
+      `'filter': None` in `extra`, so a popped entry is filtered a second time.
+- [x] **A very long `--for` breaks the state.** (p3) [bug] `GLib.timeout_add` overflows past about
+      49 days (`ctl pause --for 1200h`): `pause_until` is set but `paused` stays False. Cap `--for`
+      (say 30 days) in `duration_seconds` and set state only after the timer is made.
+- [x] **README is behind.** (p3) [docs] It lists neither the dunst importer nor 0.40-0.49 (filters,
+      per-rule stacks, inline reply, timed do not disturb, copy-code); `docs/design.md:33`'s pipeline
+      has no filter step.
+- [x] **One-time codes linger on the clipboard.** (p3) [feature] copy-code puts the code in the
+      clipboard and the primary selection with no expiry, where a later middle click pastes it.
+      Clear both after a minute (only if they still hold the code), like password managers do.
