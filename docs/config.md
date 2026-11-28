@@ -123,6 +123,7 @@ style:
   title: { size: 16px, weight: bold, color: '#fff', style: italic, family: Sans }
   title-end: { size: 12px, color: '#888', opacity: 1 }   # the x-notifyd-title-end hint (see Markup)
   body: { ... }  appname: { ... }  time: { ... }  count: { ... }   # each part also takes opacity
+  body: { line-spacing: 2 }          # px between the body's lines (wrapped ones too)
   low: { background: ..., foreground: ..., border-color: ... }   # also normal, critical
   progress: { color: '#acf', background: '...', height: 6 }     # the value hint's bar
   timeout-bar: { color: '#00d7d7', background: transparent, height: 2 }   # with timeout-bar: true
@@ -180,14 +181,14 @@ know it ignore it:
 notifyd send -h 'string:x-notifyd-title-end:<span foreground="#ff8fc7">♥</span> 4.5' 'Song' 'Artist'
 ```
 
-A class takes Pango's span attributes (`foreground`, `background`, `weight`, `size`, `rise`, ...), with
-`-` for `_`. `line-height` (a factor, or points) spaces out the lines its text is on, which keeps
-wrapped tags apart, since a span's background has no padding:
+A class takes Pango's span attributes (`foreground`, `background`, `weight`, `size`, `rise`, `line-height`,
+...), with `-` for `_`. `line-height` makes a span's background taller along with its line, so it does
+not keep wrapped tags apart; `body.line-spacing` (px) leaves a gap between the body's lines instead:
 
 ```yaml
 rules:
   - match: { app: [MPD, Spotify, musicman] }
-    style: { classes: { tag: { line-height: 1.3 } } }   # merged into the preset's tag class
+    style: { body: { line-spacing: 2 } }   # wrapped tags (span backgrounds) no longer touch
 ```
 
 Every bundled preset has `accent`, `muted`, `good`, `warn`, `bad` and `tag`. `<br>` and a closing

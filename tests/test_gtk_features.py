@@ -98,3 +98,30 @@ def test_missing_icons_and_pictures_warn_once_per_source(display):
         manager.notify('a', app_icon='/nonexistent/icon.png', summary='four')   # already said since the reload
         assert len(warnings()) == 4, warnings()
     """)
+
+
+def test_body_line_spacing_puts_a_gap_between_wrapped_lines(display):
+    run_gtk(display, """
+        from notifyd.render.gtk import SpacedLabel, line_spacing
+        assert [line_spacing(v) for v in (None, 2, '3px', 'x', -1)] == [0, 2, 3, 0, 0]
+        chips = ' '.join(f'<span background="#1f3347"> tag{i} </span>' for i in range(30))
+
+        def body(config):
+            manager, renderer = setup(config)
+            nid = manager.notify('a', summary='song', body=chips)
+            label = renderer.bodies.get(nid, [None])[0] or next(
+                w for w in widgets(renderer.windows[nid], Gtk.Label)
+                if w.get_style_context().has_class('body'))
+            while Gtk.events_pending():
+                Gtk.main_iteration()
+            return label
+
+        plain = body('position: {follow: none}\\nbody: {max-lines: 0}')
+        spaced = body('position: {follow: none}\\nbody: {max-lines: 0}\\nstyle: {body: {line-spacing: 3}}')
+        assert not isinstance(plain, SpacedLabel) and isinstance(spaced, SpacedLabel)
+        lines = spaced.get_layout().get_line_count()
+        assert lines > 2, lines                                          # the chips wrap
+        assert spaced.get_layout().get_spacing() == 3 * 1024             # drawn with the gap
+        gap = spaced.get_allocated_height() - plain.get_allocated_height()
+        assert gap == (lines - 1) * 3, (gap, lines)                      # and given room for it
+    """)

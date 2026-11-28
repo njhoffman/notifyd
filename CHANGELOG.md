@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-11-27
+
+### Added
+
+- `style.body.line-spacing` (px) leaves a gap between the body's lines, wrapped ones too, so tags (span
+  backgrounds) that wrap to a second line no longer touch. In a rule:
+  `style: { body: { line-spacing: 2 } }`.
+
+### Fixed
+
+- The docs no longer say a class's `line-height` keeps wrapped tags apart: Pango draws a span's
+  background over its whole line, so `line-height` only makes the tags taller.
+
 ## [0.39.0] - 2026-11-27
 
 ### Added

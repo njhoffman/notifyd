@@ -134,6 +134,52 @@ class TimeoutBar(Gtk.DrawingArea):
         return False
 
 
+def line_spacing(value):
+    """Px between the lines of a label from a style's `line-spacing` (2, '2px'); 0 when unset or invalid."""
+    try:
+        return max(int(float(str(value or 0).removesuffix('px'))), 0)
+    except ValueError:
+        return 0
+
+
+class SpacedLabel(Gtk.Label):
+    """A label with SPACING px between its lines (wrapped or not), drawn as a gap: Pango's line_height
+    attribute grows each span's background along with the line, so wrapped chips still touch. The spacing
+    is the layout's, but GTK3 rebuilds a wrapped label's layout on each height request, so it is set again
+    before drawing, and the requested height adds it once per line break."""
+
+    def __init__(self, spacing):
+        super().__init__()
+        self.spacing = spacing
+
+    def extra_height(self, width):
+        """The spacing the lines of this label at WIDTH (px, with padding and border; -1: unwrapped) add."""
+        layout = self.get_layout().copy()
+        if width >= 0:
+            context = self.get_style_context()
+            state = context.get_state()
+            pad, border = context.get_padding(state), context.get_border(state)
+            inner = width - pad.left - pad.right - border.left - border.right
+            layout.set_width(max(inner, 1) * Pango.SCALE)
+        layout.set_spacing(0)
+        return (layout.get_line_count() - 1) * self.spacing
+
+    def do_get_preferred_height_and_baseline_for_width(self, width):
+        size = Gtk.Label.do_get_preferred_height_and_baseline_for_width(self, width)
+        extra = self.extra_height(width)
+        return (size.minimum_height + extra, size.natural_height + extra,
+                size.minimum_baseline, size.natural_baseline)
+
+    def do_get_preferred_height(self):
+        minimum, natural = Gtk.Label.do_get_preferred_height(self)
+        extra = self.extra_height(-1)
+        return minimum + extra, natural + extra
+
+    def do_draw(self, cr):
+        self.get_layout().set_spacing(self.spacing * Pango.SCALE)
+        return Gtk.Label.do_draw(self, cr)
+
+
 class GtkRenderer:
     def __init__(self, manager, log):
         ok, _argv = Gtk.init_check(sys.argv)
@@ -483,7 +529,8 @@ class GtkRenderer:
             full = prepare(n.body, mode, classes)
             lines = int((settings.get('body') or {}).get('max-lines') or 0) if body_lines is None else body_lines
             capped = cap_lines(full, lines)
-            body = self.label(capped or full, 'body', nid=link_nid)
+            spacing = line_spacing((style.get('body') or {}).get('line-spacing'))
+            body = self.label(capped or full, 'body', nid=link_nid, spacing=spacing)
             if lines:
                 body.set_lines(lines)             # a long paragraph: Pango caps it (per paragraph)
                 body.set_ellipsize(Pango.EllipsizeMode.END)
@@ -568,11 +615,12 @@ class GtkRenderer:
             self.log.warn(f'link {uri}: {exc.message}')
         return True
 
-    def label(self, markup, css_class, wrap=True, nid=None):
+    def label(self, markup, css_class, wrap=True, nid=None, spacing=0):
         """A label of MARKUP; NID is the notification whose actions its `action:` links invoke. Those links
         are not GtkLabel links (drawn in the theme's link color and underlined, over the sender's styling):
-        their text keeps the sender's look, and action_link_hit() finds a click on it."""
-        label = Gtk.Label()
+        their text keeps the sender's look, and action_link_hit() finds a click on it. SPACING is px
+        between its lines (SpacedLabel)."""
+        label = SpacedLabel(spacing) if spacing else Gtk.Label()
         markup, actions = split_action_links(markup)
         label.set_markup(markup)
         if '<a ' in markup:

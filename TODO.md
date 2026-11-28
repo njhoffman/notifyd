@@ -184,6 +184,12 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       dunst, mako, swaync, wired and xfce4-notifyd themes (Catppuccin, Dracula, Gruvbox, Nord, Rosé
       Pine, Kanagawa, One Dark, Solarized, swaync, xfce Retro); `just preview` shows them all at once,
       one private daemon per column. Done in 0.36.0.
+- [ ] **`test_center_keyboard` is flaky under load.** (p3) [test] It failed once in a full run
+      while another project's suite ran alongside (`center.cards[0]` was not the open `h4` card,
+      tests/test_center.py:627 script line 72), and passed 3 of 3 alone. Likely a timing assumption
+      about when the center rebuilds; wait for the rebuild (pump events until the cards change)
+      instead of a fixed number of iterations.
+
 ## 14. Behavior and scripting
 
 - [x] **Fullscreen policy.** (p2) [feature] Override-redirect popups cover fullscreen video and
