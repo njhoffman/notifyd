@@ -46,7 +46,9 @@ DEFAULTS = {
     'buttons': [],               # extra buttons that run commands: [{label: Next, run: playerctl next}]
     'actions': {'drop': []},     # the sender's actions left out, by key or label (text or /regex/)
     'run': None,                 # a shell command run for each matching notification (NOTIFYD_* env, JSON on stdin)
-    'run-on': ['receive'],       # when run runs: any of receive, action (one is invoked), close
+    'run-on': ['receive'],
+    'filter': None,              # a command that may rewrite it before it shows: prints a JSON object (see docs)
+    'filter-timeout': 500,       # ms the filter may take; then it shows unchanged       # when run runs: any of receive, action (one is invoked), close
     'idle-threshold': 0,         # no expiry while the user has been idle this long (0: off)
     'history': {'size': 100, 'keep': True, 'persist': True},   # persist: $XDG_STATE_HOME/notifyd/history.jsonl
     'log': {'format': 'pretty', 'color': 'auto', 'level': 'info', 'file': None},
@@ -60,7 +62,7 @@ DEFAULTS = {
 }
 
 TOP_LEVEL = set(DEFAULTS)
-DURATION_KEYS = ('timeout', 'timeout-critical', 'idle-threshold')
+DURATION_KEYS = ('timeout', 'timeout-critical', 'idle-threshold', 'filter-timeout')
 GROUP_FIELDS = ('app', 'summary', 'category', 'urgency')
 FOLLOW = ('mouse', 'focus', 'none')
 RUN_EVENTS = ('receive', 'action', 'close')
@@ -217,6 +219,8 @@ def normalize(settings, where='config'):
         if not isinstance(events, list) or any(event not in RUN_EVENTS for event in events):
             raise ConfigError(f'{where}: run-on: expected a list of {", ".join(RUN_EVENTS)}')
         settings['run-on'] = events
+    if settings.get('filter') is not None and not isinstance(settings['filter'], str):
+        raise ConfigError(f'{where}: filter: expected a shell command')
     if settings.get('run') is not None and not isinstance(settings['run'], str):
         raise ConfigError(f'{where}: run: expected a shell command')
     if settings.get('sound') not in (None, False) and not isinstance(settings['sound'], str):

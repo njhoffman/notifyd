@@ -145,3 +145,33 @@ def test_runner_adds_the_event_environment(tmp_path):
                     env={'NOTIFYD_EVENT': 'action', 'NOTIFYD_ACTION': 'reply'})
     proc.wait(5)
     assert out.read_text() == 'action reply'
+
+
+def run_filter(command, timeout_ms=2000):
+    from gi.repository import GLib
+
+    from notifyd.effects import Filter
+    answers = []
+    Filter()(command, sample(), timeout_ms, lambda result, error: answers.append((result, error)))
+    end = time.monotonic() + 5
+    context = GLib.MainContext.default()
+    while not answers and time.monotonic() < end:
+        context.iteration(False)
+        time.sleep(0.01)
+    return answers[0]
+
+
+def test_filter_reads_the_object_it_prints():
+    result, error = run_filter('read -r line; printf \'{"summary": "%s!", "event": "%s"}\' '
+                               '"$NOTIFYD_SUMMARY" "$NOTIFYD_EVENT"')
+    assert error is None and result == {'summary': 'Song!', 'event': 'filter'}
+    assert run_filter('true') == ({}, None)                                  # no output: unchanged
+
+
+def test_filter_failures_come_back_as_errors():
+    assert run_filter('echo nope >&2; exit 2') == (None, 'exited 2: nope')
+    assert run_filter('echo "[1]"')[1] == 'printed JSON that is not an object'
+    assert run_filter('echo "{oops"')[1].startswith('printed no JSON object')
+    started = time.monotonic()
+    assert run_filter('sleep 5; echo "{}"', timeout_ms=200) == (None, 'no answer in 200 ms')
+    assert time.monotonic() - started < 2                                    # killed, not waited for

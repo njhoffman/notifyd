@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.44.0" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.45.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -536,6 +536,11 @@ open one and is counted),
 (a command for each match),
 .B run\-on
 (when it runs: any of receive, action, close),
+.B filter
+(a command that rewrites it before it shows: it prints a JSON object of summary, body, icon,
+urgency, progress, hints or skip),
+.B filter\-timeout
+(how long it may take, default 500ms; then it shows unchanged),
 .B idle\-threshold
 (no expiry while the user is away that long),
 .BR center.width / side / hide\-on\-leave / mpris / volume ,

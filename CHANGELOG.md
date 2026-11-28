@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.45.0] - 2026-11-27
+
+### Added
+
+- A rule's `filter: CMD` rewrites a notification before it shows: the command gets the notification
+  as `NOTIFYD_*` variables and JSON, and prints a JSON object with any of `summary`, `body`, `icon`,
+  `urgency`, `progress`, `hints` and `skip`. The notification waits for it up to `filter-timeout`
+  (default 500ms) while D-Bus replies and other notifications go on; a failure or a timeout shows it
+  unchanged with a warning. A notification replaced or closed while its filter runs ignores the late
+  answer.
+
 ## [0.44.0] - 2026-11-27
 
 ### Added

@@ -60,6 +60,60 @@ class Runner:
         return proc
 
 
+def _kill(proc):
+    """Stop PROC and what it started (its own session: the group of its pid)."""
+    try:
+        os.killpg(proc.pid, 9)
+    except (ProcessLookupError, PermissionError):
+        proc.kill()
+
+
+class Filter:
+    """Runs a rule's `filter` command without blocking: the notification as NOTIFYD_* variables and as
+    JSON on stdin. DONE(result, error) is called on the main loop with the JSON object it printed ({}
+    for no output), or None and why it gave nothing usable (it failed, timed out, printed no object)."""
+
+    def __call__(self, command, n, timeout_ms, done):
+        env = {**os.environ, **notification_env(n), 'NOTIFYD_EVENT': 'filter'}
+        data = (json.dumps(n.summary_dict(), ensure_ascii=False) + '\n').encode()
+
+        def answer(result, error):
+            GLib.idle_add(lambda: done(result, error) and False)
+        try:
+            proc = subprocess.Popen(['sh', '-c', command], env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE, start_new_session=True)
+        except OSError as exc:
+            answer(None, exc.strerror)
+            return
+
+        def work():
+            try:
+                out, err = proc.communicate(data, timeout=max(timeout_ms, 1) / 1000)
+            except subprocess.TimeoutExpired:
+                _kill(proc)
+                proc.communicate()
+                answer(None, f'no answer in {timeout_ms} ms')
+                return
+            except OSError as exc:
+                answer(None, exc.strerror)
+                return
+            if proc.returncode:
+                tail = err.decode(errors='replace').strip().splitlines()[-1:]
+                answer(None, f'exited {proc.returncode}' + (f': {tail[0]}' if tail else ''))
+                return
+            text = out.decode(errors='replace').strip()
+            if not text:
+                answer({}, None)
+                return
+            try:
+                result = json.loads(text)
+            except ValueError as exc:
+                answer(None, f'printed no JSON object ({exc})')
+                return
+            answer(result, None) if isinstance(result, dict) else answer(None, 'printed JSON that is not an object')
+        threading.Thread(target=work, daemon=True).start()
+
+
 class SoundPlayer:
     """Plays a sound file (paplay, pw-play or aplay) or a freedesktop sound name (canberra-gtk-play)."""
 

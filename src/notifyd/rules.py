@@ -206,6 +206,54 @@ def drop_actions(n, where='actions.drop'):
     return dropped
 
 
+FILTER_KEYS = ('summary', 'body', 'icon', 'urgency', 'progress', 'hints', 'skip')
+URGENCY_VALUES = {'low': 0, 'normal': 1, 'critical': 2}
+
+
+def apply_filter(n, result):
+    """Merge a filter command's JSON object RESULT into N (its rules are not matched again). Returns
+    what was left out and why."""
+    problems = [f'{key}: not a field it can set ({", ".join(FILTER_KEYS)})' for key in result
+                if key not in FILTER_KEYS]
+    for key in ('summary', 'body'):
+        if key in result:
+            if isinstance(result[key], str):
+                setattr(n, key, result[key].strip())
+            else:
+                problems.append(f'{key}: expected text')
+    if 'icon' in result:
+        if isinstance(result['icon'], str):
+            n.app_icon = result['icon']
+        else:
+            problems.append('icon: expected an icon name or path')
+    if 'urgency' in result:
+        value = result['urgency']
+        value = URGENCY_VALUES.get(value, value) if isinstance(value, str) else value
+        if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 2:
+            n.hints['urgency'] = value
+        else:
+            problems.append('urgency: expected low, normal, critical or 0-2')
+    if 'progress' in result:
+        value = result['progress']
+        if value is None:
+            n.hints.pop('value', None)
+        elif isinstance(value, (int, float)) and not isinstance(value, bool):
+            n.hints['value'] = int(value)
+        else:
+            problems.append('progress: expected a number 0-100 or null')
+    if 'hints' in result:
+        if isinstance(result['hints'], dict):
+            n.hints.update(result['hints'])
+        else:
+            problems.append('hints: expected an object')
+    if 'skip' in result:
+        if isinstance(result['skip'], bool):
+            n.settings['skip'] = result['skip']
+        else:
+            problems.append('skip: expected true or false')
+    return problems
+
+
 def resolve(config, n, extra=None):
     """Apply CONFIG's rules to notification N in place: its settings, matched rule names and timeout.
     EXTRA (a settings mapping) goes on top of everything, for previews."""

@@ -12,7 +12,7 @@ except ImportError:
 
 from notifyd import __version__, art
 from notifyd.config import ConfigError, default_path, load_config, load_preset, preset_dirs
-from notifyd.effects import LockState, Runner, SoundPlayer, XIdle
+from notifyd.effects import Filter, LockState, Runner, SoundPlayer, XIdle
 from notifyd.history import default_path as history_default_path
 from notifyd.log import EventLog
 from notifyd.manager import GLibScheduler, Manager
@@ -47,7 +47,7 @@ def set_process_name(name='notifyd'):
 # what previews override: shown long enough to look at, never skipped, and no side effects (rule
 # commands, buttons, sounds) or history entries from samples that happen to match the user's rules
 LOCK_POLL = 2   # seconds between screen-lock checks (lock.pause)
-PREVIEW_EXTRA = {'timeout': 15000, 'skip': False, 'run': None, 'sound': False, 'buttons': [],
+PREVIEW_EXTRA = {'timeout': 15000, 'skip': False, 'run': None, 'filter': None, 'sound': False, 'buttons': [],
                  'history': {'keep': False}}
 
 
@@ -189,7 +189,8 @@ class Daemon:
         idle = XIdle() if self.renderer_name == 'gtk' else None
         self.manager = Manager(config, self.log, GLibScheduler(), history_path=history_path,
                                state_path=history_default_path().with_name('state.json'),
-                               runner=Runner(self.log), sound=SoundPlayer(self.log), idle=idle,
+                               runner=Runner(self.log), filter_runner=Filter(), sound=SoundPlayer(self.log),
+                               idle=idle,
                                thumbs_path=art.cache_dir().with_name('thumbs'))
         try:
             self.renderer = self.make_renderer()

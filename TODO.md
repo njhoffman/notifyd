@@ -207,9 +207,9 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [x] **Monitor by name; follow keyboard focus.** (p3) [feature] `position.monitor` is an index
       that moves when displayd changes the layout; match `Gdk.Monitor.get_model()` and add
       `follow: focus` (the active window's monitor). Upstream: dunst#1398, dunst#1545, deadd#196. Done in 0.44.0.
-- [ ] **Script filters that rewrite a notification.** (p3) [feature] A rule key `filter: CMD` run
+- [x] **Script filters that rewrite a notification.** (p3) [feature] A rule key `filter: CMD` run
       synchronously with a short timeout, merging the JSON it prints (summary, body, progress,
-      hints). Upstream: deadd#215, dunst#1494.
+      hints). Upstream: deadd#215, dunst#1494. Done in 0.45.0 (async: the popup waits, D-Bus does not).
 - [x] **Hooks on more events; `click.*` commands.** (p3) [feature] `run:` fires on arrival only:
       `run-on: [receive, action, close]`, and a click value `exec: CMD` with the `NOTIFYD_*`
       environment. Upstream: swaync#388, mako#38, swaync#226. Done in 0.43.0.

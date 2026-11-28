@@ -103,6 +103,21 @@ notification does not count). `NOTIFYD_EVENT` says which. A click can run a comm
 `click.middle: 'exec: CMD'` runs CMD with the same variables (`NOTIFYD_EVENT=click`, `NOTIFYD_BUTTON`)
 and dismisses the notification.
 
+A rule's `filter` command can rewrite a notification before it shows. It gets the same variables
+(`NOTIFYD_EVENT=filter`) and JSON, and prints a JSON object with any of `summary`, `body`, `icon`,
+`urgency` (`low`, `normal`, `critical` or 0-2), `progress` (0-100, `null` drops the bar), `hints`
+(merged into the sent ones) and `skip` (`true`: not shown). The notification waits for it, up to
+`filter-timeout` (default `500ms`; the D-Bus reply and other notifications never wait); no output
+leaves it as it is, and a failure, a timeout or output that is not an object shows it unchanged with a
+warning. The rules are not matched again on what it prints, and `run` sees the filtered notification.
+
+```yaml
+rules:
+  - match: { app: Signal }
+    filter: ~/bin/signal-tidy     # e.g. {"body": "...", "urgency": "low"}
+    filter-timeout: 300ms
+```
+
 ```yaml
 click: { middle: 'exec: printf %s "$NOTIFYD_BODY" | xclip -selection clipboard' }
 rules:

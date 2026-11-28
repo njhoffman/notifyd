@@ -60,7 +60,7 @@ class RecordingRenderer:
 @pytest.fixture
 def make_manager(tmp_path):
     """make_manager(config_text) -> (manager, scheduler, renderer, events, closed, actions)."""
-    def make(text='', state_path=None, thumbs_path=None):
+    def make(text='', state_path=None, thumbs_path=None, filter_runner=None):
         config = load_config(text=text)
         log = EventLog(stream=io.StringIO(), color='never')
         events = []
@@ -75,7 +75,7 @@ def make_manager(tmp_path):
                           runner=lambda command, n, what='run', env=None: (
                               ran.append((what, command, n.id)), ran_env.append(dict(env or {}))),
                           sound=sounds.append, idle=lambda: idle[0], state_path=state_path,
-                          thumbs_path=thumbs_path)
+                          thumbs_path=thumbs_path, filter_runner=filter_runner)
         manager.ran, manager.sounds, manager.idle_ms = ran, sounds, idle   # for tests to look at and set
         manager.ran_env = ran_env                                          # the extra env of each run
         return manager, scheduler, renderer, events, closed, actions

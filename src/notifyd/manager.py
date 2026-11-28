@@ -25,7 +25,7 @@ from notifyd.model import (
     Notification,
     actions_from_list,
 )
-from notifyd.rules import drop_actions, resolve
+from notifyd.rules import apply_filter, drop_actions, resolve
 
 MIN_RESUME_MS = 1000   # a notification left by the pointer stays at least this long
 IDLE_RECHECK_MS = 2000  # while the user is idle, expiry is asked again this often
@@ -66,7 +66,7 @@ class NullRenderer:
 
 class Manager:
     def __init__(self, config, log, scheduler, renderer=None, on_closed=None, on_action=None, history_path=None,
-                 state_path=None, runner=None, sound=None, idle=None, thumbs_path=None):
+                 state_path=None, runner=None, sound=None, idle=None, thumbs_path=None, filter_runner=None):
         self.config = config
         self.log = log
         self.scheduler = scheduler
@@ -86,6 +86,9 @@ class Manager:
         self.locked = False     # the screen is locked (lock.pause): hold back everything, critical too
         self.history = History(config.settings['history']['size'], history_path, log)
         self.runner = runner or (lambda command, n, what='run', env=None: None)
+        # filter_runner(command, n, timeout_ms, done): done(result, error) later; none: shown unfiltered
+        self.filter_runner = filter_runner or (lambda command, n, timeout_ms, done: done({}, None))
+        self.filtering = {}     # id -> (Notification, replace target): waiting for its filter command
         self.sound = sound or (lambda name: None)
         self.idle = idle or (lambda: 0)
         self.state_path = Path(state_path) if state_path else None
@@ -120,6 +123,32 @@ class Manager:
             n.commands[key] = button['run']
         target = self._replace_target(n)
         n.id = target or self._free_replaces_id(n) or self._new_id()
+        self.filtering.pop(n.id, None)            # a newer one with its id: the older filter's answer is moot
+        if n.settings.get('filter'):
+            self.filtering[n.id] = (n, target)
+            self.filter_runner(n.settings['filter'], n, int(n.settings.get('filter-timeout') or 500),
+                               lambda result, error: self._filtered(n, result, error))
+            return n.id
+        return self._admit(n, target)
+
+    def _filtered(self, n, result, error):
+        """N's filter answered: apply what it printed and let N in, unless N was replaced or closed
+        meanwhile."""
+        pending = self.filtering.get(n.id)
+        if pending is None or pending[0] is not n:
+            return
+        del self.filtering[n.id]
+        target = pending[1] if pending[1] in self.active else None
+        command = n.settings['filter']
+        if error:
+            self.log.warn(f'#{n.id} filter {command!r}: {error}; shown unchanged')
+        else:
+            for problem in apply_filter(n, result):
+                self.log.warn(f'#{n.id} filter {command!r}: {problem}')
+        self._admit(n, target)
+
+    def _admit(self, n, target):
+        """Let N (ready, filtered when it has a filter) in: shown, replacing TARGET, held back or skipped."""
         for part, text in (('summary', n.summary), ('body', n.body)):
             error = markup_error(text, n.settings.get('markup', 'full'))
             if error:
@@ -338,9 +367,16 @@ class Manager:
 
     # -- closing --------------------------------------------------------
     def close(self, nid, reason=CLOSED, quiet=False):
+        pending = self.filtering.pop(nid, None)   # closed while its filter runs: it never shows
         n = self.active.pop(nid, None)
         if n is None:
-            return False
+            if pending is None:
+                return False
+            if not quiet:
+                self._remember(pending[0], reason)
+                self.log.emit(REASON_NAMES.get(reason, 'closed'), pending[0])
+                self.on_closed(nid, reason)
+            return True
         self._cancel_timer(nid)
         self.hovered.pop(nid, None)
         shown = nid in self.displayed

@@ -838,3 +838,77 @@ def test_click_exec_runs_a_command_and_dismisses(make_manager):
     assert m.ran == [('click', 'copy-it --now', nid)]
     assert m.ran_env == [{'NOTIFYD_EVENT': 'click', 'NOTIFYD_BUTTON': 'middle'}]
     assert closed == [(nid, DISMISSED)]
+
+
+class PendingFilters:
+    """A filter runner whose commands answer when the test says: answer(i, result, error)."""
+
+    def __init__(self):
+        self.calls = []                       # (command, notification id, timeout, done)
+
+    def __call__(self, command, n, timeout_ms, done):
+        self.calls.append((command, n.id, timeout_ms, done))
+
+    def answer(self, index, result=None, error=None):
+        self.calls[index][3](result if result is not None or error else {}, error)
+
+
+FILTERED = ('rules:\n'
+            '  - match: {app: chat}\n'
+            '    filter: rewrite-it\n'
+            '    filter-timeout: 2s\n'
+            '    run: hook\n')
+
+
+def test_a_filter_holds_a_notification_until_it_answers(make_manager):
+    filters = PendingFilters()
+    m, _s, renderer, _e, closed, _a = make_manager(FILTERED, filter_runner=filters)
+    nid = m.notify('chat', summary='hi', body='raw')
+    assert filters.calls[0][:3] == ('rewrite-it', nid, 2000)
+    assert nid not in m.active and m.ran == []                       # not shown, run: not yet
+    filters.answer(0, {'summary': ' Hello ', 'body': 'clean', 'urgency': 'critical', 'progress': 40,
+                       'icon': 'mail-unread', 'hints': {'x-extra': 1}})
+    n = m.active[nid]
+    assert (n.summary, n.body, n.urgency, n.progress, n.app_icon) == ('Hello', 'clean', 2, 40, 'mail-unread')
+    assert n.hints['x-extra'] == 1 and nid in m.displayed
+    assert m.ran == [('run', 'hook', nid)]                            # run: sees the filtered one
+    assert closed == []
+
+
+def test_a_filter_can_skip_and_bad_output_shows_it_unchanged(make_manager):
+    filters = PendingFilters()
+    m, _s, _r, events, closed, _a = make_manager(FILTERED, filter_runner=filters)
+    skipped = m.notify('chat', summary='spam')
+    filters.answer(0, {'skip': True})
+    assert skipped not in m.active and kinds(events)[-1] == 'suppressed'
+    failed = m.notify('chat', summary='as sent')
+    filters.answer(1, error='no answer in 2000 ms')
+    assert m.active[failed].summary == 'as sent'
+    odd = m.notify('chat', summary='odd')
+    filters.answer(2, {'summary': 5, 'colour': 'red'})
+    assert m.active[odd].summary == 'odd'
+    warnings = [e['message'] for e in events if e['event'] == 'warn']
+    assert any('no answer in 2000 ms; shown unchanged' in w for w in warnings)
+    assert any('summary: expected text' in w for w in warnings) and any('colour: not a field' in w for w in warnings)
+
+
+def test_a_replaced_or_closed_notification_ignores_its_late_filter(make_manager):
+    filters = PendingFilters()
+    m, _s, _r, _e, closed, _a = make_manager(FILTERED, filter_runner=filters)
+    first = m.notify('chat', summary='one')
+    second = m.notify('chat', summary='two', replaces_id=first)      # same id, its own filter
+    assert second == first and len(filters.calls) == 2
+    filters.answer(0, {'summary': 'stale'})                           # the older one's answer: dropped
+    assert first not in m.active
+    filters.answer(1, {})
+    assert m.active[first].summary == 'two'
+    gone = m.notify('chat', summary='closed early')
+    assert m.close(gone) is True and closed == [(gone, CLOSED)]       # NotificationClosed, never shown
+    filters.answer(2, {'summary': 'late'})
+    assert gone not in m.active
+
+
+def test_no_filter_runner_shows_it_unfiltered(make_manager):
+    m, *_ = make_manager(FILTERED)
+    nid = m.notify('chat', summary='direct')
+    assert m.active[nid].summary == 'direct'
