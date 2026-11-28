@@ -81,6 +81,19 @@ INTROSPECTION = f'''
       <arg direction="out" type="s" name="current"/>
     </method>
     <method name="CloseAll"><arg direction="out" type="u" name="count"/></method>
+    <method name="CloseMatching">
+      <arg direction="in" type="s" name="criteria_json"/>
+      <arg direction="out" type="u" name="count"/>
+    </method>
+    <method name="PauseFor">
+      <arg direction="in" type="u" name="seconds"/>
+      <arg direction="out" type="b" name="paused"/>
+    </method>
+    <method name="SetModeFor">
+      <arg direction="in" type="s" name="mode"/>
+      <arg direction="in" type="u" name="seconds"/>
+      <arg direction="out" type="s" name="current"/>
+    </method>
     <method name="Pause">
       <arg direction="in" type="b" name="on"/>
       <arg direction="out" type="b" name="paused"/>
@@ -279,6 +292,14 @@ class Server:
                 return GLib.Variant('(s)', (m.set_mode(mode) if mode else m.mode,))
             if method == 'CloseAll':
                 return GLib.Variant('(u)', (m.close_all(),))
+            if method == 'CloseMatching':
+                return GLib.Variant('(u)', (m.close_matching(json.loads(params.unpack()[0])),))
+            if method == 'PauseFor':
+                return GLib.Variant('(b)', (m.pause(True, params.unpack()[0] or None),))
+            if method == 'SetModeFor':
+                mode, seconds = params.unpack()
+                mode = mode.strip()
+                return GLib.Variant('(s)', (m.set_mode(mode, seconds or None) if mode else m.mode,))
             if method == 'Pause':
                 return GLib.Variant('(b)', (m.pause(params.unpack()[0]),))
             if method == 'Reload':

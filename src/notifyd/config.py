@@ -92,11 +92,11 @@ def deep_merge(base, over):
     return out
 
 
-_DURATION = re.compile(r'^\s*(\d+(?:\.\d+)?)\s*(ms|s|m)?\s*$')
+_DURATION = re.compile(r'^\s*(\d+(?:\.\d+)?)\s*(ms|s|m|h)?\s*$')
 
 
 def parse_duration(value, key='timeout'):
-    """Milliseconds from 8000, '8s', '1500ms', '2m', 'never' (0) or 0."""
+    """Milliseconds from 8000, '8s', '1500ms', '2m', '1h', 'never' (0) or 0."""
     if isinstance(value, bool):
         raise ConfigError(f'{key}: expected a duration such as 8s, got {value!r}')
     if isinstance(value, (int, float)):
@@ -109,7 +109,7 @@ def parse_duration(value, key='timeout'):
         found = _DURATION.match(value)
         if found:
             number, unit = float(found.group(1)), found.group(2) or 'ms'
-            return int(number * {'ms': 1, 's': 1000, 'm': 60000}[unit])
+            return int(number * {'ms': 1, 's': 1000, 'm': 60000, 'h': 3600000}[unit])
     raise ConfigError(f'{key}: expected a duration such as 8s, 1500ms or never, got {value!r}')
 
 

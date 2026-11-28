@@ -240,3 +240,19 @@ def test_bar_line():
 def test_man_page_names_the_current_version():
     th = next(line for line in MAN.read_text().splitlines() if line.startswith('.TH '))
     assert f'"notifyd {__version__}"' in th, f'{th} (bump the man page with the version)'
+
+
+def test_bar_line_missed_counts_only_when_shown():
+    from notifyd.cli import bar_line
+    status = {'paused': False, 'mode': 'normal', 'held_back': 0, 'missed': 3}
+    assert bar_line(status, '{paused} {mode} {held}', 'idle') == 'idle'      # not in the format: idle as before
+    assert bar_line(status, '{paused} {missed}', 'idle') == '3'
+    assert bar_line({**status, 'missed': 0}, '{paused} {missed}', 'idle') == 'idle'
+
+
+def test_for_durations():
+    from notifyd.cli import duration_seconds
+    assert [duration_seconds(v, 'pause --for') for v in (None, '1h', '30m', '90s', '1500ms')] == [None, 3600, 1800, 90, 2]
+    for bad in ('30', 'soon', '0s'):
+        with pytest.raises(SystemExit):
+            duration_seconds(bad, 'pause --for')

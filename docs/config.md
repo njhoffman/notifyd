@@ -17,7 +17,7 @@ that stays until it is fixed, and the old config is kept. `notifyd check` valida
 | `preset` | `deadd` | style preset (`notifyd presets` lists them) |
 | `style` | `{}` | preset keys to override (see Styles) |
 | `width` | `350` | px |
-| `timeout` | `8s` | `8000`, `8s`, `1500ms`, `2m`, `never` |
+| `timeout` | `8s` | `8000`, `8s`, `1500ms`, `2m`, `1h`, `never` |
 | `timeout-critical` | `never` | for critical notifications no rule gives a timeout |
 | `max-visible` | `6` | more wait until one closes (`0`: no limit); one that would not fit in the monitor's work area waits too (oldest first), except the first on screen |
 | `indicate-waiting` | `true` | the last popup of the stack shows `+N` while N wait for room (`max-visible`, or no space on screen); daemon-wide |
@@ -265,9 +265,15 @@ running `examples/demo.yaml`, whose rules are commented with the step each one s
 
 ## Control
 
-`notifyd ctl status | list [--json|--ids] | history [-n N] [--json] | pop [ID] | forget ID|--all | center [toggle|show|hide] | close ID | action ID [KEY] |
-close-all | pause | resume | toggle | mode [NAME] | reload | preset NAME | preview [PRESET] | watch [--json]`.
-`ctl bar [--follow]` prints a status-bar line (do not disturb, the mode, how many are held back;
-see `notifyd help ctl bar` for a polybar module). `history --pick` picks one in fzf and shows it again. Each notification records its `sender` (the sending process's pid and name, its parent's name, and the `desktop-entry` hint): in `history --json`, `list --json` and `watch --json`, and as `via PROCESS (PARENT)` on `watch` lines. In the center: `j`/`k` or the arrows move between cards (and load more past the last), `g`/`G` first and last, `Enter` acts like a left click (shows a closed one again), `d`/`Delete` closes or forgets it, `C` clears, `e` shows the whole body of the selected card, `i` its details (app, icon, picture, sender, rules, times), `a` switches the history between grouped by app and one list, `p` toggles do not disturb, `m` the next mode, `space`/`n`/`N` play-pause, next and previous, `+`/`-` the volume, `?` or `Ctrl+/` shows a small window with all of these (any key closes it), `Esc`/`Ctrl+[`/`q` (or `center.toggle-key`) closes it. Center cards are built like the popups, each with its own style, preset, hidden parts and picture
+`notifyd ctl status | list [--json|--ids] | history [-n N] [--json] | pop [ID] | forget ID|--all | center [toggle|show|hide] | close [ID] [--app X ...] | action ID [KEY] |
+close-all | pause [--for DUR] | resume | toggle [--for DUR] | mode [NAME] [--for DUR] | reload | preset NAME | preview [PRESET] | watch [--json]`.
+`pause --for 1h` is do not disturb for an hour (it resumes on its own, also across a restart; a plain
+`pause` or `resume` replaces it), and `mode focus --for 30m` switches back to the mode before it after
+that. `close --app Slack --summary '/build/i'` closes every open notification (shown, waiting or held
+back) whose fields all match, as rules match them (also `--body`, `--category`, `--urgency`,
+`--stack-tag`, `--desktop-entry`); it prints how many.
+`ctl bar [--follow]` prints a status-bar line (do not disturb, the mode, how many are held back, and
+with `{missed}` in `--format` how many expired unclicked since the center was last opened, which
+opening the center clears; see `notifyd help ctl bar` for a polybar module). `history --pick` picks one in fzf and shows it again. Each notification records its `sender` (the sending process's pid and name, its parent's name, and the `desktop-entry` hint): in `history --json`, `list --json` and `watch --json`, and as `via PROCESS (PARENT)` on `watch` lines. In the center: `j`/`k` or the arrows move between cards (and load more past the last), `g`/`G` first and last, `Enter` acts like a left click (shows a closed one again), `d`/`Delete` closes or forgets it, `C` clears, `e` shows the whole body of the selected card, `i` its details (app, icon, picture, sender, rules, times), `a` switches the history between grouped by app and one list, `p` toggles do not disturb, `m` the next mode, `space`/`n`/`N` play-pause, next and previous, `+`/`-` the volume, `?` or `Ctrl+/` shows a small window with all of these (any key closes it), `Esc`/`Ctrl+[`/`q` (or `center.toggle-key`) closes it. Center cards are built like the popups, each with its own style, preset, hidden parts and picture
 sizes (history entries get today's rules again); the style key `center-selected` outlines the selected card. dunst's color hints (`fgcolor`, `bgcolor`, `frcolor`, `hlcolor`) color a single notification; `fgcolor` colors all its text, the preset's title, app name, time and urgency colors included (app name and time stay a little dimmer), unless a rule that matches sets `foreground`. `watch` streams the daemon's
 event log, colored, or as JSON lines.

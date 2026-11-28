@@ -25,7 +25,16 @@ from notifyd.model import (
     Notification,
     actions_from_list,
 )
-from notifyd.rules import apply_filter, drop_actions, resolve
+from notifyd.config import ConfigError
+from notifyd.rules import MATCH_FIELDS, _normalize_actual, _value_matcher, apply_filter, drop_actions, resolve
+
+def _span(seconds):
+    """SECONDS as a short duration: 90 -> 1m30s, 3600 -> 1h."""
+    seconds = int(seconds)
+    hours, rest = divmod(seconds, 3600)
+    minutes, secs = divmod(rest, 60)
+    return ''.join(f'{v}{u}' for v, u in ((hours, 'h'), (minutes, 'm'), (secs, 's')) if v) or '0s'
+
 
 MIN_RESUME_MS = 1000   # a notification left by the pointer stays at least this long
 IDLE_RECHECK_MS = 2000  # while the user is idle, expiry is asked again this often
@@ -83,6 +92,12 @@ class Manager:
         self.timers = {}        # id -> (handle, deadline)
         self.hovered = {}       # id -> remaining ms
         self.paused = False
+        self.pause_until = None     # wall-clock time a timed pause (ctl pause --for) ends, else None
+        self.pause_timer = None
+        self.mode_until = None      # a timed mode (ctl mode NAME --for) ends then, back to mode_after
+        self.mode_after = None
+        self.mode_timer = None
+        self.missed = 0             # expired without being clicked or closed since the center was last opened
         self.locked = False     # the screen is locked (lock.pause): hold back everything, critical too
         self.history = History(config.settings['history']['size'], history_path, log)
         self.runner = runner or (lambda command, n, what='run', env=None: None)
@@ -96,10 +111,12 @@ class Manager:
         self.thumb_seq = itertools.count()       # in thumbnail names: two closes in one millisecond differ
         state = self._load_state()
         self.mode = state.get('mode') or 'normal'
+        self.missed = state.get('missed') if isinstance(state.get('missed'), int) else 0
         # ids go on from the kept history, so pop and forget never mix up an old one with a new one
         self.next_id = max((e.get('id', 0) for e in self.history), default=0) % 0xFFFFFFFF + 1
         if state.get('paused') is True:
             self._restore_held(state.get('held'))
+        self._restore_timers(state)
         self._prune_thumbnails()                  # of entries that did not survive the restart
 
     # -- incoming -------------------------------------------------------
@@ -391,6 +408,9 @@ class Manager:
             self.log.emit(REASON_NAMES.get(reason, 'closed'), n)
             self.on_closed(nid, reason)
             self._hook(n, 'close', NOTIFYD_CLOSE_REASON=REASON_NAMES.get(reason, 'closed'))
+            if reason == EXPIRED:                  # it timed out unclicked: missed until the center opens
+                self.missed += 1
+                self._save_state()
         if held:
             self._save_state()
         # oldest first; one that does not fit on screen yet stops the rest (they keep their order)
@@ -407,6 +427,25 @@ class Manager:
             self.log.emit('kept', n, reason='the sender closed it; ignore-close')
             return False
         return self.close(nid, CLOSED)
+
+    def close_matching(self, criteria, reason=CLOSED):
+        """Close every open notification (on screen, waiting, held back) whose fields match CRITERIA, a
+        mapping of match fields as in rules (text or /regex/). How many closed."""
+        if not isinstance(criteria, dict) or not criteria:
+            raise ValueError('close: give at least one field to match')
+        unknown = [key for key in criteria if key not in MATCH_FIELDS]
+        if unknown:
+            raise ValueError(f'close: unknown field {unknown[0]!r} (fields: {", ".join(sorted(MATCH_FIELDS))})')
+        try:
+            matchers = [(MATCH_FIELDS[key], _value_matcher(value, f'close --{key}'))
+                        for key, value in criteria.items()]
+        except ConfigError as exc:
+            raise ValueError(str(exc)) from exc
+        ids = [nid for nid, n in list(self.active.items())
+               if all(matcher(_normalize_actual(get(n))) is not None for get, matcher in matchers)]
+        for nid in ids:
+            self.close(nid, reason)
+        return len(ids)
 
     def close_all(self, reason=DISMISSED):
         ids = list(self.displayed) + list(self.waiting) + list(self.deferred)
@@ -458,11 +497,20 @@ class Manager:
                 self.close(nid, DISMISSED)
 
     # -- pause, reload, history ------------------------------------------
-    def pause(self, on=True):
+    def pause(self, on=True, seconds=None):
+        """Pause (do not disturb) or resume; SECONDS ends a pause on its own after that long. Any pause or
+        resume replaces a timed one."""
+        timed = self.pause_until is not None
+        self._cancel_pause_timer()
+        if on and seconds:
+            self._time_pause(time.time() + seconds)
         if on == self.paused:
+            if timed or self.pause_until is not None:
+                self._save_state()
             return self.paused
         self.paused = on
-        self.log.emit('paused' if on else 'resumed', message=f'{len(self.held_back)} held back' if not on else '')
+        self.log.emit('paused' if on else 'resumed', message=f'{len(self.held_back)} held back' if not on
+                      else f'for {_span(seconds)}' if self.pause_until is not None else '')
         if not on:
             self._release_held()
         self._save_state()
@@ -532,7 +580,7 @@ class Manager:
                 nid = self.notify(app=str(record.get('app', '')), summary=str(record.get('summary', '')),
                                   body=str(record.get('body', '')), app_icon=str(record.get('app_icon', '')),
                                   actions=actions, hints=dict(record.get('hints') or {}),
-                                  timeout=int(record.get('timeout', -1)), extra={'run': None},
+                                  timeout=int(record.get('timeout', -1)), extra={'run': None, 'filter': None},
                                   sender=record.get('sender') or {})
             except (TypeError, ValueError, AttributeError) as exc:
                 self.log.warn(f'state: a held-back notification could not be restored: {exc}')
@@ -543,12 +591,75 @@ class Manager:
             restored += 1
         self.log.emit('paused', message=f'restored, {restored} held back' if restored else 'restored')
 
-    def set_mode(self, mode):
+    def set_mode(self, mode, seconds=None):
+        """Switch to MODE; SECONDS switches back to the mode before it after that long (the one before a
+        timed mode when one is running). Any switch replaces a timed one."""
+        after = self.mode_after if self.mode_until is not None else self.mode
+        timed = self.mode_until is not None
+        self._cancel_timer_handle('mode_timer')
+        self.mode_until = self.mode_after = None
+        if seconds and mode != after:
+            self._time_mode(time.time() + seconds, after)
         if mode != self.mode:
             self.mode = mode
-            self.log.emit('mode', message=mode)
+            self.log.emit('mode', message=mode + (f' for {_span(seconds)}' if self.mode_until else ''))
+            self._save_state()
+        elif timed or self.mode_until is not None:
             self._save_state()
         return self.mode
+
+    # -- timed pause and mode -------------------------------------------
+    def _cancel_timer_handle(self, name):
+        handle = getattr(self, name)
+        if handle is not None:
+            self.scheduler.cancel(handle)
+            setattr(self, name, None)
+
+    def _cancel_pause_timer(self):
+        self._cancel_timer_handle('pause_timer')
+        self.pause_until = None
+
+    def _time_pause(self, until):
+        self.pause_until = until
+        self.pause_timer = self.scheduler.call_later(max(until - time.time(), 0) * 1000, self._pause_over)
+
+    def _pause_over(self):
+        self.pause_timer = None
+        self.pause_until = None
+        if self.paused:
+            self.pause(False)
+
+    def _time_mode(self, until, after):
+        self.mode_until, self.mode_after = until, after
+        self.mode_timer = self.scheduler.call_later(max(until - time.time(), 0) * 1000, self._mode_over)
+
+    def _mode_over(self):
+        after = self.mode_after or 'normal'
+        self.mode_timer = None
+        self.mode_until = self.mode_after = None
+        self.set_mode(after)
+
+    def _restore_timers(self, state):
+        """Pick up a timed pause or mode the state file kept: what ended while notifyd was down ends now."""
+        until = state.get('paused_until')
+        if self.paused and isinstance(until, (int, float)):
+            if until <= time.time():
+                self.pause(False)
+            else:
+                self._time_pause(until)
+        until, after = state.get('mode_until'), state.get('mode_after')
+        if isinstance(until, (int, float)) and isinstance(after, str):
+            if until <= time.time():
+                self.set_mode(after)
+            else:
+                self._time_mode(until, after)
+
+    def seen(self):
+        """The center opened: what was missed has been seen."""
+        if self.missed:
+            self.missed = 0
+            self.log.emit('missed', level='debug', message='0')
+            self._save_state()
 
     def _load_state(self):
         if not self.state_path:
@@ -564,7 +675,9 @@ class Manager:
             return
         try:
             held = [self._held_record(self.active[nid]) for nid in self.held_back if nid in self.active]
-            write_private(self.state_path, json.dumps({'mode': self.mode, 'paused': self.paused, 'held': held}))
+            write_private(self.state_path, json.dumps({
+                'mode': self.mode, 'paused': self.paused, 'held': held, 'missed': self.missed,
+                'paused_until': self.pause_until, 'mode_until': self.mode_until, 'mode_after': self.mode_after}))
         except OSError as exc:
             self.log.warn(f'state {self.state_path}: {exc.strerror}')
 
@@ -693,8 +806,11 @@ class Manager:
     def status(self):
         return {
             'paused': self.paused,
+            'paused_until': self.pause_until,
             'locked': self.locked,
             'mode': self.mode,
+            'mode_until': self.mode_until,
+            'missed': self.missed,
             'displayed': len(self.displayed),
             'waiting': len(self.waiting),
             'held_back': len(self.held_back),

@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.45.0" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.46.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -331,8 +331,9 @@ Show a closed notification again: the last one in the history, or
 .IR id ,
 with its icon, image (a thumbnail of image-data, kept under $XDG_CACHE_HOME/notifyd/thumbs) and sender, so rules match it again; their commands and sounds do not run again.
 .TP
-.BI close " id"
-Close a notification.
+.BR close " [\fIid\fR] [\fB\-\-app\fR \fItext\fR] [\fB\-\-summary\fR \fItext\fR] [\fB\-\-body\fR \fItext\fR] [\fB\-\-category\fR \fItext\fR] [\fB\-\-urgency\fR \fItext\fR] [\fB\-\-stack\-tag\fR \fItext\fR] [\fB\-\-desktop\-entry\fR \fItext\fR]"
+Close a notification, or every open one (shown, waiting or held back) whose fields all match: text,
+or a /regex/ as in rules. Prints how many closed.
 .TP
 .BI action " id \fR[\fIkey\fR]"
 Invoke an action: the key given, else the default action, else the first one.
@@ -340,11 +341,16 @@ Invoke an action: the key given, else the default action, else the first one.
 .B close\-all
 Close everything shown or waiting.
 .TP
-.BR pause ", " resume ", " toggle
+.BR pause ", " resume ", " toggle " [\fB\-\-for\fR \fIduration\fR]"
 Hold back all but critical notifications; resume shows what was held back. The paused state and what is held back survive a restart of the daemon.
+.B \-\-for
+(30m, 1h, 90s) resumes on its own after that long, also across a restart; a plain pause or resume
+replaces it.
 .TP
-.BR mode " [\fIname\fR]"
-Show the mode, or set it. Rules match on it with
+.BR mode " [\fIname\fR] [\fB\-\-for\fR \fIduration\fR]"
+Show the mode, or set it;
+.B \-\-for
+switches back to the mode before it after that long. Rules match on it with
 .BR "match: {mode: \fIname\fB}" ,
 e.g. to suppress all but critical notifications in a
 .B dnd
@@ -366,8 +372,13 @@ A status line for polybar and the like:
 (default
 .BR "{paused} {mode} {held}" ;
 also
-.BR {shown} )
-when paused, in a mode other than normal, or holding notifications back, else the
+.B {shown}
+and
+.BR {missed} ,
+the notifications that expired unclicked since the center was last opened)
+when paused, in a mode other than normal, holding notifications back, or (with
+.B {missed}
+in it) having missed some, else the
 .B \-\-idle
 text (empty), and the
 .B \-\-offline

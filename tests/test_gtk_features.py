@@ -161,3 +161,13 @@ def test_monitor_by_name_and_follow_focus(display):
         nid = manager.notify('a', summary='placed')
         assert renderer.windows[nid].get_visible()
     """)
+
+
+def test_opening_the_center_clears_the_missed_count(display):
+    run_gtk(display, """
+        manager, renderer = setup()
+        manager.missed = 3
+        renderer.center.toggle('show')
+        assert manager.missed == 0
+        renderer.center.toggle('hide')
+    """)

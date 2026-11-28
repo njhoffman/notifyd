@@ -172,6 +172,7 @@ class Center:
             self.window.connect('leave-notify-event', self.on_leave)
             self.window.connect('key-press-event', self.on_key)
         self.request_volume()                     # the row updates (or appears) when pactl answers
+        self.manager.seen()                       # what expired unclicked has been seen now
         self.refresh_button_states()
         playing = self.now_playing()
         if self.dirty or self.built != (self.scope()[0], playing):

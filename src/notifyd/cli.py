@@ -34,6 +34,26 @@ def gio():
 
 # -- ctl -----------------------------------------------------------------------
 
+# fields `ctl close` matches on (any of the rules' match fields)
+CLOSE_FIELDS = ('app', 'summary', 'body', 'category', 'urgency', 'stack-tag', 'desktop-entry')
+
+
+def duration_seconds(value, where):
+    """Whole seconds of a --for DURATION (30m, 1h, 90s, 500ms rounds up), or None when not given."""
+    if value is None:
+        return None
+    from notifyd.config import ConfigError, parse_duration
+    if str(value).strip().replace('.', '', 1).isdigit():
+        raise SystemExit(f'notifyd ctl {where}: give a unit, e.g. {value}m or {value}s')
+    try:
+        ms = parse_duration(value, where)
+    except ConfigError as exc:
+        raise SystemExit(f'notifyd ctl {exc}') from exc
+    if ms <= 0:
+        raise SystemExit(f'notifyd ctl {where}: expected a duration above 0, got {value!r}')
+    return -(-ms // 1000)
+
+
 def control_call(method, params=None, reply='(s)'):
     Gio, GLib = gio()
     from notifyd.server import CONTROL_IFACE, CONTROL_NAME, OBJECT_PATH, owner_description
@@ -70,7 +90,15 @@ def ctl(args):
                 print(format_pretty({'event': entry.get('closed') or 'closed', 'time': entry['received'],
                                      'n': entry}, color))
     elif command == 'close':
-        if not control_call('Close', GLib.Variant('(u)', (args.id,)), '(b)'):
+        criteria = {field: value for field, value in ((f, getattr(args, f.replace('-', '_'), None))
+                                                      for f in CLOSE_FIELDS) if value is not None}
+        if args.id is None and not criteria:
+            raise SystemExit('notifyd ctl close: give an ID or fields to match (--app, --summary, ...)')
+        if args.id is not None and criteria:
+            raise SystemExit('notifyd ctl close: give an ID or fields to match, not both')
+        if criteria:
+            print(control_call('CloseMatching', GLib.Variant('(s)', (json.dumps(criteria),)), '(u)'))
+        elif not control_call('Close', GLib.Variant('(u)', (args.id,)), '(b)'):
             raise SystemExit(f'no notification {args.id}')
     elif command == 'list':
         entries = json.loads(control_call('List'))
@@ -97,7 +125,13 @@ def ctl(args):
             raise SystemExit('nothing in history' if not args.id else f'no notification {args.id} in history')
         print(nid)
     elif command == 'mode':
-        print(control_call('SetMode', GLib.Variant('(s)', (args.name or '',))))
+        seconds = duration_seconds(args.for_, 'mode --for')
+        if seconds and not args.name:
+            raise SystemExit('notifyd ctl mode --for: give the mode to switch to')
+        if seconds:
+            print(control_call('SetModeFor', GLib.Variant('(su)', (args.name, seconds))))
+        else:
+            print(control_call('SetMode', GLib.Variant('(s)', (args.name or '',))))
     elif command == 'action':
         if not control_call('Invoke', GLib.Variant('(us)', (args.id, args.key or '')), '(b)'):
             raise SystemExit(f'no notification {args.id} with that action')
@@ -107,7 +141,11 @@ def ctl(args):
         on = command == 'pause'
         if command == 'toggle':
             on = not json.loads(control_call('Status'))['paused']
-        paused = control_call('Pause', GLib.Variant('(b)', (on,)), '(b)')
+        seconds = duration_seconds(getattr(args, 'for_', None), f'{command} --for')
+        if on and seconds:
+            paused = control_call('PauseFor', GLib.Variant('(u)', (seconds,)), '(b)')
+        else:
+            paused = control_call('Pause', GLib.Variant('(b)', (on,)), '(b)')
         print('paused' if paused else 'resumed')
     elif command == 'reload':
         result = control_call('Reload')
@@ -144,16 +182,18 @@ def pick_history(entries):
     return ctl(argparse.Namespace(command='pop', id=int(result.stdout.split('\t', 1)[0])))
 
 
-BAR_EVENTS = {'paused', 'resumed', 'locked', 'unlocked', 'mode', 'queued', 'shown', 'reload'}
+BAR_EVENTS = {'paused', 'resumed', 'locked', 'unlocked', 'mode', 'queued', 'shown', 'reload', 'expired', 'missed'}
 
 
 def bar_line(status, fmt, idle_text):
-    """The status bar text: FMT with {mode} {held} {shown} {paused}, or IDLE_TEXT when nothing is special."""
-    if not status.get('paused') and status.get('mode') == 'normal' and not status.get('held_back'):
+    """The status bar text: FMT with {mode} {held} {shown} {paused} {missed}, or IDLE_TEXT when nothing is
+    special (missed ones count only when FMT shows them)."""
+    missed = status.get('missed') if '{missed}' in fmt else 0
+    if not status.get('paused') and status.get('mode') == 'normal' and not status.get('held_back') and not missed:
         return idle_text
     text = fmt.format(mode='' if status.get('mode') == 'normal' else status.get('mode'),
                       held=status.get('held_back') or '', shown=status.get('displayed', 0),
-                      paused='dnd' if status.get('paused') else '')
+                      paused='dnd' if status.get('paused') else '', missed=status.get('missed') or '')
     return ' '.join(text.split())
 
 
@@ -513,18 +553,26 @@ def build_parser():
                         help='default: toggle')
     pop = add_command(commands, 'pop', 'show a closed notification again (the last one, or ID)')
     pop.add_argument('id', type=int, nargs='?', help='its id in notifyd ctl history')
-    close = add_command(commands, 'close', 'close a notification')
-    close.add_argument('id', type=int, help='notification id (notifyd ctl list shows them)').complete = 'ids'
+    close = add_command(commands, 'close', 'close a notification, or every open one whose fields match')
+    close.add_argument('id', type=int, nargs='?', help='notification id (notifyd ctl list shows them)').complete = 'ids'
+    for field in CLOSE_FIELDS:
+        close.add_argument(f'--{field}', metavar='TEXT', help=f'its {field} is TEXT, or matches /regex/')
     action = add_command(commands, 'action', 'invoke an action of a notification')
     action.add_argument('id', type=int, help='notification id').complete = 'ids'
     action.add_argument('key', nargs='?', help='action key (default: "default", else the first action)')
     add_command(commands, 'close-all', 'close every notification on screen or waiting')
-    add_command(commands, 'pause', 'hold back all but critical notifications')
+    pause_parser = add_command(commands, 'pause', 'hold back all but critical notifications (do not disturb)')
+    pause_parser.add_argument('--for', dest='for_', metavar='DURATION',
+                              help='resume on its own after DURATION (30m, 1h, 90s)')
     add_command(commands, 'resume', 'show what was held back, and new ones again')
-    add_command(commands, 'toggle', 'pause or resume')
+    toggle_parser = add_command(commands, 'toggle', 'pause or resume')
+    toggle_parser.add_argument('--for', dest='for_', metavar='DURATION',
+                               help='when it pauses: resume on its own after DURATION')
     add_command(commands, 'reload', 'reload the config file')
     mode = add_command(commands, 'mode', 'show or set the mode rules can match on (match: {mode: NAME})')
     mode.add_argument('name', nargs='?', help='e.g. dnd, presentation, normal (the default)')
+    mode.add_argument('--for', dest='for_', metavar='DURATION',
+                      help='switch back to the mode before it after DURATION (30m, 1h)')
     preset = add_command(commands, 'preset', 'switch the preset until the next reload')
     preset.add_argument('name', help='preset name (notifyd presets lists them)').complete = 'presets'
     preview = add_command(commands, 'preview', 'show sample notifications in a preset')
@@ -539,7 +587,8 @@ def build_parser():
                                     '  click-right = notifyd ctl center')
     bar_parser.add_argument('--follow', action='store_true', help='print a new line whenever it changes')
     bar_parser.add_argument('--format', default='{paused} {mode} {held}', metavar='FMT',
-                            help='with {paused} {mode} {held} {shown} (default: "{paused} {mode} {held}")')
+                            help='with {paused} {mode} {held} {shown} {missed} (missed: expired unclicked since '
+                                 'the center was last opened; default: "{paused} {mode} {held}")')
     bar_parser.add_argument('--idle', default='', metavar='TEXT',
                             help='shown when not paused, mode normal and nothing held back (default: empty)')
     bar_parser.add_argument('--offline', default='', metavar='TEXT', help='shown when notifyd is not running')

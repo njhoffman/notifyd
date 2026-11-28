@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from notifyd.config import load_config
 from notifyd.model import CLOSED, DISMISSED, EXPIRED, UNDEFINED
 
@@ -487,7 +489,8 @@ def test_held_back_notifications_and_pause_survive_a_restart(make_manager, tmp_p
     assert renderer.calls == []
     again.pause(False)
     assert len(again.displayed) == 2
-    assert json.loads(state.read_text()) == {'mode': 'normal', 'paused': False, 'held': []}
+    assert json.loads(state.read_text()) == {'mode': 'normal', 'paused': False, 'held': [], 'missed': 0,
+                                             'paused_until': None, 'mode_until': None, 'mode_after': None}
 
 
 def test_a_held_one_closed_while_paused_leaves_the_saved_queue(make_manager, tmp_path):
@@ -912,3 +915,84 @@ def test_no_filter_runner_shows_it_unfiltered(make_manager):
     m, *_ = make_manager(FILTERED)
     nid = m.notify('chat', summary='direct')
     assert m.active[nid].summary == 'direct'
+
+
+def test_a_timed_pause_resumes_on_its_own(make_manager):
+    m, scheduler, *_ = make_manager()
+    m.pause(True, 3600)
+    nid = m.notify('a', summary='held')
+    assert m.paused and nid in m.held_back and m.status()['paused_until'] > 0
+    scheduler.advance(3599 * 1000)
+    assert m.paused
+    scheduler.advance(2000)
+    assert not m.paused and nid in m.displayed and m.status()['paused_until'] is None
+    m.pause(True, 60)
+    m.pause(True)                                                     # a plain pause replaces the timed one
+    scheduler.advance(120 * 1000)
+    assert m.paused and m.pause_until is None
+
+
+def test_a_timed_pause_and_mode_outlive_a_restart(make_manager, tmp_path):
+    state = tmp_path / 'state.json'
+    m, *_ = make_manager(state_path=state)
+    m.pause(True, 600)
+    m.set_mode('focus', 600)
+    again, scheduler, *_ = make_manager(state_path=state)
+    assert again.paused and again.mode == 'focus' and again.pause_until and again.mode_until
+    scheduler.advance(601 * 1000)
+    assert not again.paused and again.mode == 'normal'
+    saved = json.loads(state.read_text())
+    saved.update({'paused': True, 'paused_until': 1.0, 'mode': 'focus', 'mode_until': 1.0, 'mode_after': 'quiet'})
+    state.write_text(json.dumps(saved))                               # both ended while notifyd was down
+    late, *_ = make_manager(state_path=state)
+    assert not late.paused and late.mode == 'quiet'
+
+
+def test_a_timed_mode_goes_back_to_the_mode_before_it(make_manager):
+    m, scheduler, *_ = make_manager()
+    m.set_mode('work')
+    m.set_mode('focus', 60)
+    m.set_mode('meeting', 30)                                         # another timed one: back to work after
+    scheduler.advance(31 * 1000)
+    assert m.mode == 'work' and m.mode_until is None
+    scheduler.advance(60 * 1000)
+    assert m.mode == 'work'                                           # the first timer was replaced
+    m.set_mode('focus', 60)
+    m.set_mode('other')                                               # a plain switch ends the timed one
+    scheduler.advance(61 * 1000)
+    assert m.mode == 'other'
+
+
+def test_missed_counts_what_expired_unclicked_until_the_center_opens(make_manager, tmp_path):
+    state = tmp_path / 'state.json'
+    m, scheduler, *_ = make_manager(state_path=state)
+    m.notify('a', summary='one', timeout=1000)
+    m.notify('a', summary='two', timeout=1000)
+    clicked = m.notify('a', summary='three', timeout=5000)
+    m.click(clicked, 'left')                                          # dismissed: seen, not missed
+    scheduler.advance(1000)
+    assert m.missed == 2 and m.status()['missed'] == 2
+    assert make_manager(state_path=state)[0].missed == 2              # kept over a restart
+    m.seen()
+    assert m.missed == 0
+    skipped, *_ = make_manager('rules:\n  - match: {app: noise}\n    skip: true\n')
+    skipped.notify('noise', summary='x')
+    assert skipped.missed == 0                                        # a skipped one was never meant to show
+
+
+def test_close_by_criteria(make_manager):
+    m, _s, _r, _e, closed, _a = make_manager()
+    a = m.notify('Slack', summary='hi', hints={'urgency': 0})
+    b = m.notify('Slack', summary='Build failed')
+    c = m.notify('Signal', summary='hi')
+    m.pause(True)
+    held = m.notify('Slack', summary='later')
+    assert m.close_matching({'app': 'Slack', 'urgency': 'low'}) == 1 and closed == [(a, CLOSED)]
+    assert m.close_matching({'summary': '/^(build|later)/i'}) == 2
+    assert set(m.active) == {c} and held not in m.held_back
+    with pytest.raises(ValueError, match='unknown field'):
+        m.close_matching({'colour': 'red'})
+    with pytest.raises(ValueError, match='at least one'):
+        m.close_matching({})
+    with pytest.raises(ValueError, match='bad regex'):
+        m.close_matching({'app': '/[/'})

@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.46.0] - 2026-11-27
+
+### Added
+
+- `notifyd ctl pause --for 1h` (and `toggle --for`): do not disturb that resumes on its own, also
+  across a restart of the daemon. A plain `pause` or `resume` replaces it.
+- `notifyd ctl mode NAME --for 30m` switches back to the mode before it after that long.
+- `notifyd ctl close --app Slack --summary '/build/i'` closes every open notification whose fields
+  match (also `--body`, `--category`, `--urgency`, `--stack-tag`, `--desktop-entry`), as rules match.
+- `{missed}` in `notifyd ctl bar --format`: how many notifications expired without being clicked or
+  closed since the center was last opened (kept across a restart). Opening the center clears it; a bar
+  whose format leaves it out behaves as before.
+- Durations take hours: `1h`.
+
 ## [0.45.0] - 2026-11-27
 
 ### Added

@@ -842,3 +842,24 @@ def test_editing_the_config_or_a_preset_reloads(bus, daemon, tmp_path):
     before = reloads()
     (tmp_path / 'notifyd.yaml').write_text('preset: mine\ntimeout: 3s\n')
     assert wait_until(lambda: reloads() > before), 'a config edit reloads'
+
+
+def test_ctl_timed_pause_mode_close_by_fields_and_missed(bus, daemon):
+    daemon('timeout: 300ms', '--renderer', 'none')
+    assert run(bus, 'ctl', 'pause', '--for', '3s').stdout.strip() == 'paused'
+    assert run(bus, 'ctl', 'mode', 'focus', '--for', '3s').stdout.strip() == 'focus'
+
+    def status():
+        return dict((line.split(None, 1) + [''])[:2] for line in run(bus, 'ctl', 'status').stdout.splitlines())
+    now = status()
+    assert now['paused'] == 'True' and now['paused_until'] != 'None' and now['mode_until'] != 'None'
+    assert wait_until(lambda: run(bus, 'ctl', 'mode').stdout.strip() == 'normal', 8)   # back on their own
+    assert wait_until(lambda: status()['paused'] == 'False', 5)
+    assert run(bus, 'ctl', 'pause', '--for', '30', check=False).returncode != 0        # a unit is needed
+    run(bus, 'send', '-a', 'Slack', '-t', '0', 'one')
+    run(bus, 'send', '-a', 'Slack', '-t', '0', 'two')
+    run(bus, 'send', '-a', 'Signal', '-t', '0', 'three')
+    assert run(bus, 'ctl', 'close', '--app', 'Slack').stdout.strip() == '2'
+    assert run(bus, 'ctl', 'close', '--app', 'x', '--summary', '/[/', check=False).returncode != 0
+    run(bus, 'send', 'expires')
+    assert wait_until(lambda: run(bus, 'ctl', 'bar', '--format', '{missed}', '--idle', '-').stdout.strip() == '1', 5)
