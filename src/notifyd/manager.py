@@ -300,7 +300,8 @@ class Manager:
             else:
                 self._start_timer(n)
         self.log.emit('replaced', n, **({'reason': reason} if reason else {}))
-        if n.id in self.displayed and n.stack != old.stack:   # a rule moved it: the stack it left has room
+        if n.id in self.displayed and n.stack != old.stack:   # a rule moved it: the stack it left has room,
+            self._trim_stacks()                               # the one it joined may be over max-visible
             self._fill_waiting()
             self._waiting_changed()
 
@@ -515,13 +516,14 @@ class Manager:
         return True
 
     def default_target(self):
-        """(id, action key) of the newest notification on screen that has a default action, or exactly one
-        action of its sender's (notifyd's own buttons and Copy do not count); None when none has."""
-        for nid in self.displayed:                # newest first
-            n = self.active.get(nid)
-            if n is None:
-                continue
-            keys = [key for key, _label in n.actions if not key.startswith('notifyd-')]
+        """(id, action key) of the newest notification on screen (by arrival: one that waited for room
+        does not outrank later ones) that has a default action, or exactly one action of its sender's
+        (notifyd's own buttons and Copy do not count, nor an empty key); None when none has. A lone
+        inline-reply counts: invoking it opens the reply field."""
+        shown = [self.active[nid] for nid in self.displayed if nid in self.active]
+        for n in sorted(shown, key=lambda n: n.received, reverse=True):
+            nid = n.id
+            keys = [key for key, _label in n.actions if key and not key.startswith('notifyd-')]
             if 'default' in keys:
                 return nid, 'default'
             if len(keys) == 1:
@@ -872,9 +874,38 @@ class Manager:
         self.history.resize(config.settings['history']['size'])
         for n in self.active.values():
             self._restyle(n)
-        self._fill_waiting()                      # stacks and max-visible may have changed: room for some
+        renderer_reload = getattr(self.renderer, 'reload', None)
+        if renderer_reload is not None:           # new looks first, so what shows next is measured with them
+            try:
+                renderer_reload()
+            except Exception as exc:              # a broken style must not leave the queues half done
+                self.log.error(f'reload: drawing again: {type(exc).__name__}: {exc}')
+        self._trim_stacks()                       # stacks and max-visible may have changed
+        self._fill_waiting()
         self._waiting_changed()
         self.log.emit('reload', message=str(config.path or 'defaults'))
+
+    def _trim_stacks(self):
+        """A stack over max-visible (after a reload, or a replace that moved one between stacks) sends its
+        newest extras back to the front of the waiting queue; they show again when there is room."""
+        limit = self.config.settings.get('max-visible') or 0
+        if not limit:
+            return
+        counts, extra = {}, []
+        for nid in reversed(self.displayed):      # oldest first: those keep their place
+            n = self.active.get(nid)
+            if n is None:
+                continue
+            counts[n.stack] = counts.get(n.stack, 0) + 1
+            if counts[n.stack] > limit:
+                extra.append(n)
+        for n in extra:
+            self.displayed.remove(n.id)
+            self._cancel_timer(n.id)
+            self.hovered.pop(n.id, None)
+            self._render('close', n.id, n.id)
+            self.log.emit('waiting', n, reason='its stack is full after a change')
+        self.waiting[:0] = [n.id for n in extra]
 
     def _restyle(self, n):
         """Apply the (new) rules to what N was sent and take over their look; its text, timer, actions

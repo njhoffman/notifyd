@@ -86,9 +86,7 @@ class Daemon:
         self.configure_log(config)
         for warning in config.warnings:
             self.log.warn(warning)
-        self.manager.reload(config)
-        if self.renderer is not None and hasattr(self.renderer, 'reload'):
-            self.renderer.reload()
+        self.manager.reload(config)               # it reloads the renderer's looks too
         return 'reloaded' + (f' with {len(config.warnings)} warning(s)' if config.warnings else '')
 
     def config_notice(self, summary, body, timeout):

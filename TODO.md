@@ -83,20 +83,20 @@ Reviewed: 2026-11-27
       `notification-center` twice. Done in 0.51.7, except CloseNotification: an unknown id still
       returns success on purpose, as dunst does, since clients close notifications that already expired
       and an error only puts warnings in their logs.
-- [ ] **The default-action key takes empty keys and a lone reply.** (p3) [bug] `default_target`
+- [x] **The default-action key takes empty keys and a lone reply.** (p3) [bug] `default_target`
       (`manager.py:517`) counts a sender's action with key `''` as its single action (ActionInvoked(id,
       '') goes out) and a lone `inline-reply` as the default (the key opens the reply field instead);
       "newest" is the most recently shown, so one that waited can outrank newer ones. Skip empty keys;
       decide whether a lone reply should count.
-- [ ] **A clipboard manager keeps the copied code.** (p3) [bug] When CopyQ or clipit re-owns CLIPBOARD
+- [x] **A clipboard manager keeps the copied code.** (p3) [bug] When CopyQ or clipit re-owns CLIPBOARD
       with the same text, `copy_text`'s timer finds the code there but `clear()` does nothing (notifyd
       no longer owns it), so it stays; `wait_for_text` also runs a nested loop inside a timeout. Set the
       clipboard to an empty string when it still holds the code, and read it asynchronously.
-- [ ] **A reload or replace can overfill a stack.** (p3) [bug] `_fill_waiting` runs before
+- [x] **A reload or replace can overfill a stack.** (p3) [bug] `_fill_waiting` runs before
       `renderer.reload()` (stale measurements), and nothing moves notifications back when a new
       `position` puts them in a stack already at `max-visible` (also `_replace`'s move; noted in
       0.49.3). Re-place after the renderer reloaded and queue the newest overflow.
-- [ ] **Test runs bury notifyd's warnings under PyGObject's.** (p3) [chore] All ~50 warnings per run
+- [x] **Test runs bury notifyd's warnings under PyGObject's.** (p3) [chore] All ~50 warnings per run
       are gi's own (asyncio policy, `unix_signal_add_full`); filter `ignore::DeprecationWarning:gi.*`
       and `PyGIDeprecationWarning` in `pyproject.toml` so one from notifyd shows.
 

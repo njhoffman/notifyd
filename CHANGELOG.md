@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.51.8] - 2026-11-28
+
+### Fixed
+
+- The default-action key (`ctl action` without an id) goes by arrival, so a notification that waited
+  for room does not outrank later ones, and skips an action with an empty key. A lone inline reply
+  still counts: it opens the reply field.
+- A copied one-time code is cleared even when a clipboard manager has taken the clipboard over (it is
+  emptied, only while it still holds the code), without a nested main loop in the timer.
+- After a reload, or a replace that moves a notification to another stack, a stack over `max-visible`
+  sends its newest extras back to the front of the waiting queue; what shows next after a reload is
+  measured with the new styles.
+- Desktop-entry icons are looked up through `GioUnix.DesktopAppInfo` where GLib has it, so PyGObject
+  3.56 no longer warns that `Gio.DesktopAppInfo` is deprecated.
+
 ## [0.51.7] - 2026-11-27
 
 ### Fixed

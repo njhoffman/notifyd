@@ -7,6 +7,12 @@ import gi
 gi.require_version('GdkPixbuf', '2.0')
 from gi.repository import GdkPixbuf, Gio, GLib  # noqa: E402
 
+try:                                     # PyGObject 3.56 deprecates Gio.DesktopAppInfo; older GLib lacks GioUnix
+    from gi.repository import GioUnix
+    DesktopAppInfo = GioUnix.DesktopAppInfo
+except ImportError:
+    DesktopAppInfo = Gio.DesktopAppInfo
+
 from notifyd.files import private_dir  # noqa: E402
 
 IMAGE_HINTS = ('image-data', 'image_data', 'icon_data')
@@ -105,7 +111,7 @@ def desktop_icon(entry):
         for name in dict.fromkeys((entry, entry.lower())):
             name = name.removesuffix('.desktop')
             try:
-                info = Gio.DesktopAppInfo.new(f'{name}.desktop')
+                info = DesktopAppInfo.new(f'{name}.desktop')
             except TypeError:
                 info = None
             gicon = info.get_icon() if info is not None else None

@@ -614,10 +614,13 @@ class GtkRenderer:
             if not clear_ms:
                 clipboard.store()
         if clear_ms:
+            def empty_if_still(clipboard, current):
+                if current == text:                # what was copied since stays
+                    clipboard.set_text('', -1)     # (not clear(): a clipboard manager may own it by now)
+
             def clear():
-                for clipboard in clipboards:
-                    if clipboard.wait_for_text() == text:   # what was copied since stays
-                        clipboard.clear()
+                for clipboard in clipboards:       # asked asynchronously: no nested main loop in a timer
+                    clipboard.request_text(empty_if_still)
                 return False
             GLib.timeout_add(clear_ms, clear)
         return True

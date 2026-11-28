@@ -1213,3 +1213,39 @@ def test_a_damaged_history_file_keeps_what_it_can(tmp_path):
     assert [e['id'] for e in history.entries] == [3, 5]               # a bad byte is replaced, not fatal
     assert '5 damaged line(s) left out' in stream.getvalue()
     assert history.remove(3) == 1                                     # and the rest works
+
+
+def test_the_default_action_skips_empty_keys_and_goes_by_arrival(make_manager):
+    m, *_ = make_manager('max-visible: 1')
+    empty = m.notify('a', summary='empty key', actions=['', 'Nothing'], timeout=0)
+    assert m.default_target() is None                                # an empty key is no action
+    m.close(empty)
+    first = m.notify('a', summary='first', timeout=0)
+    waited = m.notify('a', summary='waited', actions=['default', 'Open'], timeout=0)   # arrives 2nd, waits
+    later = m.notify('a', summary='later', actions=['default', 'Open'], timeout=0)     # arrives 3rd, waits
+    for nid, when in ((first, 100.0), (waited, 200.0), (later, 300.0)):
+        m.active[nid].received = when
+    m.config.settings['max-visible'] = 2
+    m._fill_waiting()                                                # 'waited' shows, then 'later'... in order
+    m.close(first)
+    assert set(m.displayed) == {waited, later}
+    m.displayed.reverse()                                            # 'waited' shown last, say after a reload
+    assert m.default_target() == (later, 'default')                  # still the latest arrival
+    reply = m.notify('chat', summary='Ann', actions=['inline-reply', 'Reply'], timeout=0)
+    m.active[reply].received = 400.0
+    m.config.settings['max-visible'] = 3
+    m._fill_waiting()
+    assert m.default_target() == (reply, 'inline-reply')             # a lone reply opens the reply field
+
+
+def test_a_stack_over_max_visible_after_a_change_queues_its_newest(make_manager):
+    m, _s, renderer, *_ = make_manager('max-visible: 1\nrules:\n  - match: {summary: /^vol/}\n'
+                                       '    position: {anchor: bottom-center}\n')
+    volume = m.notify('a', summary='vol 10', timeout=0)
+    chat = m.notify('a', summary='chat', timeout=0, hints={'x-dunst-stack-tag': 't'})
+    assert set(m.displayed) == {volume, chat}                       # one per stack
+    m.notify('a', summary='vol 20', timeout=0, hints={'x-dunst-stack-tag': 't'})   # chat moves to the volume stack
+    assert m.displayed == [volume] and m.waiting == [chat]           # the newer one waits for room
+    assert ('close', chat) in renderer.calls
+    m.close(volume)
+    assert m.displayed == [chat] and m.waiting == []

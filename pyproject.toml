@@ -26,6 +26,12 @@ notifyd = ["presets/*.yaml"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+# PyGObject's own deprecations (its asyncio loop policy, GLib.unix_signal_add_full in its overrides),
+# raised whenever a test runs the main loop; filtered so a warning from notifyd itself stands out
+filterwarnings = [
+    "ignore::DeprecationWarning:gi.events",
+    "ignore:GLib.unix_signal_add_full is deprecated:DeprecationWarning",
+]
 
 [tool.ruff]
 line-length = 120

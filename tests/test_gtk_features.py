@@ -262,7 +262,7 @@ def test_copy_a_one_time_code(display):
         while time.monotonic() < end:
             GLib.MainContext.default().iteration(False)
             time.sleep(0.01)
-        assert Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).wait_for_text() is None
+        assert not Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).wait_for_text()     # emptied
         assert Gtk.Clipboard.get(Gdk.SELECTION_PRIMARY).wait_for_text() == 'mine'
     """)
 
