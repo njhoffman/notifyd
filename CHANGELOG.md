@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.49.0] - 2026-11-27
+
+### Added
+
+- A notification whose text holds a one-time code ("Your verification code is 123456", "G-482913",
+  "login code: 734 912") gets a `Copy 123456` button: it puts the code on the clipboard and the primary
+  selection and dismisses the notification, without telling the sender. A code needs a word such as
+  code, OTP, PIN, passcode or verification near it, so years, prices and order numbers do not count.
+  `copy-code: false` in a rule turns it off.
+
 ## [0.48.0] - 2026-11-27
 
 ### Added

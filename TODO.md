@@ -23,7 +23,8 @@ Reviewed: 2026-11-26
       from the daemon: `ctl list --ids`, with the summary as the description in zsh and fish.
 - [ ] **Run the fish completion.** (p3) [test] fish is not installed here, so the fish script is
       only checked for its shape (`tests/test_cli.py`); `fish --no-execute` and `complete -C`
-      tests skip. Check it on a machine with fish.
+      tests skip. Check it on a machine with fish. Here: `sudo apt install fish` (needs a
+      password, so it waits for a hand), then `just test tests/test_cli.py -k completion`.
 - [x] **Help and version.** (p2) [feature] `-h/--help` on every command with examples,
       `notifyd help [COMMAND]`, `notifyd version`, `-V`.
 - [x] **Man page.** (p2) [docs] `share/man/man1/notifyd.1`; a test fails when a command or
@@ -228,8 +229,8 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       since the center was last opened. Upstream: mako#278, mako#358, swaync#214.
       Done in 0.46.0: `ctl pause --for` (do not disturb is pause here), `ctl mode NAME --for`,
       `ctl close --app ...`, and `{missed}` in `ctl bar --format`.
-- [ ] **Copy a one-time code.** (p3) [feature] Detect an OTP code in the body and add a "Copy
-      123456" button (`Gtk.Clipboard`). Upstream: swaync#766.
+- [x] **Copy a one-time code.** (p3) [feature] Detect an OTP code in the body and add a "Copy
+      123456" button (`Gtk.Clipboard`). Upstream: swaync#766. Done in 0.49.0 (`copy-code`).
 
 ## Completed
 

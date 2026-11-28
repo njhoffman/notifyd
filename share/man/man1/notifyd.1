@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.48.0" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.49.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -550,6 +550,8 @@ open one and is counted),
 .BR "{label: \fItext\fB, run: \fIcommand\fB}" ),
 .B actions.drop
 (the sender's actions left out, by key or label, as text or /regex/),
+.B copy\-code
+(a Copy button for a one-time code in the text, default true),
 .B run
 (a command for each match),
 .B run\-on

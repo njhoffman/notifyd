@@ -14,12 +14,13 @@ from notifyd.effects import sound_for
 from notifyd.files import write_private
 from notifyd.history import History
 from notifyd.images import prune_thumbnails, save_thumbnail
-from notifyd.markup import markup_error
+from notifyd.markup import markup_error, one_time_code, plain_text
 from notifyd.model import (
     CLOSED,
     DISMISSED,
     EXPIRED,
     REASON_NAMES,
+    COPY_CODE_ACTION,
     REPLY_ACTION,
     TITLE_END_HINT,
     UNDEFINED,
@@ -168,6 +169,7 @@ class Manager:
 
     def _admit(self, n, target):
         """Let N (ready, filtered when it has a filter) in: shown, replacing TARGET, held back or skipped."""
+        self._offer_code(n)
         for part, text in (('summary', n.summary), ('body', n.body)):
             error = markup_error(text, n.settings.get('markup', 'full'))
             if error:
@@ -476,6 +478,8 @@ class Manager:
         n = self.active.get(nid)
         if n is None or key not in {k for k, _label in n.actions}:
             return False
+        if key == COPY_CODE_ACTION:               # notifyd's own: the sender never hears of it
+            return self._copy_code(n)
         if key == REPLY_ACTION:                   # it wants text: the renderer asks for it (the center)
             start = getattr(self.renderer, 'start_reply', None)
             return bool(start and start(nid) is not False)
@@ -500,6 +504,30 @@ class Manager:
         self.on_reply(nid, text)
         if not n.resident:
             self.close(nid, DISMISSED)
+        return True
+
+    def _offer_code(self, n):
+        """copy-code: a "Copy CODE" action when N's summary or body holds a one-time code."""
+        if not n.settings.get('copy-code', True) or any(key == COPY_CODE_ACTION for key, _ in n.actions):
+            return
+        if n.settings.get('markup', 'full') == 'plain':
+            text = f'{n.summary}\n{n.body}'
+        else:
+            text = f'{plain_text(n.summary)}\n{plain_text(n.body)}'
+        code = one_time_code(text)
+        if code:
+            n.code = code
+            n.actions.append((COPY_CODE_ACTION, f'Copy {code}'))
+
+    def _copy_code(self, n):
+        """Put N's one-time code on the clipboard (the renderer's), then close N unless resident."""
+        copy = getattr(self.renderer, 'copy_text', None)
+        if copy is None or copy(n.code) is False:
+            self.log.warn(f'#{n.id} code not copied: no clipboard (needs the GTK renderer)')
+            return False
+        self.log.emit('action', n, action=COPY_CODE_ACTION, reason='copied')
+        if not n.resident:
+            self.close(n.id, DISMISSED)
         return True
 
     def _hook(self, n, event, **env):
@@ -596,7 +624,7 @@ class Manager:
         """N as JSON for state.json: what notify() needs to bring it back (image-data bytes are not kept)."""
         def plain(value):
             return isinstance(value, (str, int, float, bool)) or value is None
-        actions = [[key, label] for key, label in n.actions if not key.startswith('notifyd-button-')]
+        actions = [[key, label] for key, label in n.actions if not key.startswith('notifyd-')]   # ours come back
         return {'app': n.app, 'summary': n.summary, 'body': n.body, 'app_icon': n.app_icon,
                 'actions': actions, 'hints': {k: v for k, v in n.hints.items() if plain(v)},
                 'timeout': n.requested_timeout, 'sender': n.sender, 'received': n.received}

@@ -44,6 +44,7 @@ DEFAULTS = {
     'skip': False,               # true: not shown (still logged, and kept in history)
     'sound': None,               # a sound file or freedesktop sound name; false: silent (else the sender's hints)
     'buttons': [],               # extra buttons that run commands: [{label: Next, run: playerctl next}]
+    'copy-code': True,           # a "Copy 123456" button when the text holds a one-time code
     'actions': {'drop': []},     # the sender's actions left out, by key or label (text or /regex/)
     'run': None,                 # a shell command run for each matching notification (NOTIFYD_* env, JSON on stdin)
     'run-on': ['receive'],
@@ -223,6 +224,8 @@ def normalize(settings, where='config'):
         if not isinstance(events, list) or any(event not in RUN_EVENTS for event in events):
             raise ConfigError(f'{where}: run-on: expected a list of {", ".join(RUN_EVENTS)}')
         settings['run-on'] = events
+    if 'copy-code' in settings and not isinstance(settings['copy-code'], bool):
+        raise ConfigError(f'{where}: copy-code: expected true or false')
     if settings.get('filter') is not None and not isinstance(settings['filter'], str):
         raise ConfigError(f'{where}: filter: expected a shell command')
     if settings.get('run') is not None and not isinstance(settings['run'], str):

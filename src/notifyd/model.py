@@ -17,6 +17,8 @@ TAG_HINTS = ('x-dunst-stack-tag', 'x-canonical-private-synchronous', 'synchronou
 TITLE_END_HINT = 'x-notifyd-title-end'
 # the action key that asks for a typed reply (KDE's inline-reply): answered with NotificationReplied
 REPLY_ACTION = 'inline-reply'
+# the action notifyd adds when the text holds a one-time code (copy-code): copies it, nothing is sent
+COPY_CODE_ACTION = 'notifyd-copy-code'
 # the position keys that tell stacks apart
 STACK_KEYS = ('anchor', 'margin', 'gap', 'follow', 'monitor')
 
@@ -45,6 +47,7 @@ class Notification:
     settings: dict = field(default_factory=dict)
     rules: list = field(default_factory=list)        # names of the rules that matched
     timeout: int = 0                                 # the one in effect, ms (0 never)
+    code: str = ''                                   # a one-time code found in its text (copy-code)
 
     @property
     def urgency(self):

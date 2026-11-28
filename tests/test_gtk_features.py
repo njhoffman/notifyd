@@ -25,7 +25,7 @@ from notifyd.config import load_config
 from notifyd.log import EventLog
 from notifyd.manager import Manager
 from notifyd.render.gtk import GtkRenderer
-from gi.repository import Gtk
+from gi.repository import Gdk, Gtk
 
 stream = io.StringIO()
 log = EventLog(stream=stream, color='never')
@@ -240,4 +240,16 @@ def test_inline_reply_in_the_center(display):
         entry.set_text('sure, 12:30')
         entry.emit('activate')
         assert replies == [(nid, 'sure, 12:30')] and nid not in manager.active
+    """)
+
+
+def test_copy_a_one_time_code(display):
+    run_gtk(display, """
+        manager, renderer = setup()
+        nid = manager.notify('Google', summary='G-482913 is your Google verification code.')
+        buttons = widgets(renderer.windows[nid], Gtk.Button)
+        assert [b.get_label() for b in buttons] == ['Copy 482913']
+        buttons[0].clicked()
+        assert Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).wait_for_text() == '482913'
+        assert nid not in manager.active
     """)

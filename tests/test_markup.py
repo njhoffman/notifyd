@@ -193,3 +193,25 @@ def test_a_class_can_space_out_the_lines_it_is_on():
     expanded = expand_classes('<span class="tag">indie</span>', classes)
     assert expanded == '<span background="#7aa2f7" line_height="1.3">indie</span>'
     assert markup_error(expanded) == ''                          # Pango takes it
+
+
+@pytest.mark.parametrize('text, code', [
+    ('Your verification code is 123456', '123456'),
+    ('G-482913 is your Google verification code.', '482913'),
+    ('Your login code: 734 912', '734912'),
+    ('Use 5521 as your PIN', '5521'),
+    ('Your OTP is 99887766. Do not share it.', '99887766'),
+    ('security code 1234-5678', '12345678'),
+    ('Code 1234, valid 5 minutes', '1234'),
+    ('Meeting at 1430 in room 2020', None),           # no word that says code
+    ('Order 123456 has shipped', None),
+    ('Invoice 2026 total $1234.56', None),
+    ('Call me at 555-1234', None),
+    ('Your code expires in 10 minutes', None),        # too short
+    ('PIN changed on 12/03/2026', None),              # a date
+    ('Your code is 12.50 USD', None),
+    ('', None),
+])
+def test_one_time_code(text, code):
+    from notifyd.markup import one_time_code
+    assert one_time_code(text) == code

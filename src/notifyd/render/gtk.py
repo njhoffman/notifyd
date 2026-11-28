@@ -592,6 +592,16 @@ class GtkRenderer:
         row.pack_start(send, False, False, 0)
         return entry, row
 
+    @staticmethod
+    def copy_text(text):
+        """TEXT on the clipboard (and the primary selection, for a middle click), offered to a clipboard
+        manager so it outlives notifyd."""
+        for selection in (Gdk.SELECTION_CLIPBOARD, Gdk.SELECTION_PRIMARY):
+            clipboard = Gtk.Clipboard.get(selection)
+            clipboard.set_text(text, -1)
+            clipboard.store()
+        return True
+
     def start_reply(self, nid):
         """A popup's Reply: the center opens on that card with its text field focused (popups cannot
         take the keyboard)."""

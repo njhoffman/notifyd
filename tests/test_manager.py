@@ -1038,3 +1038,25 @@ def test_inline_reply(make_manager):
     assert m.reply(plain, 'x') is False
     asks = m.notify('chat', summary='ask', actions=['inline-reply', 'Reply'])
     assert m.invoke(asks, 'inline-reply') is False and asks in m.active    # no renderer to ask for text
+
+
+class Clipboard:
+    def __init__(self):
+        self.copied = []
+
+    def copy_text(self, text):
+        self.copied.append(text)
+
+
+def test_a_one_time_code_gets_a_copy_button(make_manager):
+    m, _s, renderer, _e, closed, actions = make_manager('rules:\n  - match: {app: bank}\n    copy-code: false\n')
+    clipboard = Clipboard()
+    renderer.copy_text = clipboard.copy_text
+    nid = m.notify('Signal', summary='Ann', body='<b>Your login code is 734 912</b>', actions=['default', 'Open'])
+    assert m.active[nid].actions[-1] == ('notifyd-copy-code', 'Copy 734912')
+    assert m.invoke(nid, 'notifyd-copy-code') is True
+    assert clipboard.copied == ['734912'] and actions == [] and closed == [(nid, DISMISSED)]   # the sender hears nothing
+    plain = m.notify('chat', summary='lunch at 1230?')
+    assert m.active[plain].actions == []
+    off = m.notify('bank', summary='Your code is 445566')
+    assert m.active[off].actions == []                                                    # copy-code: false
