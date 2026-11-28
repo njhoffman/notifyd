@@ -54,6 +54,7 @@ BINDINGS = [
     (('i',), 'i', 'details of the card: app, icon, sender, rules, times', ('show_details',)),
     (('a',), 'a', 'history by app, or one list', ('toggle_grouping',)),
     (('C',), 'C', 'clear everything', ('clear',)),
+    (('r',), 'r', 'type a reply (a card that takes one; enter sends, esc leaves it)', ('reply_selected',)),
     (('p',), 'p', 'do not disturb on or off', ('toggle_pause',)),
     (('m',), 'm', 'next mode', ('next_mode',)),
     (('space',), 'space', 'play / pause', ('player', 'PlayPause')),
@@ -136,6 +137,9 @@ class Center:
         self.help_window = None        # the key help (? or ctrl+/) while it is open
         self.group_override = None     # By app / `a` until the next reload; None: center.group
         self.volume_level = None   # the last level read (reads are async, so the center never waits on pactl)
+        self.reply_entries = {}    # id -> the text field of an open card that takes a reply
+        self.reply_drafts = {}     # id -> what was typed there, kept over rebuilds
+        self.reply_focus = None    # the id whose field has the keyboard, kept over rebuilds
         try:
             self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
             # players kept from their signals: the now-playing row follows them without a blocking call
@@ -364,6 +368,8 @@ class Center:
 
         rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         self.cards = []
+        self.reply_entries = {}
+        self.reply_drafts = {nid: text for nid, text in self.reply_drafts.items() if nid in self.manager.active}
         self.more = None
         open_entries = self.manager.listing()
         closed = list(reversed(list(self.manager.history)))
@@ -394,6 +400,10 @@ class Center:
         self.restore_selection()
         panel.pack_start(scroll, True, True, 0)
         self.window.add(panel)
+        if self.reply_focus in self.reply_entries:   # typing a reply: the new field takes the keyboard
+            self.focus_reply(self.reply_focus)
+        elif self.reply_focus is not None:         # its card went (replied elsewhere, closed)
+            self.reply_focus = None
 
     def grouped_history(self, rows, entries, style):
         """center.group: history in one group per app, newest app first; a group shows its newest card
@@ -649,7 +659,10 @@ class Center:
         action = (lambda: self.manager.close(nid, DISMISSED)) if opened else (lambda: self.forget(entry))
         close.connect('button-release-event', lambda _w, e: e.button == 1 and (action() or True))
         lines = 0 if card_key(entry, opened) in self.expanded else self.CARD_LINES
-        card, _parts = self.renderer.build_card(n, card_style, body_lines=lines, header_end=close, actions=opened)
+        card, parts = self.renderer.build_card(n, card_style, body_lines=lines, header_end=close, actions=opened,
+                                               reply=self.send_reply if opened else None)
+        if parts.get('reply') is not None:
+            self.keep_reply(nid, parts['reply'])
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)       # carries the card's own style scope
         context = box.get_style_context()
         context.add_class(scope)
@@ -671,12 +684,68 @@ class Center:
         self.cards.append((events, entry, opened))
         return events
 
+    # -- inline reply ---------------------------------------------------------
+    def keep_reply(self, nid, entry):
+        """Track NID's reply field: its draft and focus survive the center being built again."""
+        self.reply_entries[nid] = entry
+        entry.set_text(self.reply_drafts.get(nid, ''))
+        entry.connect('changed', lambda e: self.reply_drafts.__setitem__(nid, e.get_text()))
+        entry.connect('focus-in-event', lambda *_a: setattr(self, 'reply_focus', nid) and False)
+
+    def focus_reply(self, nid):
+        entry = self.reply_entries.get(nid)
+        if entry is None or self.window is None:
+            return False
+        self.reply_focus = nid
+        self.window.set_focus(entry)
+        entry.set_position(-1)
+        keys = [card_key(e, opened) for _box, e, opened in self.cards]
+        if (True, nid, None) in keys:
+            self.select(keys.index((True, nid, None)))
+        return True
+
+    def reply_to(self, nid):
+        """Open the center on NID's card with its reply field focused (a popup's Reply button)."""
+        if self.manager.active.get(nid) is None:
+            return False
+        self.reply_focus = nid
+        self.dirty = True
+        if self.visible:
+            self.refresh()
+        else:
+            self.toggle('show')
+        return self.focus_reply(nid)
+
+    def send_reply(self, nid, text):
+        self.reply_drafts.pop(nid, None)
+        if self.reply_focus == nid:
+            self.reply_focus = None
+            if self.window is not None:
+                self.window.set_focus(None)
+        self.manager.reply(nid, text)
+
+    def reply_selected(self):
+        """`r`: type a reply to the selected card, when it is open and takes one."""
+        index = self.index()
+        if index is None:
+            return
+        _box, entry, opened = self.cards[index]
+        if opened:
+            self.focus_reply(entry['id'])
+
     # -- keyboard -------------------------------------------------------------
     def on_key(self, _widget, event):
         if toggle_key_matches(self.settings().get('toggle-key'), event.keyval, event.state):
             self.hide()
             return True
         name = Gdk.keyval_name(event.keyval)
+        focus = self.window.get_focus() if self.window is not None else None
+        if isinstance(focus, Gtk.Entry):           # typing a reply: keys are text, Esc leaves the field
+            if name == 'Escape' or (name == 'bracketleft' and event.state & Gdk.ModifierType.CONTROL_MASK):
+                self.reply_focus = None
+                self.window.set_focus(None)
+                return True
+            return False
         help_key = name == 'question' or (name == 'slash' and event.state & Gdk.ModifierType.CONTROL_MASK)
         if self.help_window is not None:           # any key closes the help (and does nothing else)
             self.hide_help()

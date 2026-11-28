@@ -20,6 +20,7 @@ from notifyd.model import (
     DISMISSED,
     EXPIRED,
     REASON_NAMES,
+    REPLY_ACTION,
     TITLE_END_HINT,
     UNDEFINED,
     Notification,
@@ -82,6 +83,7 @@ class Manager:
         self.renderer = renderer or NullRenderer()
         self.on_closed = on_closed or (lambda nid, reason: None)
         self.on_action = on_action or (lambda nid, key: None)
+        self.on_reply = lambda nid, text: None    # the server emits NotificationReplied
         self.next_id = 1
         self.active = {}        # id -> Notification: shown, waiting or held back by pause
         self.displayed = []     # ids on screen, newest first
@@ -474,12 +476,28 @@ class Manager:
         n = self.active.get(nid)
         if n is None or key not in {k for k, _label in n.actions}:
             return False
+        if key == REPLY_ACTION:                   # it wants text: the renderer asks for it (the center)
+            start = getattr(self.renderer, 'start_reply', None)
+            return bool(start and start(nid) is not False)
         self.log.emit('action', n, action=key)
         self._hook(n, 'action', NOTIFYD_ACTION=key)
         if key in n.commands:
             self.runner(n.commands[key], n, 'button')
         else:
             self.on_action(nid, key)
+        if not n.resident:
+            self.close(nid, DISMISSED)
+        return True
+
+    def reply(self, nid, text):
+        """Answer NID's inline-reply action with TEXT: NotificationReplied, the action hook (NOTIFYD_REPLY),
+        and it closes unless resident. False when NID is not open or takes no reply."""
+        n = self.active.get(nid)
+        if n is None or not n.can_reply or not text.strip():
+            return False
+        self.log.emit('action', n, action=REPLY_ACTION, reason='replied')
+        self._hook(n, 'action', NOTIFYD_ACTION=REPLY_ACTION, NOTIFYD_REPLY=text)
+        self.on_reply(nid, text)
         if not n.resident:
             self.close(nid, DISMISSED)
         return True

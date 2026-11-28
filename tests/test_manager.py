@@ -1022,3 +1022,19 @@ def test_rule_positions_are_checked():
         with pytest.raises(ConfigError):
             load_config(text=f'rules:\n  - match: {{app: x}}\n    {bad}\n')
     assert load_config(text='rules:\n  - match: {app: x}\n    position: {anchor: top-left}\n').rules
+
+
+def test_inline_reply(make_manager):
+    m, *_ = make_manager('rules:\n  - match: {app: chat}\n    run: hook\n    run-on: [action]\n')
+    replies = []
+    m.on_reply = lambda nid, text: replies.append((nid, text))
+    nid = m.notify('chat', summary='Ann: lunch?', actions=['inline-reply', 'Reply', 'default', 'Open'])
+    assert m.reply(nid, '   ') is False and nid in m.active                # nothing typed
+    assert m.reply(nid, 'sure, 12:30') is True
+    assert replies == [(nid, 'sure, 12:30')] and nid not in m.active
+    assert m.ran_env == [{'NOTIFYD_EVENT': 'action', 'NOTIFYD_ACTION': 'inline-reply',
+                          'NOTIFYD_REPLY': 'sure, 12:30'}]
+    plain = m.notify('chat', summary='no reply here', actions=['default', 'Open'])
+    assert m.reply(plain, 'x') is False
+    asks = m.notify('chat', summary='ask', actions=['inline-reply', 'Reply'])
+    assert m.invoke(asks, 'inline-reply') is False and asks in m.active    # no renderer to ask for text

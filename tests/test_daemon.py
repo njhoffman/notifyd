@@ -87,7 +87,7 @@ def test_server_information_and_capabilities(bus, daemon):
     daemon('', '--renderer', 'none')
     assert gdbus(bus, 'GetServerInformation').stdout.strip() == f"('notifyd', 'njhoffman', '{__version__}', '1.2')"
     caps = gdbus(bus, 'GetCapabilities').stdout
-    for cap in ('body-markup', 'actions', 'x-dunst-stack-tag', 'persistence'):
+    for cap in ('body-markup', 'actions', 'x-dunst-stack-tag', 'persistence', 'inline-reply'):
         assert cap in caps
 
 
@@ -864,3 +864,18 @@ def test_ctl_timed_pause_mode_close_by_fields_and_missed(bus, daemon):
     assert run(bus, 'ctl', 'close', '--app', 'x', '--summary', '/[/', check=False).returncode != 0
     run(bus, 'send', 'expires')
     assert wait_until(lambda: run(bus, 'ctl', 'bar', '--format', '{missed}', '--idle', '-').stdout.strip() == '1', 5)
+
+
+def test_notification_replied_signal():
+    server = bare_server(None)
+    server.emit_reply(4, 'on my way')
+    assert server.sent == [('NotificationReplied', (4, 'on my way'))]
+
+
+def test_ctl_reply(bus, daemon):
+    daemon('', '--renderer', 'none')
+    reply = gdbus(bus, 'Notify', 'chat', '0', '', 'Ann', 'lunch?', "['inline-reply', 'Reply']", '{}', '0').stdout
+    nid = int(re.search(r'uint32 (\d+)', reply).group(1))
+    assert run(bus, 'ctl', 'reply', str(nid), 'sure').returncode == 0
+    assert run(bus, 'ctl', 'list', '--ids').stdout.strip() == ''              # replied: dismissed
+    assert run(bus, 'ctl', 'reply', '999', 'x', check=False).returncode != 0

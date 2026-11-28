@@ -19,7 +19,7 @@ OBJECT_PATH = '/org/freedesktop/Notifications'
 IFACE = 'org.freedesktop.Notifications'
 CONTROL_IFACE = 'io.github.njhoffman.Notifyd'
 
-CAPABILITIES = ['actions', 'action-icons', 'body', 'body-hyperlinks', 'body-markup', 'icon-static', 'persistence',
+CAPABILITIES = ['actions', 'action-icons', 'inline-reply', 'body', 'body-hyperlinks', 'body-markup', 'icon-static', 'persistence',
                 'x-canonical-private-synchronous', 'x-dunst-stack-tag', 'synchronous', 'x-notifyd']
 
 INTROSPECTION = f'''
@@ -47,6 +47,7 @@ INTROSPECTION = f'''
     <signal name="NotificationClosed"><arg type="u" name="id"/><arg type="u" name="reason"/></signal>
     <signal name="ActionInvoked"><arg type="u" name="id"/><arg type="s" name="action_key"/></signal>
     <signal name="ActivationToken"><arg type="u" name="id"/><arg type="s" name="activation_token"/></signal>
+    <signal name="NotificationReplied"><arg type="u" name="id"/><arg type="s" name="text"/></signal>
   </interface>
   <interface name="{CONTROL_IFACE}">
     <method name="Status"><arg direction="out" type="s" name="json"/></method>
@@ -62,6 +63,11 @@ INTROSPECTION = f'''
       <arg direction="in" type="u" name="id"/>
       <arg direction="in" type="s" name="action_key"/>
       <arg direction="out" type="b" name="invoked"/>
+    </method>
+    <method name="Reply">
+      <arg direction="in" type="u" name="id"/>
+      <arg direction="in" type="s" name="text"/>
+      <arg direction="out" type="b" name="replied"/>
     </method>
     <method name="Center">
       <arg direction="in" type="s" name="what"/>
@@ -147,6 +153,7 @@ class Server:
         self.registrations = []
         manager.on_closed = self.emit_closed
         manager.on_action = self.emit_action
+        manager.on_reply = self.emit_reply
         log.listeners.append(self.emit_event)
         node = Gio.DBusNodeInfo.new_for_xml(INTROSPECTION)
         for iface in node.interfaces:
@@ -221,6 +228,10 @@ class Server:
         playable = getattr(player, 'file_player', None) or getattr(player, 'name_player', None)
         return [*CAPABILITIES, 'sound'] if playable else list(CAPABILITIES)
 
+    def emit_reply(self, nid, text):
+        # KDE's inline-reply: the app gets the text and closes or updates the notification itself
+        self._signal(IFACE, 'NotificationReplied', GLib.Variant('(us)', (nid, text)))
+
     def emit_action(self, nid, key):
         # spec 1.2: the token comes first, so the app can raise its window with it (an X11
         # startup-notification id; no X timestamp is known here)
@@ -278,6 +289,9 @@ class Server:
                 if not key:
                     key = 'default' if n.action_label('default') is not None else (n.actions[0][0] if n.actions else '')
                 return GLib.Variant('(b)', (bool(key) and m.invoke(nid, key),))
+            if method == 'Reply':
+                nid, text = params.unpack()
+                return GLib.Variant('(b)', (m.reply(nid, text),))
             if method == 'Center':
                 return GLib.Variant('(b)', (bool(self.control.center(params.unpack()[0])),))
             if method == 'Forget':

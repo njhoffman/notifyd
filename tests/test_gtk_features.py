@@ -197,3 +197,47 @@ def test_a_rule_position_draws_a_second_stack(display):
         manager.close_all()
         assert renderer.areas == {}
     ''')
+
+
+def test_inline_reply_in_the_center(display):
+    run_gtk(display, """
+        import time
+        from gi.repository import Gdk, GLib
+
+        def spin(ms=100):
+            end = time.monotonic() + ms / 1000
+            while time.monotonic() < end:
+                GLib.MainContext.default().iteration(False)
+                time.sleep(0.005)
+
+        def key(name):
+            event = Gdk.Event.new(Gdk.EventType.KEY_PRESS)
+            event.key.keyval, event.key.state = Gdk.keyval_from_name(name), 0
+            return renderer.center.on_key(None, event.key)
+
+        manager, renderer = setup('position: {follow: none}\\ncenter: {keyboard: false}')
+        replies = []
+        manager.on_reply = lambda nid, text: replies.append((nid, text))
+        nid = manager.notify('chat', summary='Ann: lunch?', actions=['inline-reply', 'Answer'],
+                             hints={'x-kde-reply-placeholder-text': 'Write to Ann'})
+        buttons = widgets(renderer.windows[nid], Gtk.Button)
+        assert [b.get_label() for b in buttons] == ['Answer']                 # the popup has a button
+        buttons[0].clicked()                                                  # it opens the center
+        spin()
+        center = renderer.center
+        entry = center.reply_entries[nid]
+        assert center.visible and center.window.get_focus() is entry
+        assert entry.get_placeholder_text() == 'Write to Ann'
+        assert key('j') is False                                              # keys are text while typing
+        entry.set_text('sure')
+        manager.notify('other', summary='arrives meanwhile')                  # the center is built again
+        spin(200)
+        entry = center.reply_entries[nid]
+        assert entry.get_text() == 'sure' and center.window.get_focus() is entry   # draft and focus kept
+        assert key('Escape') is True and center.window.get_focus() is None and center.visible
+        assert key('j') is True                                               # back to the card keys
+        center.select(center.index() or 0)
+        entry.set_text('sure, 12:30')
+        entry.emit('activate')
+        assert replies == [(nid, 'sure, 12:30')] and nid not in manager.active
+    """)

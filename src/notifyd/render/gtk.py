@@ -34,7 +34,7 @@ from notifyd.images import (  # noqa: E402, F401
     pixbuf_from_image_data,
 )
 from notifyd.markup import action_link, cap_lines, markup_error, plain_text, prepare, safe_link, split_action_links  # noqa: E402
-from notifyd.model import TITLE_END_HINT  # noqa: E402
+from notifyd.model import REPLY_ACTION, TITLE_END_HINT  # noqa: E402
 from notifyd.render.center import Center  # noqa: E402
 from notifyd.render.css import build_css, resolve_style, style_class  # noqa: E402
 
@@ -433,7 +433,7 @@ class GtkRenderer:
             self.tick_timeout_bar(n.id)
         window.add(events)
 
-    def build_card(self, n, style, body_lines=None, header_end=None, actions=True):
+    def build_card(self, n, style, body_lines=None, header_end=None, actions=True, reply=None):
         """N's card, the same in a popup and in the center: header (icon, app, count, time, markup
         flag, HEADER_END such as the center's close button), picture, title, body capped at
         BODY_LINES (default: its max-lines; 0 for all of it), progress and action buttons.
@@ -547,6 +547,12 @@ class GtkRenderer:
         card.pack_start(content, False, False, 0)
 
         buttons = [(key, label) for key, label in n.actions if key != 'default'] if actions else []
+        reply_entry = None
+        if reply is not None and n.can_reply and 'actions' not in hide:
+            # in the center: a text field takes the reply in place of its button
+            buttons = [(key, label) for key, label in buttons if key != REPLY_ACTION]
+            reply_entry, row = self.reply_row(n, reply)
+            card.pack_end(row, False, False, 0)
         if buttons and 'actions' not in hide:
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6, homogeneous=True)
             row.set_margin_top(8)
@@ -558,11 +564,38 @@ class GtkRenderer:
                     button.set_tooltip_text(label)
                     button.get_style_context().add_class('action-icon')
                 else:
-                    button = Gtk.Button(label=label)
+                    button = Gtk.Button(label=label or ('Reply' if key == REPLY_ACTION else key))
                 button.connect('clicked', lambda _b, k=key, nid=n.id: self.manager.invoke(nid, k))
                 row.pack_start(button, True, True, 0)
             card.pack_start(row, False, False, 0)
-        return card, {'header': header, 'body': body_part}
+        return card, {'header': header, 'body': body_part, 'reply': reply_entry}
+
+    def reply_row(self, n, submit):
+        """A text field and a send button for N's inline reply; SUBMIT(nid, text) sends it (Enter too).
+        The sender may name both: x-kde-reply-placeholder-text, x-kde-reply-submit-button-text."""
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        row.set_margin_top(8)
+        row.get_style_context().add_class('reply')
+        entry = Gtk.Entry()
+        entry.set_placeholder_text(str(n.hints.get('x-kde-reply-placeholder-text') or n.action_label(REPLY_ACTION)
+                                       or 'Reply'))
+        entry.set_hexpand(True)
+        send = Gtk.Button(label=str(n.hints.get('x-kde-reply-submit-button-text') or 'Send'))
+
+        def go(*_args):
+            text = entry.get_text()
+            if text.strip():
+                submit(n.id, text)
+        entry.connect('activate', go)
+        send.connect('clicked', go)
+        row.pack_start(entry, True, True, 0)
+        row.pack_start(send, False, False, 0)
+        return entry, row
+
+    def start_reply(self, nid):
+        """A popup's Reply: the center opens on that card with its text field focused (popups cannot
+        take the keyboard)."""
+        return self.center.reply_to(nid)
 
 
     def picture(self, n, source, size, what, color=None):

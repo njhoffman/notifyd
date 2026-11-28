@@ -219,9 +219,10 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       `actions: {drop: [settings]}` for Chromium's "Settings". Upstream: swaync PR#654. Done in 0.42.0.
 - [x] **Action icons.** (p3) [feature] Advertise `action-icons` and use
       `Gtk.Button.new_from_icon_name` when the hint is set. Upstream: deadd PR#116. Done in 0.37.0.
-- [ ] **Inline reply.** (p3) [feature] Advertise `inline-reply`, show an entry for that action (the
+- [x] **Inline reply.** (p3) [feature] Advertise `inline-reply`, show an entry for that action (the
       center already grabs the keyboard) and emit `NotificationReplied`; KDE Connect and chat apps
       use it. Upstream: swaync PR#221, astal#250.
+      Done in 0.48.0: the field is on the center card; a popup's Reply opens the center on it.
 - [x] **Timed do-not-disturb; close by criteria; missed count.** (p3) [feature] `ctl mode dnd
       --for 1h` (kept in `state.json`), `ctl close --app X`, and a "missed N" count in `ctl bar`
       since the center was last opened. Upstream: mako#278, mako#358, swaync#214.

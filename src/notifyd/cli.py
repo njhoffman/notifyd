@@ -135,6 +135,9 @@ def ctl(args):
     elif command == 'action':
         if not control_call('Invoke', GLib.Variant('(us)', (args.id, args.key or '')), '(b)'):
             raise SystemExit(f'no notification {args.id} with that action')
+    elif command == 'reply':
+        if not control_call('Reply', GLib.Variant('(us)', (args.id, args.text)), '(b)'):
+            raise SystemExit(f'no notification {args.id} that takes a reply')
     elif command == 'close-all':
         print(control_call('CloseAll', None, '(u)'))
     elif command in ('pause', 'resume', 'toggle'):
@@ -560,6 +563,9 @@ def build_parser():
     action = add_command(commands, 'action', 'invoke an action of a notification')
     action.add_argument('id', type=int, help='notification id').complete = 'ids'
     action.add_argument('key', nargs='?', help='action key (default: "default", else the first action)')
+    reply = add_command(commands, 'reply', 'answer a notification that takes a reply (inline-reply)')
+    reply.add_argument('id', type=int, help='notification id').complete = 'ids'
+    reply.add_argument('text', help='the reply')
     add_command(commands, 'close-all', 'close every notification on screen or waiting')
     pause_parser = add_command(commands, 'pause', 'hold back all but critical notifications (do not disturb)')
     pause_parser.add_argument('--for', dest='for_', metavar='DURATION',

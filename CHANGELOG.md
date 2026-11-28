@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-11-27
+
+### Added
+
+- Inline reply (`inline-reply`, as KDE Connect and chat apps send it): the popup shows a Reply button
+  that opens the center on that card with a text field holding the keyboard; Enter or Send emits
+  `NotificationReplied` and dismisses it. `r` in the center focuses the selected card's field, `Esc`
+  leaves it, and a draft survives the center being rebuilt. The sender's
+  `x-kde-reply-placeholder-text` and `x-kde-reply-submit-button-text` are used.
+- `notifyd ctl reply ID TEXT` replies from a script; a rule's `run-on: [action]` hook gets the text as
+  `NOTIFYD_REPLY`.
+
 ## [0.47.0] - 2026-11-27
 
 ### Added

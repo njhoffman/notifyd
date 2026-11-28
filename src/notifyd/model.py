@@ -15,6 +15,8 @@ TAG_HINTS = ('x-dunst-stack-tag', 'x-canonical-private-synchronous', 'synchronou
 
 # markup drawn at the right end of the title line (a rating, a count): never cut, the title is
 TITLE_END_HINT = 'x-notifyd-title-end'
+# the action key that asks for a typed reply (KDE's inline-reply): answered with NotificationReplied
+REPLY_ACTION = 'inline-reply'
 # the position keys that tell stacks apart
 STACK_KEYS = ('anchor', 'margin', 'gap', 'follow', 'monitor')
 
@@ -108,6 +110,10 @@ class Notification:
     @property
     def transient(self):
         return bool(self.hints.get('transient', False))
+
+    @property
+    def can_reply(self):
+        return any(key == REPLY_ACTION for key, _label in self.actions)
 
     def action_label(self, key):
         return next((label for k, label in self.actions if k == key), None)
