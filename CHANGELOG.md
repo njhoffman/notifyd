@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.51.3] - 2026-11-27
+
+### Fixed
+
+- `history.size` is checked: a negative or non-numeric size, `size: null` (an unbounded history,
+  rewritten in full every two notifications) or `history` that is not a mapping is a config error;
+  they crashed the daemon at start, or left a reload half applied.
+- A damaged history file no longer stops the daemon or breaks the center and `ctl pop`: bytes that are
+  not UTF-8 are replaced, and lines that are not a usable entry (no id, an unknown urgency, text fields
+  that are not text) are left out with a warning.
+- A config file that is not UTF-8 is a config error (with the byte) instead of a crash, on start and on
+  `ctl reload`.
+
 ## [0.51.2] - 2026-11-27
 
 ### Fixed

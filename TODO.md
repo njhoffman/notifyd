@@ -34,14 +34,14 @@ Reviewed: 2026-11-27
       `start()`, unguarded at `daemon.py:205`) does not apply `MAX_TIMED`; a `mode_until` far ahead
       (written by 0.49.0 after a failed `--for 100d`) raises OverflowError on every start. Clamp or skip
       out-of-range values there and log a warning.
-- [ ] **History settings and files can crash the daemon.** (p2) [bug] `history.size` is not checked
+- [x] **History settings and files can crash the daemon.** (p2) [bug] `history.size` is not checked
       (`size: -1`, `abc`, `history: 5` crash at start; on reload `self.config` is set before `resize`
       raises, half applying it; `size: null` is unbounded and rewrites the file every 2 appends). A
       non-UTF-8 byte in history.jsonl raises UnicodeDecodeError (`history.py:27` catches OSError only);
       non-object lines and entries without `id` or with an odd `urgency` break `remove`, `pop` and the
       center rebuild (`manager.py:812`, `:847`). Validate `history.size` in config.py and every entry on
       load (skip and warn).
-- [ ] **A non-UTF-8 config file crashes instead of a ConfigError.** (p2) [bug] `config.py:290` catches
+- [x] **A non-UTF-8 config file crashes instead of a ConfigError.** (p2) [bug] `config.py:290` catches
       OSError only (presets handle it at :344); on start and on `ctl reload`.
 - [ ] **notifyd-send's /tmp fallback can be pointed at another file.** (p2) [bug] Without
       `XDG_RUNTIME_DIR` `send.py:139` uses `/tmp/notifyd-UID` (`mkdir(exist_ok=True)`, owner not

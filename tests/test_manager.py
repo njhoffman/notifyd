@@ -268,7 +268,7 @@ def test_history_persists_across_managers(make_manager, tmp_path):
 def test_history_file_survives_a_torn_line(tmp_path):
     from notifyd.history import History
     path = tmp_path / 'h.jsonl'
-    path.write_text('{"app": "a"}\n{"app": "b"\n')
+    path.write_text('{"id": 1, "app": "a"}\n{"id": 2, "app": "b"\n')
     assert [e['app'] for e in History(10, path)] == ['a']
 
 
@@ -1196,3 +1196,20 @@ def test_a_timer_too_far_ahead_in_the_state_ends_at_start(make_manager, tmp_path
     m, _s, _r, events, *_ = make_manager(state_path=state)          # make_manager calls start()
     assert not m.paused and m.mode == 'normal'
     assert sum('too far ahead' in e.get('message', '') for e in events) == 2
+
+
+def test_a_damaged_history_file_keeps_what_it_can(tmp_path):
+    import io
+
+    from notifyd.history import History
+    from notifyd.log import EventLog
+    path = tmp_path / 'history.jsonl'
+    good = {'id': 3, 'app': 'a', 'summary': 'kept', 'urgency': 'normal'}
+    path.write_bytes(b'\n'.join([json.dumps(good).encode(), b'[1, 2]', b'{"app": "no id"}',
+                                 b'{"id": 4, "urgency": "urgent"}', b'{"id": 5, "summary": "caf\xe9"}',
+                                 b'{"id": 6, "summary": 7}', b'cut sho']) + b'\n')
+    stream = io.StringIO()
+    history = History(10, path, EventLog(stream=stream, color='never'))
+    assert [e['id'] for e in history.entries] == [3, 5]               # a bad byte is replaced, not fatal
+    assert '5 damaged line(s) left out' in stream.getvalue()
+    assert history.remove(3) == 1                                     # and the rest works

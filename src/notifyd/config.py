@@ -129,7 +129,7 @@ def format_duration(ms):
 # settings the renderer reads as whole numbers: (path, may be negative)
 NUMBER_KEYS = ((('width',), False), (('image', 'size'), False), (('image', 'margin-right'), True),
                (('icon', 'size'), False), (('title', 'max-lines'), False), (('body', 'max-lines'), False),
-               (('position', 'monitor'), False),
+               (('position', 'monitor'), False), (('history', 'size'), False),
                (('position', 'gap'), True))
 
 
@@ -219,6 +219,12 @@ def normalize(settings, where='config'):
         settings['actions']['drop'] = drop
     elif 'actions' in settings and not isinstance(settings['actions'], dict):
         raise ConfigError(f'{where}: actions: expected {{drop: [KEY or LABEL, ...]}}')
+    if 'history' in settings:
+        history = settings['history']
+        if not isinstance(history, dict):
+            raise ConfigError(f'{where}: history: expected {{size: N, keep: true|false, persist: true|false}}')
+        if 'size' in history and history['size'] is None:
+            raise ConfigError(f'{where}: history.size: expected a whole number >= 0')
     if 'run-on' in settings:
         events = settings['run-on'] or []
         events = [events] if isinstance(events, str) else events
@@ -291,6 +297,8 @@ def load_config(path=None, text=None):
             text = ''
         except OSError as exc:
             raise ConfigError(f'{path}: {exc.strerror}') from exc
+        except UnicodeDecodeError as exc:
+            raise ConfigError(f'{path}: not UTF-8 text (byte {exc.start})') from exc
     try:
         user = yaml.safe_load(text) or {}
     except yaml.YAMLError as exc:

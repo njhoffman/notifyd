@@ -13,6 +13,17 @@ def default_path():
     return Path(state) / 'notifyd' / 'history.jsonl'
 
 
+URGENCIES = ('low', 'normal', 'critical')
+
+
+def valid_entry(entry):
+    """Whether ENTRY (from the history file) is one the center and `pop` can use: an object with a
+    whole-number id, text fields that are text and a known urgency."""
+    return (isinstance(entry, dict) and isinstance(entry.get('id'), int) and not isinstance(entry['id'], bool)
+            and all(isinstance(entry.get(key, ''), str) for key in ('app', 'summary', 'body', 'app_icon'))
+            and entry.get('urgency', 'normal') in URGENCIES)
+
+
 class History:
     def __init__(self, size, path=None, log=None):
         self.entries = deque(maxlen=size)
@@ -24,17 +35,24 @@ class History:
 
     def load(self):
         try:
-            lines = self.path.read_text().splitlines()
+            lines = self.path.read_bytes().decode('utf-8', errors='replace').splitlines()
         except FileNotFoundError:
             return
         except OSError as exc:
             self._warn(f'history {self.path}: {exc.strerror}')
             return
+        skipped = 0
         for line in lines:
             try:
-                self.entries.append(json.loads(line))
+                entry = json.loads(line)
             except ValueError:
-                continue    # a line cut short by a crash
+                entry = None    # a line cut short by a crash, or damaged
+            if valid_entry(entry):
+                self.entries.append(entry)
+            elif line.strip():
+                skipped += 1
+        if skipped:
+            self._warn(f'history {self.path}: {skipped} damaged line(s) left out')
         self.written = len(lines)
 
     def append(self, entry):

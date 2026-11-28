@@ -209,3 +209,17 @@ def test_position_follow_and_monitor_by_name():
         load_config(text='position: {follow: keyboard}\n')
     with pytest.raises(ConfigError):
         load_config(text='position: {monitor: -1}\n')
+
+
+@pytest.mark.parametrize('text', ['history: {size: -1}', 'history: {size: abc}', 'history: 5',
+                                  'history: {size: null}'])
+def test_bad_history_settings_are_config_errors(text):
+    with pytest.raises(ConfigError):
+        load_config(text=text)
+
+
+def test_a_config_file_that_is_not_utf8(tmp_path):
+    path = tmp_path / 'config.yaml'
+    path.write_bytes(b'timeout: 5s\n# caf\xe9\n')
+    with pytest.raises(ConfigError, match='not UTF-8'):
+        load_config(path)
