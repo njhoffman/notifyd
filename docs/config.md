@@ -285,8 +285,11 @@ running `examples/demo.yaml`, whose rules are commented with the step each one s
 
 ## Control
 
-`notifyd ctl status | list [--json|--ids] | history [-n N] [--json] | pop [ID] | forget ID|--all | center [toggle|show|hide] | close [ID] [--app X ...] | action ID [KEY] |
+`notifyd ctl status | list [--json|--ids] | history [-n N] [--json] | pop [ID] | forget ID|--all | center [toggle|show|hide] | close [ID] [--app X ...] | action [ID [KEY]] |
 close-all | pause [--for DUR] | resume | toggle [--for DUR] | mode [NAME] [--for DUR] | reload | preset NAME | preview [PRESET] | watch [--json]`.
+`action` without an id invokes the default action of the newest notification on screen that has one,
+or exactly one action of its sender's (notifyd's own buttons and Copy do not count), for a key binding
+(i3: `bindsym $mod+Shift+grave exec --no-startup-id notifyd ctl action`); it exits 1 when none has.
 `pause --for 1h` is do not disturb for an hour (it resumes on its own, also across a restart; a plain
 `pause` or `resume` replaces it), and `mode focus --for 30m` switches back to the mode before it after
 that. `close --app Slack --summary '/build/i'` closes every open notification (shown, waiting or held

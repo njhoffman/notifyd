@@ -1146,3 +1146,21 @@ def test_a_timed_pause_or_mode_is_at_most_30_days(make_manager):
     assert not m.paused and m.pause_until is None and m.mode == 'normal' and m.mode_until is None
     m.pause(True, 30 * 86400)
     assert m.paused and m.pause_until
+
+
+def test_the_default_action_of_the_newest_on_screen(make_manager):
+    m, _s, _r, _e, _c, actions = make_manager('rules:\n  - match: {app: player}\n'
+                                              '    buttons: [{label: Next, run: "true"}]\n')
+    assert m.default_target() is None and m.invoke_default() == 0
+    claude = m.notify('Claude Code', summary='waiting', actions=['default', 'Open'], timeout=0)
+    m.notify('chat', summary='two choices', actions=['yes', 'Yes', 'no', 'No'], timeout=0)   # none is default
+    m.notify('player', summary='song', timeout=0)                     # only a rule's own button
+    m.notify('Google', summary='Your code is 123456', timeout=0)      # only Copy
+    assert m.default_target() == (claude, 'default')                  # the newest that has one
+    single = m.notify('backup', summary='done', actions=['show', 'Show log'], timeout=0)
+    assert m.default_target() == (single, 'show')                     # a single action counts
+    assert m.invoke_default() == single and actions == [(single, 'show')]
+    assert m.invoke_default() == claude and actions[-1] == (claude, 'default')   # then the next one
+    m.pause(True)
+    held = m.notify('Claude Code', summary='held back', actions=['default', 'Open'])
+    assert m.default_target() is None and held in m.held_back        # only what is on screen

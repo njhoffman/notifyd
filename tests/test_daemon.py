@@ -883,3 +883,12 @@ def test_ctl_reply(bus, daemon):
     assert run(bus, 'ctl', 'reply', str(nid), 'sure').returncode == 0
     assert run(bus, 'ctl', 'list', '--ids').stdout.strip() == ''              # replied: dismissed
     assert run(bus, 'ctl', 'reply', '999', 'x', check=False).returncode != 0
+
+
+def test_ctl_action_without_an_id(bus, daemon):
+    daemon('', '--renderer', 'none')
+    result = run(bus, 'ctl', 'action', check=False)
+    assert result.returncode == 1 and 'no notification on screen with a default action' in result.stderr
+    gdbus(bus, 'Notify', 'Claude Code', '0', '', 'waiting', '', "['default', 'Open']", '{}', '0')
+    assert run(bus, 'ctl', 'action').returncode == 0
+    assert run(bus, 'ctl', 'list', '--ids').stdout.strip() == ''          # invoked, so it closed

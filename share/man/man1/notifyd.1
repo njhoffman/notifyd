@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.50.0" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.51.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -335,8 +335,12 @@ with its icon, image (a thumbnail of image-data, kept under $XDG_CACHE_HOME/noti
 Close a notification, or every open one (shown, waiting or held back) whose fields all match: text,
 or a /regex/ as in rules. Prints how many closed.
 .TP
-.BI action " id \fR[\fIkey\fR]"
-Invoke an action: the key given, else the default action, else the first one.
+.BR action " [\fIid\fR [\fIkey\fR]]"
+Invoke an action: the key given, else the default action, else the first one. Without an
+.IR id ,
+the default action of the newest notification on screen that has one, or exactly one action of its
+sender's (notifyd's own buttons do not count): bind it to a key to answer the last popup, e.g. open the
+Claude Code session it names. Exits 1 when no notification on screen has one.
 .TP
 .BI reply " id text"
 Answer a notification that takes a reply (an

@@ -64,6 +64,7 @@ INTROSPECTION = f'''
       <arg direction="in" type="s" name="action_key"/>
       <arg direction="out" type="b" name="invoked"/>
     </method>
+    <method name="InvokeDefault"><arg direction="out" type="u" name="id"/></method>
     <method name="Reply">
       <arg direction="in" type="u" name="id"/>
       <arg direction="in" type="s" name="text"/>
@@ -289,6 +290,8 @@ class Server:
                 if not key:
                     key = 'default' if n.action_label('default') is not None else (n.actions[0][0] if n.actions else '')
                 return GLib.Variant('(b)', (bool(key) and m.invoke(nid, key),))
+            if method == 'InvokeDefault':
+                return GLib.Variant('(u)', (m.invoke_default(),))
             if method == 'Reply':
                 nid, text = params.unpack()
                 return GLib.Variant('(b)', (m.reply(nid, text),))

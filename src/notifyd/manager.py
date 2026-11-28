@@ -514,6 +514,28 @@ class Manager:
             self.close(nid, DISMISSED)
         return True
 
+    def default_target(self):
+        """(id, action key) of the newest notification on screen that has a default action, or exactly one
+        action of its sender's (notifyd's own buttons and Copy do not count); None when none has."""
+        for nid in self.displayed:                # newest first
+            n = self.active.get(nid)
+            if n is None:
+                continue
+            keys = [key for key, _label in n.actions if not key.startswith('notifyd-')]
+            if 'default' in keys:
+                return nid, 'default'
+            if len(keys) == 1:
+                return nid, keys[0]
+        return None
+
+    def invoke_default(self):
+        """Invoke default_target()'s action (a key binding's "do it"): its id, or 0 when nothing on screen
+        has one."""
+        target = self.default_target()
+        if target is None or not self.invoke(*target):
+            return 0
+        return target[0]
+
     def reply(self, nid, text):
         """Answer NID's inline-reply action with TEXT: NotificationReplied, the action hook (NOTIFYD_REPLY),
         and it closes unless resident. False when NID is not open or takes no reply."""

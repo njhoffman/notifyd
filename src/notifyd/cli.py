@@ -135,7 +135,10 @@ def ctl(args):
         else:
             print(control_call('SetMode', GLib.Variant('(s)', (args.name or '',))))
     elif command == 'action':
-        if not control_call('Invoke', GLib.Variant('(us)', (args.id, args.key or '')), '(b)'):
+        if args.id is None:                       # the newest on screen with a default (or single) action
+            if not control_call('InvokeDefault', None, '(u)'):
+                raise SystemExit('no notification on screen with a default action')
+        elif not control_call('Invoke', GLib.Variant('(us)', (args.id, args.key or '')), '(b)'):
             raise SystemExit(f'no notification {args.id} with that action')
     elif command == 'reply':
         if not control_call('Reply', GLib.Variant('(us)', (args.id, args.text)), '(b)'):
@@ -562,8 +565,11 @@ def build_parser():
     close.add_argument('id', type=int, nargs='?', help='notification id (notifyd ctl list shows them)').complete = 'ids'
     for field in CLOSE_FIELDS:
         close.add_argument(f'--{field}', metavar='TEXT', help=f'its {field} is TEXT, or matches /regex/')
-    action = add_command(commands, 'action', 'invoke an action of a notification')
-    action.add_argument('id', type=int, help='notification id').complete = 'ids'
+    action = add_command(commands, 'action', 'invoke an action of a notification; without an id, the default '
+                         'action of the newest one on screen that has one (for a key binding)')
+    action.add_argument('id', type=int, nargs='?',
+                        help='notification id (default: the newest on screen with a default or single action)'
+                        ).complete = 'ids'
     action.add_argument('key', nargs='?', help='action key (default: "default", else the first action)')
     reply = add_command(commands, 'reply', 'answer a notification that takes a reply (inline-reply)')
     reply.add_argument('id', type=int, help='notification id').complete = 'ids'

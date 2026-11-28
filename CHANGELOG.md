@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.51.0] - 2026-11-27
+
+### Added
+
+- `notifyd ctl action` without an id invokes the default action of the newest notification on screen
+  that has one, or exactly one action of its sender's (notifyd's own buttons and Copy do not count), so a
+  key binding can answer the last popup, e.g. open the Claude Code session it names. It exits 1 when
+  nothing on screen has one (D-Bus: `InvokeDefault`).
+
 ## [0.50.0] - 2026-11-27
 
 ### Added
