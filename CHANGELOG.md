@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.51.4] - 2026-11-27
+
+### Fixed
+
+- `notifyd-send --replace-name` keeps its ids only in a directory that is this user's own (the /tmp
+  fallback without `XDG_RUNTIME_DIR` included), writes them to a fresh temporary file and never
+  through a link, so another local user cannot make it overwrite a file; concurrent calls no longer
+  lose each other's ids, and an ids file that is not a name-to-id mapping is ignored instead of a
+  traceback.
+- The log file (`log.file`) is readable by the user only, as history and state are: it holds
+  notification bodies, one-time codes too. An existing one is tightened when opened.
+
 ## [0.51.3] - 2026-11-27
 
 ### Fixed

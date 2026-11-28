@@ -43,12 +43,12 @@ Reviewed: 2026-11-27
       load (skip and warn).
 - [x] **A non-UTF-8 config file crashes instead of a ConfigError.** (p2) [bug] `config.py:290` catches
       OSError only (presets handle it at :344); on start and on `ctl reload`.
-- [ ] **notifyd-send's /tmp fallback can be pointed at another file.** (p2) [bug] Without
+- [x] **notifyd-send's /tmp fallback can be pointed at another file.** (p2) [bug] Without
       `XDG_RUNTIME_DIR` `send.py:139` uses `/tmp/notifyd-UID` (`mkdir(exist_ok=True)`, owner not
       checked) and writes `send-ids.tmp` by a fixed name: another local user can pre-create it and plant a
       symlink that `--replace-name` truncates. Check the directory is ours and 0700, write with
       `O_EXCL` / a random temp name; concurrent `--replace-name` calls also lose ids (lock the file).
-- [ ] **The log file is world-readable.** (p2) [bug] `log.py:111` opens it with `open(path, 'a')`
+- [x] **The log file is world-readable.** (p2) [bug] `log.py:111` opens it with `open(path, 'a')`
       (0644 under the usual umask) though it holds summaries and bodies, one-time codes too; use
       `files.py`'s private mode (0600).
 - [ ] **copy-code picks the wrong number or a non-code.** (p2) [bug] `_CODE_AFTER` takes the first

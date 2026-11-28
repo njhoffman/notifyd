@@ -1,5 +1,9 @@
 import io
 import json
+import os
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -18,6 +22,8 @@ from notifyd.send import (
     standalone_main,
     unescape,
 )
+
+ROOT = Path(__file__).resolve().parent.parent
 
 # -- log -------------------------------------------------------------------
 
@@ -233,3 +239,52 @@ def test_standalone_parser(capsys):
     assert standalone_main(['--completion', 'zsh']) == 0
     out = capsys.readouterr().out
     assert out.startswith('#compdef notifyd-send') and 'compdef _notifyd-send notifyd-send' in out
+
+
+def test_send_ids_stay_in_a_directory_of_ours(tmp_path, monkeypatch):
+    from notifyd import send
+    runtime = tmp_path / 'run'
+    runtime.mkdir()
+    monkeypatch.setenv('XDG_RUNTIME_DIR', str(runtime))
+    send.save_id('backup', 7)
+    assert send.load_ids() == {'backup': 7}
+    assert oct(os.stat(runtime / 'notifyd').st_mode & 0o777) == '0o700'
+    (runtime / 'notifyd' / 'send-ids.json').write_text('{"a": "x", "b": 3, "c": -1, "d": true}')
+    assert send.load_ids() == {'b': 3}                             # only usable ids
+    (runtime / 'notifyd' / 'send-ids.json').write_text('[]')
+    assert send.load_ids() == {}
+
+
+def test_send_ids_refuse_a_planted_directory(tmp_path, monkeypatch):
+    from notifyd import send
+    runtime = tmp_path / 'run'
+    runtime.mkdir()
+    target = tmp_path / 'victim'
+    target.write_text('precious')
+    (runtime / 'notifyd').symlink_to(tmp_path / 'elsewhere', target_is_directory=True)
+    (tmp_path / 'elsewhere').mkdir()
+    (tmp_path / 'elsewhere' / 'send-ids.json').symlink_to(target)
+    monkeypatch.setenv('XDG_RUNTIME_DIR', str(runtime))
+    send.save_id('backup', 7)
+    assert target.read_text() == 'precious' and send.load_ids() == {}
+
+
+def test_concurrent_send_ids_are_all_kept(tmp_path):
+    code = ('import sys; sys.path.insert(0, sys.argv[1]); from notifyd import send; '
+            'send.save_id(sys.argv[2], int(sys.argv[3]))')
+    env = {**os.environ, 'XDG_RUNTIME_DIR': str(tmp_path)}
+    procs = [subprocess.Popen([sys.executable, '-c', code, str(ROOT / 'src'), f'n{i}', str(i + 1)], env=env)
+             for i in range(12)]
+    for proc in procs:
+        assert proc.wait(20) == 0
+    ids = json.loads((tmp_path / 'notifyd' / 'send-ids.json').read_text())
+    assert ids == {f'n{i}': i + 1 for i in range(12)}
+
+
+def test_the_log_file_is_private(tmp_path):
+    from notifyd.log import EventLog
+    path = tmp_path / 'notifyd.log'
+    log = EventLog(stream=io.StringIO(), color='never')
+    log.configure(color='never', file=str(path))
+    log.info('a body with 123456')
+    assert path.exists() and oct(os.stat(path).st_mode & 0o777) == '0o600'

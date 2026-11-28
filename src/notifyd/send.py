@@ -13,10 +13,13 @@ With actions it waits and prints the key of the action chosen, then exits (as no
 """
 
 import argparse
+import fcntl
 import json
 import os
 import re
+import stat
 import sys
+import tempfile
 from pathlib import Path
 
 from gi.repository import Gio, GLib
@@ -140,24 +143,62 @@ def ids_file():
     return Path(runtime) / 'notifyd' / 'send-ids.json'
 
 
-def load_ids():
+def _own_dir(path):
+    """Make directory PATH (and its parent, the /tmp fallback) for this user only; False when either is not
+    a real directory of this user's, so another user cannot point the ids file somewhere else."""
     try:
-        return json.loads(ids_file().read_text())
+        path.mkdir(parents=True, exist_ok=True, mode=0o700)
+        for part in (path.parent, path):
+            info = os.lstat(part)
+            if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+                return False
+            if part == path and stat.S_IMODE(info.st_mode) & 0o077:
+                os.chmod(part, 0o700)
+    except OSError:
+        return False
+    return True
+
+
+def load_ids():
+    """{name: id} from the ids file; {} when it is missing, unsafe or not such a mapping."""
+    path = ids_file()
+    if not _own_dir(path.parent):
+        return {}
+    try:
+        ids = json.loads(path.read_text())
     except (OSError, ValueError):
         return {}
+    if not isinstance(ids, dict):
+        return {}
+    return {name: nid for name, nid in ids.items()
+            if isinstance(name, str) and isinstance(nid, int) and not isinstance(nid, bool) and 0 < nid < 2 ** 32}
 
 
 def save_id(name, nid):
+    """Record NID under NAME: locked against another notifyd-send doing the same, written to a fresh
+    temporary file (never through a link) and moved into place."""
     path = ids_file()
-    ids = load_ids()
-    ids[name] = nid
+    if not _own_dir(path.parent):
+        return
     try:
-        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        tmp = path.with_suffix('.tmp')
-        tmp.write_text(json.dumps(ids))
-        tmp.replace(path)
+        lock = os.open(path.with_suffix('.lock'), os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    except OSError:
+        return
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        ids = load_ids()
+        ids[name] = nid
+        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix='send-ids.', suffix='.tmp')
+        try:
+            with os.fdopen(fd, 'w') as out:
+                out.write(json.dumps(ids))
+            os.replace(tmp, path)
+        except OSError:
+            os.unlink(tmp)
     except OSError:
         pass
+    finally:
+        os.close(lock)
 
 
 EPILOG = """examples:

@@ -108,7 +108,11 @@ class EventLog:
             if path:
                 try:
                     os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
-                    self.file = open(path, 'a', buffering=1)   # noqa: SIM115 (kept open while configured)
+                    # bodies (codes, messages) go in it: the user's only, as history and state are
+                    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+                    if os.fstat(fd).st_mode & 0o077:
+                        os.fchmod(fd, 0o600)
+                    self.file = os.fdopen(fd, 'a', buffering=1)   # kept open while configured
                 except OSError as exc:
                     self.file_path = None
                     self.warn(f'log file {path}: {exc.strerror}')
