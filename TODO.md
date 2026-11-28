@@ -213,8 +213,8 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [ ] **Hooks on more events; `click.*` commands.** (p3) [feature] `run:` fires on arrival only:
       `run-on: [receive, action, close]`, and a click value `exec: CMD` with the `NOTIFYD_*`
       environment. Upstream: swaync#388, mako#38, swaync#226.
-- [ ] **Drop specific actions with a rule.** (p3) [feature] `hide: [actions]` drops all; add e.g.
-      `actions: {drop: [settings]}` for Chromium's "Settings". Upstream: swaync PR#654.
+- [x] **Drop specific actions with a rule.** (p3) [feature] `hide: [actions]` drops all; add e.g.
+      `actions: {drop: [settings]}` for Chromium's "Settings". Upstream: swaync PR#654. Done in 0.42.0.
 - [x] **Action icons.** (p3) [feature] Advertise `action-icons` and use
       `Gtk.Button.new_from_icon_name` when the hint is set. Upstream: deadd PR#116. Done in 0.37.0.
 - [ ] **Inline reply.** (p3) [feature] Advertise `inline-reply`, show an entry for that action (the

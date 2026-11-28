@@ -44,6 +44,7 @@ DEFAULTS = {
     'skip': False,               # true: not shown (still logged, and kept in history)
     'sound': None,               # a sound file or freedesktop sound name; false: silent (else the sender's hints)
     'buttons': [],               # extra buttons that run commands: [{label: Next, run: playerctl next}]
+    'actions': {'drop': []},     # the sender's actions left out, by key or label (text or /regex/)
     'run': None,                 # a shell command run for each matching notification (NOTIFYD_* env, JSON on stdin)
     'idle-threshold': 0,         # no expiry while the user has been idle this long (0: off)
     'history': {'size': 100, 'keep': True, 'persist': True},   # persist: $XDG_STATE_HOME/notifyd/history.jsonl
@@ -176,6 +177,21 @@ def normalize(settings, where='config'):
                 for b in buttons):
             raise ConfigError(f'{where}: buttons: expected a list of {{label: TEXT, run: COMMAND}}')
         settings['buttons'] = buttons
+    if isinstance(settings.get('actions'), dict) and 'drop' in settings['actions']:
+        drop = settings['actions']['drop'] or []
+        drop = [drop] if isinstance(drop, str) else drop
+        if not isinstance(drop, list) or not all(isinstance(item, str) for item in drop):
+            raise ConfigError(f'{where}: actions.drop: expected a list of action keys or labels (text or /regex/)')
+        for item in drop:
+            regex = re.fullmatch(r'/(.*)/([i]*)', item, re.S)
+            if regex:
+                try:
+                    re.compile(regex.group(1))
+                except re.error as exc:
+                    raise ConfigError(f'{where}: actions.drop: bad regex {item}: {exc}') from exc
+        settings['actions']['drop'] = drop
+    elif 'actions' in settings and not isinstance(settings['actions'], dict):
+        raise ConfigError(f'{where}: actions: expected {{drop: [KEY or LABEL, ...]}}')
     if settings.get('run') is not None and not isinstance(settings['run'], str):
         raise ConfigError(f'{where}: run: expected a shell command')
     if settings.get('sound') not in (None, False) and not isinstance(settings['sound'], str):

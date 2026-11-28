@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-11-27
+
+### Added
+
+- A rule can leave out some of a sender's actions: `actions: {drop: [settings, /^mute/i]}` matches an
+  action's key or its label, as text or a regex, so Chromium's "Settings" button goes while the rest
+  stay. A dropped action is not drawn and cannot be invoked; a rule's own `buttons` are kept.
+
 ## [0.41.0] - 2026-11-27
 
 ### Added

@@ -193,6 +193,19 @@ def hint_style(hints, rules_set_foreground=False):
     return style
 
 
+def drop_actions(n, where='actions.drop'):
+    """Leave out N's actions whose key or label its settings' actions.drop names (text or /regex/).
+    Returns the dropped (key, label) pairs."""
+    drop = (n.settings.get('actions') or {}).get('drop') or []
+    if not drop or not n.actions:
+        return []
+    matcher = _value_matcher(drop, where)
+    dropped = [(key, label) for key, label in n.actions
+               if matcher(key) is not None or matcher(label or '') is not None]
+    n.actions = [pair for pair in n.actions if pair not in dropped]
+    return dropped
+
+
 def resolve(config, n, extra=None):
     """Apply CONFIG's rules to notification N in place: its settings, matched rule names and timeout.
     EXTRA (a settings mapping) goes on top of everything, for previews."""

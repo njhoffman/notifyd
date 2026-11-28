@@ -25,7 +25,7 @@ from notifyd.model import (
     Notification,
     actions_from_list,
 )
-from notifyd.rules import resolve
+from notifyd.rules import drop_actions, resolve
 
 MIN_RESUME_MS = 1000   # a notification left by the pointer stays at least this long
 IDLE_RECHECK_MS = 2000  # while the user is idle, expiry is asked again this often
@@ -113,6 +113,7 @@ class Manager:
             n.sender['desktop_entry'] = str(n.hints['desktop-entry'])
         n.fullscreen = self._fullscreen()
         resolve(self.config, n, extra)
+        drop_actions(n)                               # before the rule's own buttons join them
         for index, button in enumerate(n.settings.get('buttons') or []):
             key = f'notifyd-button-{index}'
             n.actions.append((key, button['label']))

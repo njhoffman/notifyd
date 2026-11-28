@@ -785,3 +785,18 @@ def test_reload_restyles_open_notifications_but_keeps_their_clock(make_manager):
     assert n.summary == '> hi'                                         # not rewritten twice
     assert m.ran == [('run', 'hook', nid)]                             # run: does not fire again
     assert m.remaining(nid) == 3000                                    # the clock goes on as it was
+
+
+def test_a_rule_drops_actions_by_key_or_label(make_manager):
+    m, *_ = make_manager('rules:\n'
+                         '  - match: {app: Chromium}\n'
+                         '    actions: {drop: [settings, /^mute/i]}\n'
+                         '    buttons: [{label: Settings, run: "true"}]\n')
+    nid = m.notify('Chromium', summary='x', actions=['default', 'Open', 'settings', 'Settings',
+                                                     'mute-site', 'Mute this site', 'm', 'Mute all'])
+    keys = [key for key, _label in m.active[nid].actions]
+    assert keys == ['default', 'notifyd-button-0']       # by key, by /regex/ on key or label; buttons stay
+    other = m.notify('Firefox', summary='y', actions=['settings', 'Settings'])
+    assert [key for key, _ in m.active[other].actions] == ['settings']   # only where the rule matches
+    m.invoke(nid, 'settings')                                           # a dropped action cannot be invoked
+    assert nid in m.active

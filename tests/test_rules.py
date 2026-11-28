@@ -184,3 +184,18 @@ rules:
     assert songs.rules == ['via-musicman'] and not songs.settings.get('skip') and songs.timeout == 12000
     unknown = resolved(config, app='Spotify')                 # no sender: matches no process rule
     assert unknown.rules == []
+
+
+@pytest.mark.parametrize('rule', [
+    "- match: {app: x}\n    actions: {drop: '/[/'}",       # bad regex
+    "- match: {app: x}\n    actions: {drop: [1]}",
+    "- match: {app: x}\n    actions: [settings]",
+])
+def test_bad_action_drops_raise(rule):
+    with pytest.raises(ConfigError):
+        load_config(text='rules:\n  ' + rule + '\n')
+
+
+def test_one_action_to_drop_may_be_given_alone():
+    n = resolved("rules:\n  - match: {app: x}\n    actions: {drop: settings}\n", app='x')
+    assert n.settings['actions'] == {'drop': ['settings']}

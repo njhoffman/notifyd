@@ -40,6 +40,7 @@ that stays until it is fixed, and the old config is kept. `notifyd check` valida
 | `skip` | `false` | not shown; still logged and kept in history |
 | `sound` | - | a sound file or freedesktop sound name played when shown; `false` silences (else the sender's `sound-file`/`sound-name` hints, unless `suppress-sound`) |
 | `buttons` | `[]` | extra buttons that run commands: `[{label: Next, run: mpc next}]` |
+| `actions.drop` | `[]` | the sender's actions to leave out, by key or label, as text or `/regex/i`: `actions: {drop: [settings, /^mute/i]}` drops Chromium's Settings button; a dropped action is not drawn and cannot be invoked |
 | `run` | - | a shell command run for each matching notification, shown or skipped |
 | `idle-threshold` | `0` | notifications do not expire while you have been idle this long (`0`: off) |
 | `history.size` / `history.keep` / `history.persist` | `100` / `true` / `true` | `keep: false` in a rule keeps those out; `persist` keeps it in `$XDG_STATE_HOME/notifyd/history.jsonl` (mode 0600, its directory 0700: it holds whole bodies). Entries keep the app icon, image path, markup mode and sender; an image sent as image-data is kept as a 64 px thumbnail in `$XDG_CACHE_HOME/notifyd/thumbs/` (removed with its entry), so center cards and `ctl pop` show it. `pop` styles it with the rules again but does not rerun their `run:` or sounds |
