@@ -199,3 +199,12 @@ def test_bad_action_drops_raise(rule):
 def test_one_action_to_drop_may_be_given_alone():
     n = resolved("rules:\n  - match: {app: x}\n    actions: {drop: settings}\n", app='x')
     assert n.settings['actions'] == {'drop': ['settings']}
+
+
+@pytest.mark.parametrize('rule', [
+    "- match: {app: x}\n    run-on: [arrive]",
+    "- match: {app: x}\n    run-on: {close: true}",
+])
+def test_bad_run_on_raises(rule):
+    with pytest.raises(ConfigError):
+        load_config(text='rules:\n  ' + rule + '\n')

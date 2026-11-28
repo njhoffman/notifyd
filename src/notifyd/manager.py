@@ -85,7 +85,7 @@ class Manager:
         self.paused = False
         self.locked = False     # the screen is locked (lock.pause): hold back everything, critical too
         self.history = History(config.settings['history']['size'], history_path, log)
-        self.runner = runner or (lambda command, n, what='run': None)
+        self.runner = runner or (lambda command, n, what='run', env=None: None)
         self.sound = sound or (lambda name: None)
         self.idle = idle or (lambda: 0)
         self.state_path = Path(state_path) if state_path else None
@@ -124,8 +124,7 @@ class Manager:
             error = markup_error(text, n.settings.get('markup', 'full'))
             if error:
                 self.log.warn(f'#{n.id} {part} is not valid markup, shown as typed: {error}')
-        if n.settings.get('run'):
-            self.runner(n.settings['run'], n)
+        self._hook(n, 'receive')
         if n.settings.get('skip'):
             if target:
                 self.close(target, CLOSED, quiet=True)
@@ -355,6 +354,7 @@ class Manager:
             self._remember(n, reason)
             self.log.emit(REASON_NAMES.get(reason, 'closed'), n)
             self.on_closed(nid, reason)
+            self._hook(n, 'close', NOTIFYD_CLOSE_REASON=REASON_NAMES.get(reason, 'closed'))
         if held:
             self._save_state()
         # oldest first; one that does not fit on screen yet stops the rest (they keep their order)
@@ -384,6 +384,7 @@ class Manager:
         if n is None or key not in {k for k, _label in n.actions}:
             return False
         self.log.emit('action', n, action=key)
+        self._hook(n, 'action', NOTIFYD_ACTION=key)
         if key in n.commands:
             self.runner(n.commands[key], n, 'button')
         else:
@@ -392,13 +393,23 @@ class Manager:
             self.close(nid, DISMISSED)
         return True
 
+    def _hook(self, n, event, **env):
+        """Run N's rule command (`run`) for EVENT when its `run-on` lists it, with NOTIFYD_EVENT and ENV."""
+        if n.settings.get('run') and event in (n.settings.get('run-on') or ['receive']):
+            self.runner(n.settings['run'], n, 'run', env={'NOTIFYD_EVENT': event, **env})
+
     def click(self, nid, button):
         """A click on NID with BUTTON (left, middle, right), as config.click says."""
         n = self.active.get(nid)
         if n is None:
             return
         what = n.settings.get('click', {}).get(button, 'dismiss')
-        if what == 'dismiss':
+        if isinstance(what, str) and what.startswith('exec:'):
+            command = what[len('exec:'):].strip()
+            if command:
+                self.runner(command, n, 'click', env={'NOTIFYD_EVENT': 'click', 'NOTIFYD_BUTTON': button})
+            self.close(nid, DISMISSED)
+        elif what == 'dismiss':
             self.close(nid, DISMISSED)
         elif what == 'dismiss-all':
             self.close_all()

@@ -210,9 +210,9 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [ ] **Script filters that rewrite a notification.** (p3) [feature] A rule key `filter: CMD` run
       synchronously with a short timeout, merging the JSON it prints (summary, body, progress,
       hints). Upstream: deadd#215, dunst#1494.
-- [ ] **Hooks on more events; `click.*` commands.** (p3) [feature] `run:` fires on arrival only:
+- [x] **Hooks on more events; `click.*` commands.** (p3) [feature] `run:` fires on arrival only:
       `run-on: [receive, action, close]`, and a click value `exec: CMD` with the `NOTIFYD_*`
-      environment. Upstream: swaync#388, mako#38, swaync#226.
+      environment. Upstream: swaync#388, mako#38, swaync#226. Done in 0.43.0.
 - [x] **Drop specific actions with a rule.** (p3) [feature] `hide: [actions]` drops all; add e.g.
       `actions: {drop: [settings]}` for Chromium's "Settings". Upstream: swaync PR#654. Done in 0.42.0.
 - [x] **Action icons.** (p3) [feature] Advertise `action-icons` and use

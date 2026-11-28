@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.42.0" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.43.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -533,6 +533,8 @@ open one and is counted),
 (the sender's actions left out, by key or label, as text or /regex/),
 .B run
 (a command for each match),
+.B run\-on
+(when it runs: any of receive, action, close),
 .B idle\-threshold
 (no expiry while the user is away that long),
 .BR center.width / side / hide\-on\-leave / mpris / volume ,
@@ -548,7 +550,9 @@ open one and is counted),
 .BR history.size / keep / persist ,
 .BR log.format / color / level / file ,
 .B click.left / middle / right
-and
+(dismiss, dismiss\-all, default\-action, none, or
+.BI "exec: " command ,
+which runs it and dismisses) and
 .BR rules .
 .PP
 A rule is a
@@ -628,6 +632,14 @@ in the background, with the notification as
 and
 .B NOTIFYD_RULES
 in the environment and as JSON on standard input.
+.B NOTIFYD_EVENT
+says why it runs (receive, action, close, click), with
+.B NOTIFYD_ACTION
+(the action's key),
+.B NOTIFYD_CLOSE_REASON
+(expired, dismissed, closed, undefined) or
+.B NOTIFYD_BUTTON
+(left, middle, right) for those events.
 .SH ENVIRONMENT
 .TP
 .B XDG_CONFIG_HOME

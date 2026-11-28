@@ -137,3 +137,11 @@ def test_lock_state_reads_logind(tmp_path):
     proc = fake_proc(tmp_path, ['zsh'])
     assert LockState(proc=proc, connection=Connection(True))() is True
     assert LockState(proc=proc, connection=Connection(False))() is False
+
+
+def test_runner_adds_the_event_environment(tmp_path):
+    out = tmp_path / 'event'
+    proc = Runner()(f'printf "%s %s" "$NOTIFYD_EVENT" "$NOTIFYD_ACTION" > {out}', sample(),
+                    env={'NOTIFYD_EVENT': 'action', 'NOTIFYD_ACTION': 'reply'})
+    proc.wait(5)
+    assert out.read_text() == 'action reply'

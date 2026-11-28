@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-11-27
+
+### Added
+
+- `run-on: [receive, action, close]` runs a rule's `run` command when one of its actions is invoked
+  and when it closes, not only when it arrives (still the default). `NOTIFYD_EVENT` says which, with
+  `NOTIFYD_ACTION` (the action's key) or `NOTIFYD_CLOSE_REASON` (expired, dismissed, closed,
+  undefined); a notification replaced by a newer one runs no close hook.
+- A click can run a command: `click.middle: 'exec: CMD'` runs CMD with the notification's `NOTIFYD_*`
+  variables (`NOTIFYD_EVENT=click`, `NOTIFYD_BUTTON`) and dismisses it.
+
 ## [0.42.0] - 2026-11-27
 
 ### Added

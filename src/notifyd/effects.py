@@ -36,8 +36,8 @@ class Runner:
     def __init__(self, log=None):
         self.log = log
 
-    def __call__(self, command, n, what='run'):
-        env = {**os.environ, **notification_env(n)}
+    def __call__(self, command, n, what='run', env=None):
+        env = {**os.environ, **notification_env(n), **(env or {})}
         data = (json.dumps(n.summary_dict(), ensure_ascii=False) + '\n').encode()
         try:
             proc = subprocess.Popen(['sh', '-c', command], env=env, stdin=subprocess.PIPE,

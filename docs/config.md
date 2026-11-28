@@ -47,7 +47,7 @@ that stays until it is fixed, and the old config is kept. `notifyd check` valida
 | `log.format` / `log.color` / `log.level` / `log.file` | `pretty` / `auto` / `info` / - | also `--log-format`, `--color`, `-v`/`-q`; `file` gets plain lines too |
 | `center.width` / `side` / `hide-on-leave` / `mpris` / `volume` / `modes` / `cards` / `keyboard` / `remote-art` / `toggle-key` | `400` / `right` / `true` / `true` / `true` / `true` / `20` / `true` / `true` / `<Super>grave` | the notification center (`notifyd ctl center`, SIGUSR1); `mpris` shows what a media player plays, with buttons (`center.mpris-ignore: [firefox, chromium]` passes over players by the name after `org.mpris.MediaPlayer2.`, so browser tabs do not take the row); `center.group: true` starts the center with the history grouped by app (the By app button, or `a`, switches until the next reload), newest app first, each group showing its newest card until its header is clicked (the header's × forgets the group; `cards` counts entries before grouping); `center.buttons: [{label, run, state, icon}]` adds a row of buttons under the volume (`icon`: a theme icon name such as `network-wireless-symbolic`, drawn before the label): a click runs `run` (sh -c, not waited for), and a button with `state` shows as on (style key `button.on`) while that command exits 0, checked when the center opens and after each click; `volume` a slider and mute for the default output (needs `pactl`, PulseAudio or PipeWire); `modes` a picker of `normal` and the modes rules match on by name; `cards` how many history entries it shows before a "show more" button; `keyboard` grabs the keyboard while it is open (keys below); `remote-art` downloads a player's http(s) cover art for the now-playing row (3 s, 2 MB at most, cached in `~/.cache/notifyd/art`; notification images never come from the network); `toggle-key` (a GTK accelerator, `''` for none) hides it: the key your window manager binds to `notifyd ctl center` never reaches it while the center holds the keyboard |
 | `fade.in` / `fade.out` | `0` / `150ms` | opacity fades; picom fades windows in but not translucent ones out |
-| `click.left` / `middle` / `right` | `dismiss` / `dismiss-all` / `default-action` | or `none` |
+| `click.left` / `middle` / `right` | `dismiss` / `dismiss-all` / `default-action` | or `none`, or `exec: CMD` (runs CMD, see below, and dismisses) |
 | `rules` | `[]` | see Rules |
 
 ## Rules
@@ -94,6 +94,21 @@ Commands from `run` and `buttons` run with `sh` in the background, with `NOTIFYD
 `NOTIFYD_SUMMARY`, `NOTIFYD_BODY`, `NOTIFYD_URGENCY`, `NOTIFYD_CATEGORY`, `NOTIFYD_ICON`,
 `NOTIFYD_STACK_TAG` and `NOTIFYD_RULES` set, and the notification as JSON on stdin. A failing
 command is logged with its last line of stderr.
+
+`run` runs when a notification arrives; `run-on` picks the events: any of `receive` (the default),
+`action` (one of its actions is invoked: `NOTIFYD_ACTION` is its key) and `close` (it closes:
+`NOTIFYD_CLOSE_REASON` is `expired`, `dismissed`, `closed` or `undefined`; one replaced by a newer
+notification does not count). `NOTIFYD_EVENT` says which. A click can run a command too:
+`click.middle: 'exec: CMD'` runs CMD with the same variables (`NOTIFYD_EVENT=click`, `NOTIFYD_BUTTON`)
+and dismisses the notification.
+
+```yaml
+click: { middle: 'exec: printf %s "$NOTIFYD_BODY" | xclip -selection clipboard' }
+rules:
+  - match: { app: Slack }
+    run: ~/bin/slack-log      # NOTIFYD_EVENT: receive, action or close
+    run-on: [receive, action, close]
+```
 
 ```yaml
 rules:

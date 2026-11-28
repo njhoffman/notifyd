@@ -68,13 +68,15 @@ def make_manager(tmp_path):
         scheduler = FakeScheduler()
         renderer = RecordingRenderer()
         closed, actions = [], []
-        ran, sounds, idle = [], [], [0]
+        ran, ran_env, sounds, idle = [], [], [], [0]
         manager = Manager(config, log, scheduler, renderer,
                           on_closed=lambda nid, reason: closed.append((nid, reason)),
                           on_action=lambda nid, key: actions.append((nid, key)),
-                          runner=lambda command, n, what='run': ran.append((what, command, n.id)),
+                          runner=lambda command, n, what='run', env=None: (
+                              ran.append((what, command, n.id)), ran_env.append(dict(env or {}))),
                           sound=sounds.append, idle=lambda: idle[0], state_path=state_path,
                           thumbs_path=thumbs_path)
         manager.ran, manager.sounds, manager.idle_ms = ran, sounds, idle   # for tests to look at and set
+        manager.ran_env = ran_env                                          # the extra env of each run
         return manager, scheduler, renderer, events, closed, actions
     return make

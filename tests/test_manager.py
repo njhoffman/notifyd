@@ -800,3 +800,41 @@ def test_a_rule_drops_actions_by_key_or_label(make_manager):
     assert [key for key, _ in m.active[other].actions] == ['settings']   # only where the rule matches
     m.invoke(nid, 'settings')                                           # a dropped action cannot be invoked
     assert nid in m.active
+
+
+def test_run_on_receive_action_and_close(make_manager):
+    m, scheduler, *_ = make_manager('rules:\n'
+                                    '  - match: {app: chat}\n'
+                                    '    run: log-it\n'
+                                    '    run-on: [receive, action, close]\n'
+                                    '  - match: {app: plain}\n'
+                                    '    run: once\n')
+    nid = m.notify('chat', summary='hi', actions=['reply', 'Reply'])
+    m.invoke(nid, 'reply')                                              # an action, then it closes
+    assert [what for what, _command, _id in m.ran] == ['run', 'run', 'run']
+    assert m.ran_env == [{'NOTIFYD_EVENT': 'receive'},
+                         {'NOTIFYD_EVENT': 'action', 'NOTIFYD_ACTION': 'reply'},
+                         {'NOTIFYD_EVENT': 'close', 'NOTIFYD_CLOSE_REASON': 'dismissed'}]
+    m.ran.clear(), m.ran_env.clear()
+    other = m.notify('plain', summary='x', timeout=1000)
+    scheduler.advance(1000)                                             # expires: no close hook by default
+    assert other not in m.active
+    assert m.ran == [('run', 'once', other)] and m.ran_env == [{'NOTIFYD_EVENT': 'receive'}]
+
+
+def test_a_replaced_notification_runs_no_close_hook(make_manager):
+    m, *_ = make_manager('rules:\n  - match: {app: vol}\n    run: hook\n    run-on: [close]\n')
+    nid = m.notify('vol', summary='50%', hints={'x-dunst-stack-tag': 'v'})
+    m.notify('vol', summary='60%', hints={'x-dunst-stack-tag': 'v'})   # replaces it in place
+    assert m.ran == []
+    m.close(nid)
+    assert m.ran_env == [{'NOTIFYD_EVENT': 'close', 'NOTIFYD_CLOSE_REASON': 'closed'}]
+
+
+def test_click_exec_runs_a_command_and_dismisses(make_manager):
+    m, _s, _r, _e, closed, _a = make_manager("click: {middle: 'exec: copy-it --now'}\n")
+    nid = m.notify('a', summary='code 123456')
+    m.click(nid, 'middle')
+    assert m.ran == [('click', 'copy-it --now', nid)]
+    assert m.ran_env == [{'NOTIFYD_EVENT': 'click', 'NOTIFYD_BUTTON': 'middle'}]
+    assert closed == [(nid, DISMISSED)]
