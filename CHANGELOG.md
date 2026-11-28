@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.49.1] - 2026-11-27
+
+### Fixed
+
+- A timed pause (`ctl pause --for`) that ran out while notifyd was down no longer puts what it held
+  back on screen before the daemon can draw it: those popups had no window, expired unseen, counted as
+  missed and sent no NotificationClosed. The pause now ends once the daemon is up.
+
 ## [0.49.0] - 2026-11-27
 
 ### Added

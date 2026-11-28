@@ -1061,3 +1061,23 @@ def test_a_one_time_code_gets_a_copy_button(make_manager):
     assert m.active[plain].actions == []
     off = m.notify('bank', summary='Your code is 445566')
     assert m.active[off].actions == []                                                    # copy-code: false
+
+
+def test_a_timed_pause_that_ran_out_waits_for_the_daemon_to_be_wired(tmp_path):
+    import io
+
+    from conftest import FakeScheduler, RecordingRenderer
+    from notifyd.log import EventLog
+    from notifyd.manager import Manager
+    state = tmp_path / 'state.json'
+    held = {'app': 'a', 'summary': 'held', 'body': '', 'app_icon': '', 'actions': [], 'hints': {},
+            'timeout': -1, 'sender': {}, 'received': 1.0}
+    state.write_text(json.dumps({'mode': 'normal', 'paused': True, 'held': [held], 'paused_until': 1.0}))
+    m = Manager(load_config(text=''), EventLog(stream=io.StringIO(), color='never'), FakeScheduler(),
+                state_path=state)
+    assert m.paused and m.displayed == []                        # nothing shows before it is wired
+    renderer, closed = RecordingRenderer(), []
+    m.renderer, m.on_closed = renderer, lambda nid, reason: closed.append((nid, reason))
+    m.start()
+    assert not m.paused and len(m.displayed) == 1
+    assert [call[0] for call in renderer.calls] == ['show']       # drawn by the real renderer

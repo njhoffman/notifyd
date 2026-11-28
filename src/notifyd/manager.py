@@ -120,7 +120,7 @@ class Manager:
         self.next_id = max((e.get('id', 0) for e in self.history), default=0) % 0xFFFFFFFF + 1
         if state.get('paused') is True:
             self._restore_held(state.get('held'))
-        self._restore_timers(state)
+        self.saved_timers = state                 # start() picks a timed pause or mode up again
         self._prune_thumbnails()                  # of entries that did not survive the restart
 
     # -- incoming -------------------------------------------------------
@@ -701,6 +701,14 @@ class Manager:
         self.mode_timer = None
         self.mode_until = self.mode_after = None
         self.set_mode(after)
+
+    def start(self):
+        """The daemon is wired (renderer and server attached): pick up a timed pause or mode the state file
+        kept. Ending one that ran out shows what was held back, which needs both: before them those
+        would be on screen with no window and close without a NotificationClosed."""
+        state, self.saved_timers = self.saved_timers, None
+        if state:
+            self._restore_timers(state)
 
     def _restore_timers(self, state):
         """Pick up a timed pause or mode the state file kept: what ended while notifyd was down ends now."""

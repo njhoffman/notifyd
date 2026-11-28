@@ -78,5 +78,6 @@ def make_manager(tmp_path):
                           thumbs_path=thumbs_path, filter_runner=filter_runner)
         manager.ran, manager.sounds, manager.idle_ms = ran, sounds, idle   # for tests to look at and set
         manager.ran_env = ran_env                                          # the extra env of each run
+        manager.start()
         return manager, scheduler, renderer, events, closed, actions
     return make

@@ -12,7 +12,7 @@ Reviewed: 2026-11-27
 
 ## 15. Review of 0.40-0.49
 
-- [ ] **A timed pause that ran out while notifyd was down shows ghost popups.** (p2) [bug]
+- [x] **A timed pause that ran out while notifyd was down shows ghost popups.** (p2) [bug]
       `Manager.__init__` restores the held ones, then `_restore_timers` resumes (`manager.py:122`),
       before `daemon.py:201` attaches the GTK renderer and `:204` the server: they land in
       `displayed` with timers but no window, take max-visible room, expire unseen into `missed`, and

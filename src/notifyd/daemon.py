@@ -202,6 +202,7 @@ class Daemon:
         connection = connection or Gio.bus_get_sync(Gio.BusType.SESSION, None)
         self.loop = GLib.MainLoop()
         self.server = Server(connection, self.manager, self, self.log)
+        self.manager.start()                      # a timed pause that ran out meanwhile shows its held ones now
         owners = [self.own(connection, CONTROL_NAME), self.own(connection, BUS_NAME)]
         signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, self.stop)
         signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, self.stop)
