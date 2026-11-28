@@ -210,6 +210,14 @@ def test_a_class_can_space_out_the_lines_it_is_on():
     ('Your code expires in 10 minutes', None),        # too short
     ('PIN changed on 12/03/2026', None),              # a date
     ('Your code is 12.50 USD', None),
+    ('Your one-time password: 445566', '445566'),
+    ('Your 2FA code is 818181', '818181'),
+    ('Security update 2024 available', None),      # the broad words count only as "... code"
+    ('Downloaded 2048 tokens', None),
+    ('Barcode 123456 scanned', None),               # whole words: not inside "Barcode" or "pinned"
+    ('Your order 123456 has been pinned', None),
+    ('Call 555-1234 to verify', None),
+    ('Battery 2048 mAh, check the code', None),     # digits first need "is/as your ... code"
     ('', None),
 ])
 def test_one_time_code(text, code):

@@ -27,7 +27,7 @@ Reviewed: 2026-11-27
       per-notification setting (0.47.0) but is not in `RELOAD_LOOK` (`manager.py:803`), so after a
       change to `position.anchor` and `ctl reload` open, waiting and held ones keep the old stack while
       new ones start another. Carry `position` over on reload like the look.
-- [ ] **`copy-code` false positives.** (p2) [bug] `one_time_code` (`markup.py`) matches code words
+- [x] **`copy-code` false positives.** (p2) [bug] `one_time_code` (`markup.py`) matches code words
       inside words and next to unrelated numbers: "Barcode 123456 scanned", "Security update 2024
       available", "Call 555-1234 to verify", "Downloaded 2048 tokens" all give a Copy button, and with
       it as the only action `click.right: default-action` copies and closes. Word boundaries on the

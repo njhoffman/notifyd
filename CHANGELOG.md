@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.49.5] - 2026-11-27
+
+### Fixed
+
+- `copy-code` offers a Copy button only for real one-time codes: the code words count as whole words
+  ("Barcode 123456", "pinned" no longer do), "security", "login" and "token" only as "... code", and
+  digits before the word need "is your" or "as your" ("482913 is your verification code"). Years,
+  battery sizes and phone numbers next to such words no longer get a button.
+
 ## [0.49.4] - 2026-11-27
 
 ### Fixed

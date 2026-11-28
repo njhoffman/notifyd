@@ -51,12 +51,14 @@ _A_TAG = re.compile(r'''<(?:a((?:\s+(?:href|title)\s*=\s*(?:"[^"]*"|'[^']*'))+)\
 _HREF = re.compile(r'''\shref\s*=\s*(["'])(.*?)\1''', re.S)
 LINK_SCHEMES = ('http', 'https', 'mailto')
 
-# a one-time code: a word that says so, then (within a few words) 4-8 digits, maybe split 3+3 or 4+4
-_CODE_WORDS = (r'(?:code|otp|passcode|pass\s*code|pin|2fa|verification|verify|one[-\s]?time|'
-               r'security|login|sign[-\s]?in|authentication|token)')
+# a one-time code: a whole word that says so ("Barcode" and "pinned" do not), then within a few words 4-8
+# digits, maybe split 3+3 or 4+4 ("login code: 734 912"); or the digits first, then "is/as your ... code"
+# ("482913 is your Google verification code", "Use 5521 as your PIN")
+_CODE_WORDS = (r'\b(?:code|otp|passcode|pass\s+code|pin|2fa|verification|'
+               r'one[-\s]?time\s+(?:code|password|passcode|pin))\b')
 _CODE = r'(?<![\w.,/:+-])(?:[A-Za-z]{1,2}-)?(\d{3,4}[ -]\d{3,4}|\d{4,8})(?![\w/:%-]|[.,]\d)'
 _CODE_AFTER = re.compile(_CODE_WORDS + r'\W+(?:\w+\W+){0,4}?' + _CODE, re.I)
-_CODE_BEFORE = re.compile(_CODE + r'\W+(?:\w+\W+){0,3}?' + _CODE_WORDS, re.I)
+_CODE_BEFORE = re.compile(_CODE + r'\s+(?:is|as)\s+(?:(?:your|the|a)\s+)?(?:[\w-]+\s+){0,3}?' + _CODE_WORDS, re.I)
 
 
 def pango_view(text):
