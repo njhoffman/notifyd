@@ -10,6 +10,55 @@ center after popups + history) are under Completed.
 
 Reviewed: 2026-11-27
 
+## 17. Review of the renderer, the center and the config contracts
+
+- [ ] **A rule's `body: {max-lines: N}` breaks every notification it matches.** (p1) [bug] `body` is
+      also a rewrite key (`rules.py:44`), so the mapping becomes a format template and `resolve` raises
+      `ValueError: Space not allowed in string format specifier` on each Notify; `notifyd check` says
+      ok, and the docs say a rule takes any key above, `body.max-lines` included. Tell the two apart by
+      type (a mapping is the setting, text the rewrite) and validate rewrite templates in `check`
+      (`summary: 'set {x'` passes and fails at runtime).
+- [ ] **The center hides itself when a popup or its own overlay opens under the pointer.** (p2) [bug]
+      `on_leave` (`center.py:226`) treats the LeaveNotify X sends when another of notifyd's windows maps
+      under the pointer as a real leave: a popup arriving over the center's corner (they overlap), or
+      `?`/`i` opening the help or details under it, closes the center, overlay and keyboard grab. Hide
+      only when the pointer is really outside the center's rectangle (`x_root`/`y_root`).
+- [ ] **`ctl preset NAME` leaves open popups in the old preset.** (p2) [bug] `set_preset`
+      (`daemon.py:101`) changes the config and reloads the renderer, but `style_for` reads each
+      notification's own `settings['preset']`, which only `Manager._restyle` updates; open, waiting and
+      held ones keep the old look (`presets --pick` too). Go through `Manager.reload`'s path.
+- [ ] **`notifyd check` passes settings that fail at runtime.** (p2) [bug] `max-visible: many` (every
+      Notify raises TypeError, `manager.py:313`), `stack-duplicates: "no"` (truthy), `position.margin:
+      '30 5'`, `center.width`/`center.cards: lots`, `center.side: middle`, `click.left: open-it` (does
+      nothing), `log.level: chatty`; a rule's unknown `preset` (warns, then falls back to deadd, not the
+      configured preset); and `check -c /typo/path.yaml` says ok (a missing explicit path becomes the
+      defaults). Check types and choices for every key, and make a missing explicit path an error.
+- [ ] **The volume row goes missing after a quick open and close.** (p3) [bug] When pactl answers while
+      the center is hidden, `on_volume_level` (`center.py:281`) records the level but does not mark the
+      center dirty, so the next open only updates live parts and the row never appears (a stale row stays
+      when pactl goes away). Set `dirty` when the row appears or goes, visible or not.
+- [ ] **`notifyd check` exits 1 for errors, not 2.** (p3) [bug] The help and man page say errors exit 2;
+      `load_or_exit` raises `SystemExit(str)` (exit 1, as for warnings). Exit 2 as documented.
+- [ ] **Rules accept history settings that only work globally.** (p3) [bug] `history.size` and
+      `history.persist` in a rule are ignored (only `history.keep` is per notification); `persist` is
+      also read only at start, not on reload. Refuse them in rules, or document it.
+- [ ] **`ctl bar` small issues.** (p3) [bug] An unknown placeholder (`--format '{locked}'`) gives a
+      KeyError traceback; with `--follow` `{shown}` goes stale (no update on dismissed/closed events);
+      `{shown}` alone never shows (the idle text wins). Error on unknown placeholders, add the close
+      events, and count `shown` as something to show when the format uses it.
+- [ ] **History cards' styles churn the CSS provider.** (p3) [perf] `prune_styles` keeps only window and
+      center scopes, so with more than 8 distinct history styles each popup close drops the cards' scopes
+      and the next rebuild adds them back one by one, reloading the provider each time (cards flash
+      unstyled). Count the open center's card scopes as used, and add a batch of scopes with one load.
+      Also check 0.51.1's premise: GTK 3.24 may keep the other scopes when one fails to parse, so
+      `checked_css` may guard less than its changelog says; the center path skips it.
+- [ ] **The open center is not moved when the monitors change.** (p3) [bug] `on_monitors_changed`
+      (`gtk.py:398`) lays the popups out again but leaves an open center at the old geometry.
+- [ ] **Docs drift.** (p3) [docs] The `--fg/--bg/--frame/--highlight` row sits after the inline-reply
+      paragraph in docs/config.md (stray text); the Control list and `cli.py`'s docstring leave out
+      `reply`; `rules --timeout` takes ms only while everything else takes durations; the man page says
+      `fade` is in ms though it takes durations.
+
 ## Completed
 
 ### 1. Decisions (completed 2026-11-10)
