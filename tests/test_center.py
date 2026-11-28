@@ -361,7 +361,8 @@ press('g'); assert selected() == 'h4'
 
 press('Return')                                  # shows it again; it stays in the history
 assert [n.summary for n in manager.active.values()] == ['h4']
-assert wait_for(lambda: center.cards[0][2] and center.cards[0][1]['summary'] == 'h4')   # now also an open card on top (rebuilt at idle)
+# now also an open card on top (rebuilt at idle)
+assert wait_for(lambda: center.cards[0][2] and center.cards[0][1]['summary'] == 'h4')
 assert selected() == 'h4' and not center.cards[center.index()][2]   # still the history one
 press('d')                                       # forgets it: the selection moves to its neighbor
 spin(100)

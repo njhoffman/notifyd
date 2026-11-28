@@ -47,9 +47,9 @@ DEFAULTS = {
     'copy-code': True,           # a "Copy 123456" button when the text holds a one-time code
     'actions': {'drop': []},     # the sender's actions left out, by key or label (text or /regex/)
     'run': None,                 # a shell command run for each matching notification (NOTIFYD_* env, JSON on stdin)
-    'run-on': ['receive'],
+    'run-on': ['receive'],       # when run runs: any of receive, action (one is invoked), close
     'filter': None,              # a command that may rewrite it before it shows: prints a JSON object (see docs)
-    'filter-timeout': 500,       # ms the filter may take; then it shows unchanged       # when run runs: any of receive, action (one is invoked), close
+    'filter-timeout': 500,       # ms the filter may take; then it shows unchanged
     'idle-threshold': 0,         # no expiry while the user has been idle this long (0: off)
     'history': {'size': 100, 'keep': True, 'persist': True},   # persist: $XDG_STATE_HOME/notifyd/history.jsonl
     'log': {'format': 'pretty', 'color': 'auto', 'level': 'info', 'file': None},

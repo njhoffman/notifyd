@@ -865,7 +865,7 @@ FILTERED = ('rules:\n'
 
 def test_a_filter_holds_a_notification_until_it_answers(make_manager):
     filters = PendingFilters()
-    m, _s, renderer, _e, closed, _a = make_manager(FILTERED, filter_runner=filters)
+    m, _s, _r, _e, closed, _a = make_manager(FILTERED, filter_runner=filters)
     nid = m.notify('chat', summary='hi', body='raw')
     assert filters.calls[0][:3] == ('rewrite-it', nid, 2000)
     assert nid not in m.active and m.ran == []                       # not shown, run: not yet
@@ -880,7 +880,7 @@ def test_a_filter_holds_a_notification_until_it_answers(make_manager):
 
 def test_a_filter_can_skip_and_bad_output_shows_it_unchanged(make_manager):
     filters = PendingFilters()
-    m, _s, _r, events, closed, _a = make_manager(FILTERED, filter_runner=filters)
+    m, _s, _r, events, _c, _a = make_manager(FILTERED, filter_runner=filters)
     skipped = m.notify('chat', summary='spam')
     filters.answer(0, {'skip': True})
     assert skipped not in m.active and kinds(events)[-1] == 'suppressed'
@@ -983,7 +983,7 @@ def test_missed_counts_what_expired_unclicked_until_the_center_opens(make_manage
 def test_close_by_criteria(make_manager):
     m, _s, _r, _e, closed, _a = make_manager()
     a = m.notify('Slack', summary='hi', hints={'urgency': 0})
-    b = m.notify('Slack', summary='Build failed')
+    m.notify('Slack', summary='Build failed')
     c = m.notify('Signal', summary='hi')
     m.pause(True)
     held = m.notify('Slack', summary='later')
@@ -1055,7 +1055,8 @@ def test_a_one_time_code_gets_a_copy_button(make_manager):
     nid = m.notify('Signal', summary='Ann', body='<b>Your login code is 734 912</b>', actions=['default', 'Open'])
     assert m.active[nid].actions[-1] == ('notifyd-copy-code', 'Copy 734912')
     assert m.invoke(nid, 'notifyd-copy-code') is True
-    assert clipboard.copied == ['734912'] and actions == [] and closed == [(nid, DISMISSED)]   # the sender hears nothing
+    assert clipboard.copied == ['734912'] and actions == []          # the sender hears nothing
+    assert closed == [(nid, DISMISSED)]
     plain = m.notify('chat', summary='lunch at 1230?')
     assert m.active[plain].actions == []
     off = m.notify('bank', summary='Your code is 445566')

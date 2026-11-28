@@ -10,6 +10,7 @@ import json
 import time
 from pathlib import Path
 
+from notifyd.config import ConfigError
 from notifyd.effects import sound_for
 from notifyd.files import write_private
 from notifyd.history import History
@@ -17,18 +18,18 @@ from notifyd.images import prune_thumbnails, save_thumbnail
 from notifyd.markup import markup_error, one_time_code, plain_text
 from notifyd.model import (
     CLOSED,
+    COPY_CODE_ACTION,
     DISMISSED,
     EXPIRED,
     REASON_NAMES,
-    COPY_CODE_ACTION,
     REPLY_ACTION,
     TITLE_END_HINT,
     UNDEFINED,
     Notification,
     actions_from_list,
 )
-from notifyd.config import ConfigError
 from notifyd.rules import MATCH_FIELDS, _normalize_actual, _value_matcher, apply_filter, drop_actions, resolve
+
 
 def _span(seconds):
     """SECONDS as a short duration: 90 -> 1m30s, 3600 -> 1h."""

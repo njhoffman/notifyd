@@ -851,7 +851,7 @@ def test_ctl_timed_pause_mode_close_by_fields_and_missed(bus, daemon):
     assert run(bus, 'ctl', 'mode', 'focus', '--for', '3s').stdout.strip() == 'focus'
 
     def status():
-        return dict((line.split(None, 1) + [''])[:2] for line in run(bus, 'ctl', 'status').stdout.splitlines())
+        return dict([*line.split(None, 1), ''][:2] for line in run(bus, 'ctl', 'status').stdout.splitlines())
     now = status()
     assert now['paused'] == 'True' and now['paused_until'] != 'None' and now['mode_until'] != 'None'
     assert wait_until(lambda: run(bus, 'ctl', 'mode').stdout.strip() == 'normal', 8)   # back on their own
