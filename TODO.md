@@ -10,96 +10,6 @@ center after popups + history) are under Completed.
 
 Reviewed: 2026-11-27
 
-## 16. Review of 0.49.1-0.51.0 and older modules
-
-- [x] **A color hint can inject CSS into every popup.** (p1) [bug] `hint_style` (`rules.py:176`) puts
-      the `bgcolor`/`fgcolor`/`frcolor`/`hlcolor` strings into the style unchecked and `render/css.py`
-      writes them raw into the screen-wide provider: `-h 'string:bgcolor:red; } * { opacity: 0; } .zz {'`
-      hides every later popup (critical too) and the center; a malformed one (`red}}{{`) fails
-      `load_from_data` and drops all styles. Accept a hint only when `Gdk.RGBA.parse` takes it (or a
-      strict #rgb/rgba() pattern), and validate style values from the config (`radius: "5 px"` breaks
-      all styles the same way) into a ConfigError. Done in 0.51.1: hints must be colors (`css_color`),
-      no CSS value can end its rule, and each style's CSS is parsed alone first, so a bad config value
-      costs only its own notifications their style (logged) instead of a ConfigError.
-- [x] **The sender's close leaves its filtered update to show.** (p2) [bug] Since 0.49.2 `close()` keeps
-      a pending replacement unless `pending_too`; `sender_close` and `ctl close ID` (`server.py:283`) do
-      not pass it, so CloseNotification(1) right after an update of 1 with a `filter:` sends
-      NotificationClosed(1) and then shows the update as a new popup the app thinks is gone. Pass
-      `pending_too=True` there; keep the pending one only on expiry and the user's dismissal.
-- [x] **Shutdown signals a held notification twice.** (p2) [bug] Paused, id 1 held, its update in its
-      filter, the daemon stops: `shutdown` pops 1 and sends UNDEFINED, then `close_all` sees
-      `filtering[1]` and sends CLOSED too (and the update goes into history while the original is saved
-      as held). Drop pending filters first in `shutdown` (or skip ids the held loop handled).
-- [x] **A bad timer in state.json stops the daemon from starting.** (p2) [bug] `_restore_timers` (via
-      `start()`, unguarded at `daemon.py:205`) does not apply `MAX_TIMED`; a `mode_until` far ahead
-      (written by 0.49.0 after a failed `--for 100d`) raises OverflowError on every start. Clamp or skip
-      out-of-range values there and log a warning.
-- [x] **History settings and files can crash the daemon.** (p2) [bug] `history.size` is not checked
-      (`size: -1`, `abc`, `history: 5` crash at start; on reload `self.config` is set before `resize`
-      raises, half applying it; `size: null` is unbounded and rewrites the file every 2 appends). A
-      non-UTF-8 byte in history.jsonl raises UnicodeDecodeError (`history.py:27` catches OSError only);
-      non-object lines and entries without `id` or with an odd `urgency` break `remove`, `pop` and the
-      center rebuild (`manager.py:812`, `:847`). Validate `history.size` in config.py and every entry on
-      load (skip and warn).
-- [x] **A non-UTF-8 config file crashes instead of a ConfigError.** (p2) [bug] `config.py:290` catches
-      OSError only (presets handle it at :344); on start and on `ctl reload`.
-- [x] **notifyd-send's /tmp fallback can be pointed at another file.** (p2) [bug] Without
-      `XDG_RUNTIME_DIR` `send.py:139` uses `/tmp/notifyd-UID` (`mkdir(exist_ok=True)`, owner not
-      checked) and writes `send-ids.tmp` by a fixed name: another local user can pre-create it and plant a
-      symlink that `--replace-name` truncates. Check the directory is ours and 0700, write with
-      `O_EXCL` / a random temp name; concurrent `--replace-name` calls also lose ids (lock the file).
-- [x] **The log file is world-readable.** (p2) [bug] `log.py:111` opens it with `open(path, 'a')`
-      (0644 under the usual umask) though it holds summaries and bodies, one-time codes too; use
-      `files.py`'s private mode (0600).
-- [x] **copy-code picks the wrong number or a non-code.** (p2) [bug] `_CODE_AFTER` takes the first
-      number after the word: "Your OTP for txn of Rs 5000 is 482913" copies 5000 (Indian bank SMS use
-      this form), "OTP for transaction of INR 2,500.00 at AMAZON is 482913" finds nothing; "Zip code
-      90210", "Error code 5003", "code review for PR 4821", "can you pin the 2023 roadmap?" get a button.
-      Prefer a number after "is"/":" following the word, skip amounts after currency words, and require
-      "code" not be preceded by zip/error/status/area/review. Lost since 0.49.5: "Your token is 482913",
-      "Enter 482913 to verify your account".
-- [x] **notifyd-send gives tracebacks for out-of-range numbers.** (p3) [bug] `-r -5`, `--close -1`,
-      `-t 3000000000`, `byte:x:300`, `int:x:1e11` raise OverflowError, and an ids file holding `[]` or
-      `{"x":"a"}` TypeError/ValueError (`send.py:153`, `:364`); turn them into usage errors.
-- [x] **A sound-file hint can pass options to the player.** (p3) [bug] `effects.py:126` runs
-      `[paplay, value]` without `--`, so `--server=...` is an option; `file://` URIs are not
-      percent-decoded (`%20` paths fail). Add `--`, refuse values starting with `-`, unquote URIs.
-- [x] **Odd MPRIS metadata breaks the center.** (p3) [bug] A non-dict `Metadata`, a non-str title or
-      album, or an artist list with non-str items make `rebuild` fail while that player is active
-      (`mpris.py:47`, `center.py:599`); coerce or drop them. `mpris:artUrl` lets any local MPRIS client
-      make notifyd fetch any http URL, localhost included: allow only https, or not loopback/private
-      addresses. Done in 0.51.7 (metadata coerced). artUrl kept as is: a local MPRIS client that can
-      make notifyd fetch a URL can fetch it itself, so a block adds no protection and would break
-      covers from a media server on the LAN (http://192.168...).
-- [x] **A filter whose grandchild holds stdout hangs that notification.** (p3) [bug] After the timeout
-      `effects.py:94` calls `communicate()` without a timeout: a setsid'd grandchild keeping the pipe
-      blocks the thread and the notification stays in `filtering`, never shown. Answer first, then reap
-      with a timeout (or close the pipes).
-- [x] **Small robustness gaps.** (p3) [bug] Two art downloads can prune at once and lose a finished
-      download to a vanished `stat()` (`art.py:111`); the `_desktop_icons` cache grows with every
-      distinct `desktop-entry` (`images.py:92`; bound it); CloseNotification of an unknown id returns
-      success where spec 1.2 asks for an empty D-Bus error; the deadd importer gives tracebacks for
-      `default-timeout: 5s`, a non-mapping `match`, a top-level list or bad YAML, and reports
-      `notification-center` twice. Done in 0.51.7, except CloseNotification: an unknown id still
-      returns success on purpose, as dunst does, since clients close notifications that already expired
-      and an error only puts warnings in their logs.
-- [x] **The default-action key takes empty keys and a lone reply.** (p3) [bug] `default_target`
-      (`manager.py:517`) counts a sender's action with key `''` as its single action (ActionInvoked(id,
-      '') goes out) and a lone `inline-reply` as the default (the key opens the reply field instead);
-      "newest" is the most recently shown, so one that waited can outrank newer ones. Skip empty keys;
-      decide whether a lone reply should count.
-- [x] **A clipboard manager keeps the copied code.** (p3) [bug] When CopyQ or clipit re-owns CLIPBOARD
-      with the same text, `copy_text`'s timer finds the code there but `clear()` does nothing (notifyd
-      no longer owns it), so it stays; `wait_for_text` also runs a nested loop inside a timeout. Set the
-      clipboard to an empty string when it still holds the code, and read it asynchronously.
-- [x] **A reload or replace can overfill a stack.** (p3) [bug] `_fill_waiting` runs before
-      `renderer.reload()` (stale measurements), and nothing moves notifications back when a new
-      `position` puts them in a stack already at `max-visible` (also `_replace`'s move; noted in
-      0.49.3). Re-place after the renderer reloaded and queue the newest overflow.
-- [x] **Test runs bury notifyd's warnings under PyGObject's.** (p3) [chore] All ~50 warnings per run
-      are gi's own (asyncio policy, `unix_signal_add_full`); filter `ignore::DeprecationWarning:gi.*`
-      and `PyGIDeprecationWarning` in `pyproject.toml` so one from notifyd shows.
-
 ## Completed
 
 ### 1. Decisions (completed 2026-11-10)
@@ -565,3 +475,93 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [x] **One-time codes linger on the clipboard.** (p3) [feature] copy-code puts the code in the
       clipboard and the primary selection with no expiry, where a later middle click pastes it.
       Clear both after a minute (only if they still hold the code), like password managers do.
+
+### 16. Review of 0.49.1-0.51.0 and older modules (completed 2026-11-28)
+
+- [x] **A color hint can inject CSS into every popup.** (p1) [bug] `hint_style` (`rules.py:176`) puts
+      the `bgcolor`/`fgcolor`/`frcolor`/`hlcolor` strings into the style unchecked and `render/css.py`
+      writes them raw into the screen-wide provider: `-h 'string:bgcolor:red; } * { opacity: 0; } .zz {'`
+      hides every later popup (critical too) and the center; a malformed one (`red}}{{`) fails
+      `load_from_data` and drops all styles. Accept a hint only when `Gdk.RGBA.parse` takes it (or a
+      strict #rgb/rgba() pattern), and validate style values from the config (`radius: "5 px"` breaks
+      all styles the same way) into a ConfigError. Done in 0.51.1: hints must be colors (`css_color`),
+      no CSS value can end its rule, and each style's CSS is parsed alone first, so a bad config value
+      costs only its own notifications their style (logged) instead of a ConfigError.
+- [x] **The sender's close leaves its filtered update to show.** (p2) [bug] Since 0.49.2 `close()` keeps
+      a pending replacement unless `pending_too`; `sender_close` and `ctl close ID` (`server.py:283`) do
+      not pass it, so CloseNotification(1) right after an update of 1 with a `filter:` sends
+      NotificationClosed(1) and then shows the update as a new popup the app thinks is gone. Pass
+      `pending_too=True` there; keep the pending one only on expiry and the user's dismissal.
+- [x] **Shutdown signals a held notification twice.** (p2) [bug] Paused, id 1 held, its update in its
+      filter, the daemon stops: `shutdown` pops 1 and sends UNDEFINED, then `close_all` sees
+      `filtering[1]` and sends CLOSED too (and the update goes into history while the original is saved
+      as held). Drop pending filters first in `shutdown` (or skip ids the held loop handled).
+- [x] **A bad timer in state.json stops the daemon from starting.** (p2) [bug] `_restore_timers` (via
+      `start()`, unguarded at `daemon.py:205`) does not apply `MAX_TIMED`; a `mode_until` far ahead
+      (written by 0.49.0 after a failed `--for 100d`) raises OverflowError on every start. Clamp or skip
+      out-of-range values there and log a warning.
+- [x] **History settings and files can crash the daemon.** (p2) [bug] `history.size` is not checked
+      (`size: -1`, `abc`, `history: 5` crash at start; on reload `self.config` is set before `resize`
+      raises, half applying it; `size: null` is unbounded and rewrites the file every 2 appends). A
+      non-UTF-8 byte in history.jsonl raises UnicodeDecodeError (`history.py:27` catches OSError only);
+      non-object lines and entries without `id` or with an odd `urgency` break `remove`, `pop` and the
+      center rebuild (`manager.py:812`, `:847`). Validate `history.size` in config.py and every entry on
+      load (skip and warn).
+- [x] **A non-UTF-8 config file crashes instead of a ConfigError.** (p2) [bug] `config.py:290` catches
+      OSError only (presets handle it at :344); on start and on `ctl reload`.
+- [x] **notifyd-send's /tmp fallback can be pointed at another file.** (p2) [bug] Without
+      `XDG_RUNTIME_DIR` `send.py:139` uses `/tmp/notifyd-UID` (`mkdir(exist_ok=True)`, owner not
+      checked) and writes `send-ids.tmp` by a fixed name: another local user can pre-create it and plant a
+      symlink that `--replace-name` truncates. Check the directory is ours and 0700, write with
+      `O_EXCL` / a random temp name; concurrent `--replace-name` calls also lose ids (lock the file).
+- [x] **The log file is world-readable.** (p2) [bug] `log.py:111` opens it with `open(path, 'a')`
+      (0644 under the usual umask) though it holds summaries and bodies, one-time codes too; use
+      `files.py`'s private mode (0600).
+- [x] **copy-code picks the wrong number or a non-code.** (p2) [bug] `_CODE_AFTER` takes the first
+      number after the word: "Your OTP for txn of Rs 5000 is 482913" copies 5000 (Indian bank SMS use
+      this form), "OTP for transaction of INR 2,500.00 at AMAZON is 482913" finds nothing; "Zip code
+      90210", "Error code 5003", "code review for PR 4821", "can you pin the 2023 roadmap?" get a button.
+      Prefer a number after "is"/":" following the word, skip amounts after currency words, and require
+      "code" not be preceded by zip/error/status/area/review. Lost since 0.49.5: "Your token is 482913",
+      "Enter 482913 to verify your account".
+- [x] **notifyd-send gives tracebacks for out-of-range numbers.** (p3) [bug] `-r -5`, `--close -1`,
+      `-t 3000000000`, `byte:x:300`, `int:x:1e11` raise OverflowError, and an ids file holding `[]` or
+      `{"x":"a"}` TypeError/ValueError (`send.py:153`, `:364`); turn them into usage errors.
+- [x] **A sound-file hint can pass options to the player.** (p3) [bug] `effects.py:126` runs
+      `[paplay, value]` without `--`, so `--server=...` is an option; `file://` URIs are not
+      percent-decoded (`%20` paths fail). Add `--`, refuse values starting with `-`, unquote URIs.
+- [x] **Odd MPRIS metadata breaks the center.** (p3) [bug] A non-dict `Metadata`, a non-str title or
+      album, or an artist list with non-str items make `rebuild` fail while that player is active
+      (`mpris.py:47`, `center.py:599`); coerce or drop them. `mpris:artUrl` lets any local MPRIS client
+      make notifyd fetch any http URL, localhost included: allow only https, or not loopback/private
+      addresses. Done in 0.51.7 (metadata coerced). artUrl kept as is: a local MPRIS client that can
+      make notifyd fetch a URL can fetch it itself, so a block adds no protection and would break
+      covers from a media server on the LAN (http://192.168...).
+- [x] **A filter whose grandchild holds stdout hangs that notification.** (p3) [bug] After the timeout
+      `effects.py:94` calls `communicate()` without a timeout: a setsid'd grandchild keeping the pipe
+      blocks the thread and the notification stays in `filtering`, never shown. Answer first, then reap
+      with a timeout (or close the pipes).
+- [x] **Small robustness gaps.** (p3) [bug] Two art downloads can prune at once and lose a finished
+      download to a vanished `stat()` (`art.py:111`); the `_desktop_icons` cache grows with every
+      distinct `desktop-entry` (`images.py:92`; bound it); CloseNotification of an unknown id returns
+      success where spec 1.2 asks for an empty D-Bus error; the deadd importer gives tracebacks for
+      `default-timeout: 5s`, a non-mapping `match`, a top-level list or bad YAML, and reports
+      `notification-center` twice. Done in 0.51.7, except CloseNotification: an unknown id still
+      returns success on purpose, as dunst does, since clients close notifications that already expired
+      and an error only puts warnings in their logs.
+- [x] **The default-action key takes empty keys and a lone reply.** (p3) [bug] `default_target`
+      (`manager.py:517`) counts a sender's action with key `''` as its single action (ActionInvoked(id,
+      '') goes out) and a lone `inline-reply` as the default (the key opens the reply field instead);
+      "newest" is the most recently shown, so one that waited can outrank newer ones. Skip empty keys;
+      decide whether a lone reply should count.
+- [x] **A clipboard manager keeps the copied code.** (p3) [bug] When CopyQ or clipit re-owns CLIPBOARD
+      with the same text, `copy_text`'s timer finds the code there but `clear()` does nothing (notifyd
+      no longer owns it), so it stays; `wait_for_text` also runs a nested loop inside a timeout. Set the
+      clipboard to an empty string when it still holds the code, and read it asynchronously.
+- [x] **A reload or replace can overfill a stack.** (p3) [bug] `_fill_waiting` runs before
+      `renderer.reload()` (stale measurements), and nothing moves notifications back when a new
+      `position` puts them in a stack already at `max-visible` (also `_replace`'s move; noted in
+      0.49.3). Re-place after the renderer reloaded and queue the newest overflow.
+- [x] **Test runs bury notifyd's warnings under PyGObject's.** (p3) [chore] All ~50 warnings per run
+      are gi's own (asyncio policy, `unix_signal_add_full`); filter `ignore::DeprecationWarning:gi.*`
+      and `PyGIDeprecationWarning` in `pyproject.toml` so one from notifyd shows.
