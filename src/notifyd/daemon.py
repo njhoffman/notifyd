@@ -4,6 +4,12 @@ import signal
 
 from gi.repository import Gio, GLib
 
+try:                                     # PyGObject 3.56 deprecates GLib.unix_signal_add; 24.04 has no GLibUnix
+    from gi.repository import GLibUnix
+    signal_add = GLibUnix.signal_add
+except ImportError:
+    signal_add = GLib.unix_signal_add
+
 from notifyd import __version__, art
 from notifyd.config import ConfigError, default_path, load_config, load_preset, preset_dirs
 from notifyd.effects import LockState, Runner, SoundPlayer, XIdle
@@ -196,11 +202,11 @@ class Daemon:
         self.loop = GLib.MainLoop()
         self.server = Server(connection, self.manager, self, self.log)
         owners = [self.own(connection, CONTROL_NAME), self.own(connection, BUS_NAME)]
-        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, self.stop)
-        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, self.stop)
-        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGHUP, lambda: self.reload() and True)
+        signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, self.stop)
+        signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, self.stop)
+        signal_add(GLib.PRIORITY_DEFAULT, signal.SIGHUP, lambda: self.reload() and True)
         # deadd's i3 binding: kill -USR1 toggles the notification center
-        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, lambda: self.center('toggle') or True)
+        signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, lambda: self.center('toggle') or True)
         self._monitor = self.watch_config()
         GLib.timeout_add_seconds(LOCK_POLL, self.check_lock)
         try:

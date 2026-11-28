@@ -115,7 +115,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       of the keys rules cannot set; the man page says a rule takes "any of those keys", but
       `position`, `max-visible`, `log`, `click` and `center` are refused (`rules.py:39`).
 
-- [ ] **`GLib.unix_signal_add` is deprecated in PyGObject 3.56.** (p3) [chore] Ubuntu 26.04's
+- [x] **`GLib.unix_signal_add` is deprecated in PyGObject 3.56.** (p3) [chore] Ubuntu 26.04's
       PyGObject warns `use GLibUnix.signal_add_full instead` (`daemon.py:199-203`, SIGINT, SIGTERM,
       SIGHUP, SIGUSR1). Use `GLibUnix.signal_add` when `gi.repository.GLibUnix` imports, else the old
       call (24.04 has no GLibUnix), before a later PyGObject removes it.
@@ -184,7 +184,7 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
       dunst, mako, swaync, wired and xfce4-notifyd themes (Catppuccin, Dracula, Gruvbox, Nord, Rosé
       Pine, Kanagawa, One Dark, Solarized, swaync, xfce Retro); `just preview` shows them all at once,
       one private daemon per column. Done in 0.36.0.
-- [ ] **`test_center_keyboard` is flaky under load.** (p3) [test] It failed once in a full run
+- [x] **`test_center_keyboard` is flaky under load.** (p3) [test] It failed once in a full run
       while another project's suite ran alongside (`center.cards[0]` was not the open `h4` card,
       tests/test_center.py:627 script line 72), and passed 3 of 3 alone. Likely a timing assumption
       about when the center rebuilds; wait for the rebuild (pump events until the cards change)

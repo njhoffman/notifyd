@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.40.1] - 2026-11-27
+
+### Fixed
+
+- The daemon catches its signals (SIGINT, SIGTERM, SIGHUP, SIGUSR1) with `GLibUnix.signal_add` where
+  GLib provides it, so PyGObject 3.56 no longer warns that `GLib.unix_signal_add`
+  is deprecated; systems without GLibUnix keep the old call.
+
 ## [0.40.0] - 2026-11-27
 
 ### Added
