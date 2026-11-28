@@ -39,9 +39,15 @@ def import_deadd_yaml(data, report):
     if 'width' in data:
         out['width'] = data['width']
     position = {}
-    margin_top, margin_right = data.get('margin-top'), data.get('margin-right')
+    # top level: the center's and the popups' margins; notification.popup's own ones win for the popups
+    popup = (data.get('notification') or {}).get('popup') if isinstance(data.get('notification'), dict) else None
+    popup = popup if isinstance(popup, dict) else {}
+    margin_top = popup.get('margin-top', data.get('margin-top'))
+    margin_right = popup.get('margin-right', data.get('margin-right'))
     if margin_top is not None or margin_right is not None:
         position['margin'] = [margin_top or 0, margin_right or 0]
+    if popup.get('margin-between') is not None:
+        position['gap'] = popup['margin-between']
     if 'follow-mouse' in data:
         position['follow'] = 'mouse' if data['follow-mouse'] else 'none'
     if 'monitor' in data:

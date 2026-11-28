@@ -221,18 +221,28 @@ class LockState:
         self.processes = {str(p)[:15] for p in (LOCKERS if processes is None else processes)}
         self.proc = Path(proc)
         self.connection = connection
+        self.hint = False        # logind's LockedHint as last answered
+        self.asking = False
 
     def logind_locked(self):
+        """logind's LockedHint, asked without waiting (the main loop must not stall on a slow logind): the
+        answer to the previous poll, so a lock shows at most one poll later."""
         if self.connection is None:
             return False
-        try:
-            reply = self.connection.call_sync(
+        if not self.asking:
+            self.asking = True
+            self.connection.call(
                 'org.freedesktop.login1', '/org/freedesktop/login1/session/auto', 'org.freedesktop.DBus.Properties',
                 'Get', GLib.Variant('(ss)', ('org.freedesktop.login1.Session', 'LockedHint')),
-                GLib.VariantType('(v)'), Gio.DBusCallFlags.NONE, 500, None)
+                GLib.VariantType('(v)'), Gio.DBusCallFlags.NONE, 2000, None, self._answered, None)
+        return self.hint
+
+    def _answered(self, connection, result, _data):
+        self.asking = False
+        try:
+            self.hint = bool(connection.call_finish(result).unpack()[0])
         except GLib.Error:
-            return False
-        return bool(reply.unpack()[0])
+            self.hint = False
 
     def locker_running(self):
         if not self.processes:

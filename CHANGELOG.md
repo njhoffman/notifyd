@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.52.3] - 2026-11-28
+
+### Fixed
+
+- `notifyd ctl` usage errors exit 2 as the man page says (`close` with neither id nor fields, `forget` with
+  no argument, `mode --for` without a mode, `--for` without a unit); `ctl forget ID` of an unknown id
+  fails like `pop` and `close` do instead of printing `forgot 0`; `--for never` says to leave `--for` out.
+- `notifyd import deadd` takes the popup margins from `notification.popup` (`margin-top`, `margin-right`;
+  `margin-between` becomes `gap`) over the top-level ones, and `--css` with a path that does not exist
+  is an error.
+- `notifyd help ctl <TAB>` completes ctl's commands in bash and fish (it offered the top-level ones).
+- `ctl bar` takes format specs (`{shown:02d}`, `{shown:>2}`).
+- The screen-lock check asks logind without waiting, so a slow logind cannot stall the daemon.
+- No session bus is a one-line error instead of a traceback; the man page gives `rules --timeout` as a
+  duration.
+
 ## [0.52.2] - 2026-11-28
 
 ### Fixed

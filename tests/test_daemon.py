@@ -301,7 +301,7 @@ def test_ctl_forget_and_center_without_display(bus, daemon):
     assert run(bus, 'ctl', 'forget', '1').stdout.strip() == 'forgot 1'
     assert [e['summary'] for e in json.loads(run(bus, 'ctl', 'history', '--json').stdout)] == ['b']
     assert run(bus, 'ctl', 'forget', '--all').stdout.strip() == 'forgot 1'
-    assert run(bus, 'ctl', 'forget', check=False).returncode == 1
+    assert run(bus, 'ctl', 'forget', check=False).returncode == 2                 # a usage error
     assert run(bus, 'ctl', 'center').stdout.strip() == 'hidden'     # no renderer, no center
 
 
@@ -927,3 +927,14 @@ def test_replace_keeps_the_old_daemons_last_history(bus, daemon):
     assert old.wait(10) == 0                                 # replaced: a clean exit (no systemd restart)
     summaries = [e['summary'] for e in json.loads(run(bus, 'ctl', 'history', '--json').stdout)]
     assert sorted(summaries) == ['closed before', 'open one', 'open two']   # its shutdown's entries too
+
+
+def test_ctl_usage_errors_exit_2_and_unknown_ids_1(bus, daemon):
+    daemon('', '--renderer', 'none')
+    for argv in (['close'], ['close', '5', '--app', 'x'], ['mode', '--for', '1h'], ['pause', '--for', '10'],
+                 ['pause', '--for', 'never'], ['pause', '--for', 'bogus']):
+        result = run(bus, 'ctl', *argv, check=False)
+        assert result.returncode == 2, (argv, result.stderr)
+    assert 'leave --for out' in run(bus, 'ctl', 'pause', '--for', 'never', check=False).stderr
+    result = run(bus, 'ctl', 'forget', '9999', check=False)
+    assert result.returncode == 1 and 'no notification 9999' in result.stderr

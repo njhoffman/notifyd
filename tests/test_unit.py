@@ -22,7 +22,8 @@ def test_unit_claims_no_bus_name():
 
 def test_unit_runs_the_daemon_and_restarts():
     assert service()['ExecStart'] == '%h/.local/bin/notifyd daemon'
-    assert service()['Restart'] == 'always'
+    # on failure only: a daemon replaced by `notifyd daemon --replace` exits cleanly and stays down
+    assert service()['Restart'] == 'on-failure'
 
 
 def test_odd_mpris_metadata_is_left_out():

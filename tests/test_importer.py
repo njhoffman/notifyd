@@ -228,3 +228,11 @@ def test_deadd_import_reports_bad_input_instead_of_failing():
     for text in ('- a\n- b', 'a: [', 'notification: 5'):
         with pytest.raises(ConfigError):
             import_deadd(text)
+
+
+def test_deadd_popup_margins_win_and_margin_between_is_the_gap():
+    config, _report = import_deadd('margin-top: 30\nmargin-right: 5\n'
+                                   'notification: {popup: {margin-top: 50, margin-right: 40, margin-between: 20}}\n')
+    assert config['position']['margin'] == [50, 40] and config['position']['gap'] == 20
+    config, _report = import_deadd('margin-top: 30\nmargin-right: 5\n')
+    assert config['position']['margin'] == [30, 5] and 'gap' not in config['position']   # as before

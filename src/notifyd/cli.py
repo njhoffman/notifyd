@@ -17,8 +17,10 @@
 import argparse
 import json
 import os
+import re
 import shlex
 import shutil
+import string
 import subprocess
 import sys
 import time
@@ -38,21 +40,29 @@ def gio():
 CLOSE_FIELDS = ('app', 'summary', 'body', 'category', 'urgency', 'stack-tag', 'desktop-entry')
 
 
+def usage_error(message):
+    """A wrong command line: MESSAGE on stderr and exit 2, as the man page says (1 is for a failure)."""
+    print(message, file=sys.stderr)
+    raise SystemExit(2)
+
+
 def duration_seconds(value, where):
     """Whole seconds of a --for DURATION (30m, 1h, 90s, 500ms rounds up), or None when not given."""
     if value is None:
         return None
     from notifyd.config import ConfigError, parse_duration
+    if str(value).strip() == 'never':
+        usage_error(f'notifyd ctl {where}: give how long (30m, 1h); for no end, leave --for out')
     if str(value).strip().replace('.', '', 1).isdigit():
-        raise SystemExit(f'notifyd ctl {where}: give a unit, e.g. {value}m or {value}s')
+        usage_error(f'notifyd ctl {where}: give a unit, e.g. {value}m or {value}s')
     try:
         ms = parse_duration(value, where)
     except ConfigError as exc:
-        raise SystemExit(f'notifyd ctl {exc}') from exc
+        usage_error(f'notifyd ctl {exc}')
     if ms <= 0:
-        raise SystemExit(f'notifyd ctl {where}: expected a duration above 0, got {value!r}')
+        usage_error(f'notifyd ctl {where}: expected a duration above 0, got {value!r}')
     if ms > 30 * 86400 * 1000:
-        raise SystemExit(f'notifyd ctl {where}: at most 30 days (720h), got {value!r}')
+        usage_error(f'notifyd ctl {where}: at most 30 days (720h), got {value!r}')
     return -(-ms // 1000)
 
 
@@ -95,9 +105,9 @@ def ctl(args):
         criteria = {field: value for field, value in ((f, getattr(args, f.replace('-', '_'), None))
                                                       for f in CLOSE_FIELDS) if value is not None}
         if args.id is None and not criteria:
-            raise SystemExit('notifyd ctl close: give an ID or fields to match (--app, --summary, ...)')
+            usage_error('notifyd ctl close: give an ID or fields to match (--app, --summary, ...)')
         if args.id is not None and criteria:
-            raise SystemExit('notifyd ctl close: give an ID or fields to match, not both')
+            usage_error('notifyd ctl close: give an ID or fields to match, not both')
         if criteria:
             print(control_call('CloseMatching', GLib.Variant('(s)', (json.dumps(criteria),)), '(u)'))
         elif not control_call('Close', GLib.Variant('(u)', (args.id,)), '(b)'):
@@ -118,8 +128,10 @@ def ctl(args):
         print('shown' if visible else 'hidden')
     elif command == 'forget':
         if args.id is None and not args.all:
-            raise SystemExit('notifyd ctl forget: give an ID or --all')
+            usage_error('notifyd ctl forget: give an ID or --all')
         removed = control_call('Forget', GLib.Variant('(u)', (0 if args.all else args.id,)), '(u)')
+        if not removed and not args.all:          # as pop, close and action do for an unknown id
+            raise SystemExit(f'no notification {args.id} in history')
         print(f'forgot {removed}')
     elif command == 'pop':
         nid = control_call('Pop', GLib.Variant('(u)', (args.id or 0,)), '(u)')
@@ -129,7 +141,7 @@ def ctl(args):
     elif command == 'mode':
         seconds = duration_seconds(args.for_, 'mode --for')
         if seconds and not args.name:
-            raise SystemExit('notifyd ctl mode --for: give the mode to switch to')
+            usage_error('notifyd ctl mode --for: give the mode to switch to')
         if seconds:
             print(control_call('SetModeFor', GLib.Variant('(su)', (args.name, seconds))))
         else:
@@ -198,15 +210,26 @@ BAR_FIELDS = ('paused', 'mode', 'held', 'shown', 'missed')
 def bar_line(status, fmt, idle_text):
     """The status bar text: FMT with {mode} {held} {shown} {paused} {missed}, or IDLE_TEXT when nothing is
     special (missed and shown ones count only when FMT shows them)."""
-    missed = status.get('missed') if '{missed}' in fmt else 0
-    shown = status.get('displayed') if '{shown}' in fmt else 0
+    fields = bar_fields(fmt)
+    missed = status.get('missed') if 'missed' in fields else 0
+    shown = status.get('displayed') if 'shown' in fields else 0
     if (not status.get('paused') and status.get('mode') == 'normal' and not status.get('held_back')
             and not missed and not shown):
         return idle_text
-    text = fmt.format(mode='' if status.get('mode') == 'normal' else status.get('mode'),
-                      held=status.get('held_back') or '', shown=status.get('displayed', 0),
-                      paused='dnd' if status.get('paused') else '', missed=status.get('missed') or '')
+    values = dict(mode='' if status.get('mode') == 'normal' else status.get('mode'),
+                  held=status.get('held_back') or '', shown=status.get('displayed', 0),
+                  paused='dnd' if status.get('paused') else '', missed=status.get('missed') or '')
+    try:
+        text = fmt.format(**values)
+    except (ValueError, TypeError):               # a spec such as {held:02d} on an empty field: plain then
+        text = re.sub(r'\{(\w+)[^{}]*\}', r'{\1}', fmt).format(**values)
     return ' '.join(text.split())
+
+
+def bar_fields(fmt):
+    """The field names FMT uses ({shown:>2} is shown); ValueError when FMT is not a format string."""
+    return {name.split('.')[0].split('[')[0] for _text, name, _spec, _conv in string.Formatter().parse(fmt)
+            if name}
 
 
 def bar(args):
@@ -214,9 +237,12 @@ def bar(args):
     Gio, GLib = gio()
     from notifyd.server import CONTROL_IFACE, CONTROL_NAME, OBJECT_PATH
     try:
-        args.format.format(**dict.fromkeys(BAR_FIELDS, ''))
-    except (KeyError, IndexError, ValueError) as exc:
-        print(f'notifyd ctl bar: --format {args.format!r}: {exc!r} is not one of '
+        unknown = sorted(bar_fields(args.format) - set(BAR_FIELDS))
+    except ValueError as exc:
+        print(f'notifyd ctl bar: --format {args.format!r}: {exc}', file=sys.stderr)
+        return 2
+    if unknown:
+        print(f'notifyd ctl bar: --format {args.format!r}: {{{unknown[0]}}} is not one of '
               f'{" ".join("{" + f + "}" for f in BAR_FIELDS)}', file=sys.stderr)
         return 2
 
@@ -424,6 +450,8 @@ def import_command(args):
     if args.source == 'deadd':
         yml = Path(args.yml) if args.yml else home / 'deadd' / 'deadd.yml'
         css = Path(args.css) if args.css else yml.with_suffix('.css')
+        if args.css and not css.is_file():         # one asked for by name must be there (the default may not)
+            usage_error(f'notifyd import: {css}: no such file')
         try:
             config, report = import_deadd(read(yml), css.read_text() if css.is_file() else None)
         except ConfigError as exc:

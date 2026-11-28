@@ -129,7 +129,13 @@ _{p}_values() {{
     files) compopt -o filenames 2>/dev/null; COMPREPLY=($(compgen -f -- "$cur")) ;;
     presets) COMPREPLY=($(compgen -W "$(notifyd presets --names 2>/dev/null)" -- "$cur")) ;;
     ids) COMPREPLY=($(compgen -W "$(notifyd ctl list --ids 2>/dev/null | cut -f1)" -- "$cur")) ;;
-    commands) COMPREPLY=($(compgen -W "${{_{p}_cmds[{name}]}}" -- "$cur")) ;;
+    commands)  # after `help`: the commands of the deepest command typed so far (help ctl <TAB>: ctl's)
+      local key={name} w after=0
+      for w in "${{COMP_WORDS[@]:1:COMP_CWORD-1}}"; do
+        [[ $after == 1 && -n ${{_{p}_cmds["$key $w"]+x}} ]] && key="$key $w"
+        [[ $w == help ]] && after=1
+      done
+      COMPREPLY=($(compgen -W "${{_{p}_cmds[$key]}}" -- "$cur")) ;;
     choices:*) COMPREPLY=($(compgen -W "${{what#choices:}}" -- "$cur")) ;;
   esac
 }}
@@ -290,6 +296,17 @@ def fish(root):
         f'    test (__{p}_path) = "$argv[1]"',
         'end',
     ]
+    lines += [
+        f'function __{p}_help_topic',      # after `help`: the deepest command typed so far
+        '    set -l path ' + name,
+        '    set -l after 0',
+        '    for token in (commandline -opc)[2..-1]',
+        f'        test $after = 1; and contains -- "$path $token" $__{p}_paths; and set path "$path $token"',
+        '        test "$token" = help; and set after 1',
+        '    end',
+        '    echo $path',
+        'end',
+    ]
     for node in all_nodes(root):
         condition = "-n " + _fish_quote(f'__{p}_is "' + ' '.join(node.path) + '"')
         for cmd, child in node.commands.items():
@@ -308,8 +325,11 @@ def fish(root):
                          f'-d {_fish_quote(option.help)}'.replace('  ', ' '))
         for positional in node.positionals:
             if positional.complete == 'commands':
-                for cmd, child in root.commands.items():
-                    lines.append(f'complete -c {name} {condition} -a {cmd} -d {_fish_quote(child.help)}')
+                for topic in (t for t in all_nodes(root) if t.commands):
+                    path = ' '.join(topic.path)
+                    when = _fish_quote(f'__{p}_is "{" ".join(node.path)}"; and test (__{p}_help_topic) = "{path}"')
+                    for cmd, child in topic.commands.items():
+                        lines.append(f'complete -c {name} -n {when} -a {cmd} -d {_fish_quote(child.help)}')
                 continue
             values = _fish_values(positional.choices, positional.complete)
             if values and values != '-x':

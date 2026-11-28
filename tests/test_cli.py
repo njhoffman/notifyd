@@ -279,4 +279,12 @@ def test_bar_shown_counts_only_when_the_format_shows_it():
 
 def test_bar_refuses_an_unknown_placeholder(capsys):
     assert main(['ctl', 'bar', '--format', '{locked}']) == 2
-    assert "'locked'" in capsys.readouterr().err
+    assert '{locked} is not one of' in capsys.readouterr().err
+
+
+def test_bar_format_specs():
+    from notifyd.cli import bar_line
+    status = {'paused': True, 'mode': 'normal', 'held_back': 0, 'displayed': 3, 'missed': 0}
+    assert bar_line(status, '{paused} {shown:02d}', '-') == 'dnd 03'
+    assert bar_line({**status, 'paused': False}, '{shown:>2}', '-') == '3'       # a spec still counts
+    assert bar_line(status, '{paused} {held:02d}', '-') == 'dnd'                 # empty field: plain

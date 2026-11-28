@@ -34,17 +34,17 @@ Reviewed: 2026-11-27
       state.json, restores held ones and rewrites it in `shutdown()` though it never owned the name.
       Save state only after owning the bus name, and use `Restart=on-failure` with a clean exit when
       the name is taken.
-- [ ] **`ctl` usage errors exit 1, not 2.** (p3) [bug] The man page says 2 for usage errors; `close` with
+- [x] **`ctl` usage errors exit 1, not 2.** (p3) [bug] The man page says 2 for usage errors; `close` with
       neither id nor fields, `close 5 --app x`, `forget` with no argument, `mode --for` without a name and
       `pause --for 10`/`bogus` exit 1 (`SystemExit(str)`, `cli.py:47`, `:97-132`). `ctl forget 9999`
       prints `forgot 0` and exits 0 while `pop`/`close`/`action` of an unknown id exit 1. `pause --for
       never` is refused although the error text suggests "never"; `resume --for` shows the top-level usage.
-- [ ] **`import deadd` drops the popup margins without a note.** (p3) [bug] deadd keeps
+- [x] **`import deadd` drops the popup margins without a note.** (p3) [bug] deadd keeps
       `notification.popup.margin-top`, `margin-right` and `margin-between` (the reference config has 50,
       50, 20); the importer reads only the top-level margins (`importer.py:42`, `:58`), so they become
       `[0, 0]` and no gap, with no `note:`. Map them to `position.margin` and `gap`; `--css` with a
       missing path is also ignored silently.
-- [ ] **Small CLI and daemon gaps.** (p3) [bug] `notifyd help ctl <TAB>` completes top-level commands in
+- [x] **Small CLI and daemon gaps.** (p3) [bug] `notifyd help ctl <TAB>` completes top-level commands in
       bash and fish; the man page's `rules` says `--timeout ms` (it takes durations); no session bus gives
       a raw GError traceback (`daemon.py:199`); the logind lock check is a 500 ms `call_sync` on the main
       loop every 2 s (`effects.py:229`; make it async); `ctl bar` refuses a valid `{shown:02d}` and misses

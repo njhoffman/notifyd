@@ -217,7 +217,11 @@ class Daemon:
             return 1
         if self.renderer is not None:
             self.manager.renderer = self.renderer
-        connection = connection or Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        try:
+            connection = connection or Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        except GLib.Error as exc:                 # no session bus (DBUS_SESSION_BUS_ADDRESS unset or stale)
+            self.log.error(f'no session bus: {exc.message}')
+            return 1
         self.loop = GLib.MainLoop()
         self.server = Server(connection, self.manager, self, self.log)
         owners = [self.own(connection, CONTROL_NAME), self.own(connection, BUS_NAME)]

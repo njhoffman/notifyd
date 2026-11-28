@@ -125,19 +125,37 @@ def test_lock_state_finds_a_locker_process(tmp_path):
     assert LockState(proc=tmp_path / 'missing')() is False
 
 
-def test_lock_state_reads_logind(tmp_path):
+def test_lock_state_reads_logind_without_waiting(tmp_path):
+    from gi.repository import GLib
+
     from notifyd.effects import LockState
 
     class Connection:
-        def __init__(self, locked):
-            self.locked = locked
+        """Answers later, as the main loop would: the reply is delivered by deliver()."""
 
-        def call_sync(self, *_args):
-            from gi.repository import GLib
-            return GLib.Variant('(v)', (GLib.Variant('b', self.locked),))
+        def __init__(self, locked):
+            self.locked, self.pending, self.asked = locked, [], 0
+
+        def call(self, *args):
+            self.asked += 1
+            self.pending.append(args[-2])
+
+        def deliver(self):
+            while self.pending:
+                self.pending.pop()(self, self.locked, None)
+
+        def call_finish(self, result):
+            return GLib.Variant('(v)', (GLib.Variant('b', result),))
     proc = fake_proc(tmp_path, ['zsh'])
-    assert LockState(proc=proc, connection=Connection(True))() is True
-    assert LockState(proc=proc, connection=Connection(False))() is False
+    connection = Connection(True)
+    state = LockState(proc=proc, connection=connection)
+    assert state() is False                       # asked, not answered yet: the main loop goes on
+    assert state() is False and connection.asked == 1   # one question at a time
+    connection.deliver()
+    assert state() is True                        # the answer counts from the next poll
+    connection.locked = False
+    connection.deliver(), state(), connection.deliver()
+    assert state() is False
 
 
 def test_runner_adds_the_event_environment(tmp_path):
