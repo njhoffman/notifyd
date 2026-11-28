@@ -21,10 +21,10 @@ Reviewed: 2026-11-26
       the argparse tree; preset names complete live.
 - [x] **Complete notification ids.** (p3) [feature] `ctl close`/`ctl action` ids could complete
       from the daemon: `ctl list --ids`, with the summary as the description in zsh and fish.
-- [ ] **Run the fish completion.** (p3) [test] fish is not installed here, so the fish script is
+- [x] **Run the fish completion.** (p3) [test] fish is not installed here, so the fish script is
       only checked for its shape (`tests/test_cli.py`); `fish --no-execute` and `complete -C`
-      tests skip. Check it on a machine with fish. Here: `sudo apt install fish` (needs a
-      password, so it waits for a hand), then `just test tests/test_cli.py -k completion`.
+      tests skip. Check it on a machine with fish. Done 2026-11-27 with fish 4.2.1: the
+      completion tests run with nothing skipped and pass.
 - [x] **Help and version.** (p2) [feature] `-h/--help` on every command with examples,
       `notifyd help [COMMAND]`, `notifyd version`, `-V`.
 - [x] **Man page.** (p2) [docs] `share/man/man1/notifyd.1`; a test fails when a command or
