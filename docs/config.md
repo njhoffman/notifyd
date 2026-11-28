@@ -46,7 +46,7 @@ that stays until it is fixed, and the old config is kept. `notifyd check` valida
 | `copy-code-clear` | `1m` | how long a copied code stays: then the clipboard and the primary selection are cleared if they still hold it (what you copied since stays); `never` keeps it |
 | `run` | - | a shell command run for each matching notification, shown or skipped |
 | `idle-threshold` | `0` | notifications do not expire while you have been idle this long (`0`: off) |
-| `history.size` / `history.keep` / `history.persist` | `100` / `true` / `true` | `keep: false` in a rule keeps those out; `persist` keeps it in `$XDG_STATE_HOME/notifyd/history.jsonl` (mode 0600, its directory 0700: it holds whole bodies). Entries keep the app icon, image path, markup mode and sender; an image sent as image-data is kept as a 64 px thumbnail in `$XDG_CACHE_HOME/notifyd/thumbs/` (removed with its entry), so center cards and `ctl pop` show it. `pop` styles it with the rules again but does not rerun their `run:` or sounds |
+| `history.size` / `history.keep` / `history.persist` | `100` / `true` / `true` | `keep: false` in a rule keeps those out (a rule can set only `keep`; `size` and `persist` are daemon-wide, and `persist` takes effect at the next start); `persist` keeps it in `$XDG_STATE_HOME/notifyd/history.jsonl` (mode 0600, its directory 0700: it holds whole bodies). Entries keep the app icon, image path, markup mode and sender; an image sent as image-data is kept as a 64 px thumbnail in `$XDG_CACHE_HOME/notifyd/thumbs/` (removed with its entry), so center cards and `ctl pop` show it. `pop` styles it with the rules again but does not rerun their `run:` or sounds |
 | `log.format` / `log.color` / `log.level` / `log.file` | `pretty` / `auto` / `info` / - | also `--log-format`, `--color`, `-v`/`-q`; `file` gets plain lines too |
 | `center.width` / `side` / `hide-on-leave` / `mpris` / `volume` / `modes` / `cards` / `keyboard` / `remote-art` / `toggle-key` | `400` / `right` / `true` / `true` / `true` / `true` / `20` / `true` / `true` / `<Super>grave` | the notification center (`notifyd ctl center`, SIGUSR1); `mpris` shows what a media player plays, with buttons (`center.mpris-ignore: [firefox, chromium]` passes over players by the name after `org.mpris.MediaPlayer2.`, so browser tabs do not take the row); `center.group: true` starts the center with the history grouped by app (the By app button, or `a`, switches until the next reload), newest app first, each group showing its newest card until its header is clicked (the header's × forgets the group; `cards` counts entries before grouping); `center.buttons: [{label, run, state, icon}]` adds a row of buttons under the volume (`icon`: a theme icon name such as `network-wireless-symbolic`, drawn before the label): a click runs `run` (sh -c, not waited for), and a button with `state` shows as on (style key `button.on`) while that command exits 0, checked when the center opens and after each click; `volume` a slider and mute for the default output (needs `pactl`, PulseAudio or PipeWire); `modes` a picker of `normal` and the modes rules match on by name; `cards` how many history entries it shows before a "show more" button; `keyboard` grabs the keyboard while it is open (keys below); `remote-art` downloads a player's http(s) cover art for the now-playing row (3 s, 2 MB at most, cached in `~/.cache/notifyd/art`; notification images never come from the network); `toggle-key` (a GTK accelerator, `''` for none) hides it: the key your window manager binds to `notifyd ctl center` never reaches it while the center holds the keyboard |
 | `fade.in` / `fade.out` | `0` / `150ms` | opacity fades; picom fades windows in but not translucent ones out |
@@ -264,6 +264,7 @@ Flags for hints that otherwise take `-h TYPE:NAME:VALUE`:
 | `--sound-name NAME`, `--sound-file PATH`, `--suppress-sound` | `sound-name`, `sound-file`, `suppress-sound` |
 | `--resident` | `resident`: stays open after an action |
 | `--action-icons` | `action-icons`: each action's key is an icon name, drawn as an icon button (its text is the tooltip) |
+| `--fg`, `--bg`, `--frame`, `--highlight COLOR` | dunst's `fgcolor`, `bgcolor`, `frcolor`, `hlcolor` |
 
 Inline reply: notifyd advertises `inline-reply` (KDE's extension, used by KDE Connect and chat apps). A
 notification with an `inline-reply` action shows it as a button on the popup; the button opens the
@@ -272,7 +273,6 @@ button from `x-kde-reply-submit-button-text`) with the keyboard. Enter or the se
 `NotificationReplied(id, text)` and dismisses it (unless resident); `Esc` leaves the field, `r` goes back
 to it, and a draft survives the center being built again. A rule's `run-on: [action]` hook gets the text
 as `NOTIFYD_REPLY`. `notifyd ctl reply ID TEXT` replies from a script.
-| `--fg`, `--bg`, `--frame`, `--highlight COLOR` | dunst's `fgcolor`, `bgcolor`, `frcolor`, `hlcolor` |
 
 deadd's control messages work too: a notification with the hint `deadd-notification-center` (true or 1) and a `type` of `pausePopups`, `unpausePopups`, `clearPopups`, `clearInCenter` (forget the history) or `reloadStyle` (reload the config) is carried out, logged, and never shown or kept, so scripts written for deadd keep working:
 `notifyd-send -h int:deadd-notification-center:1 -h string:type:clearPopups x`.
@@ -285,7 +285,7 @@ running `examples/demo.yaml`, whose rules are commented with the step each one s
 
 ## Control
 
-`notifyd ctl status | list [--json|--ids] | history [-n N] [--json] | pop [ID] | forget ID|--all | center [toggle|show|hide] | close [ID] [--app X ...] | action [ID [KEY]] |
+`notifyd ctl status | list [--json|--ids] | history [-n N] [--json] | pop [ID] | forget ID|--all | center [toggle|show|hide] | close [ID] [--app X ...] | action [ID [KEY]] | reply ID TEXT |
 close-all | pause [--for DUR] | resume | toggle [--for DUR] | mode [NAME] [--for DUR] | reload | preset NAME | preview [PRESET] | watch [--json]`.
 `action` without an id invokes the default action of the newest notification on screen that has one,
 or exactly one action of its sender's (notifyd's own buttons and Copy do not count), for a key binding

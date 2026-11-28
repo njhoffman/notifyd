@@ -304,3 +304,56 @@ def test_the_center_stays_when_a_window_opens_under_the_pointer(display):
         leave(x - 50, y + 10)                  # the pointer really left
         assert not center.visible
     """)
+
+
+def test_the_volume_row_appears_when_pactl_answers_while_hidden(display):
+    run_gtk(display, """
+        manager, renderer = setup('position: {follow: none}\\ncenter: {keyboard: false}')
+        center = renderer.center
+        center.request_volume = lambda: None       # no pactl here: answers are fed by hand
+        center.toggle('show')
+        center.toggle('hide')
+        center.on_volume_level({'volume': 55, 'muted': False})   # the answer lands while it is hidden
+        center.toggle('show')
+        assert center.volume_widgets is not None   # the row is there on the next open
+        center.toggle('hide')
+        center.on_volume_level(None)               # pactl went away meanwhile
+        center.toggle('show')
+        assert center.volume_widgets is None
+    """)
+
+
+def test_a_monitor_change_places_the_open_center_again(display):
+    run_gtk(display, """
+        manager, renderer = setup('position: {follow: none}\\ncenter: {keyboard: false}')
+        center = renderer.center
+        center.toggle('show')
+        placed = []
+        center.place = lambda: placed.append(True)
+        renderer.screen.emit('monitors-changed')
+        assert placed == [True]
+        center.toggle('hide')
+        renderer.screen.emit('monitors-changed')
+        assert placed == [True]                    # a hidden one is placed when it opens
+    """)
+
+
+def test_the_open_centers_card_styles_are_kept_and_loaded_together(display):
+    run_gtk(display, """
+        rules = ''.join(f'  - match: {{app: app{i}}}\\n    style: {{background: "#{40 + i * 10:02x}0000"}}\\n'
+                        for i in range(12))                                 # 12 distinct history styles
+        manager, renderer = setup('position: {follow: none}\\ncenter: {keyboard: false, cards: 20}\\n'
+                                  'rules:\\n' + rules)
+        for i in range(12):
+            manager.close(manager.notify(f'app{i}', summary=f'card {i}'))
+        loads = []
+        real_load = renderer.load_css
+        renderer.load_css = lambda: (loads.append(1), real_load())
+        renderer.center.toggle('show')
+        assert len(loads) <= 2                                              # one batch, not one per card
+        kept = set(renderer.center.card_scopes)
+        assert len(kept) >= 12
+        popup = manager.notify('b', summary='a popup')
+        manager.close(popup)                                                # used to prune the cards' scopes
+        assert kept <= set(renderer.styles)
+    """)

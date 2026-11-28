@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.52.1] - 2026-11-28
+
+### Fixed
+
+- The notification center shows the volume row after a quick open and close (pactl answering while it
+  was hidden left it out until something else rebuilt it), and drops it when pactl went away.
+- An open center moves with the monitors when they change, as the popups do.
+- `notifyd ctl bar`: an unknown placeholder in `--format` is an error naming the ones there are (it was a
+  traceback); with `--follow` the line updates when notifications are dismissed or closed; `{shown}`
+  counts as something to show when the format uses it.
+- A rule that sets `history.size` or `history.persist` is a config error saying they are daemon-wide (a
+  rule can set `history.keep`); they used to be ignored.
+- The center's history cards keep their styles while it is open, and a rebuild loads its new styles
+  at once: with many distinct styles a popup closing made the cards flash unstyled.
+- `notifyd rules --timeout` takes a duration (8s, 1500ms, never) like everything else; the docs list
+  `ctl reply`, and the man page gives `fade` as durations.
+
 ## [0.52.0] - 2026-11-28
 
 ### Changed

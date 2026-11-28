@@ -3,9 +3,9 @@
     notifyd daemon [-c CONFIG] [--renderer gtk|none] [--replace] [--log-format pretty|json] [--color ...]
     notifyd send SUMMARY [BODY] [notify-send flags]
     notifyd ctl status | list | history [-n N] [--json|--pick] | pop [ID]
-              | forget ID|--all | center [toggle|show|hide] | close ID | action ID [KEY] | close-all
-              | pause | resume | toggle | mode [NAME] | bar [--follow] | reload | preset NAME
-              | preview [PRESET] | watch [--json]
+              | forget ID|--all | center [toggle|show|hide] | close [ID] [--app X ...] | action [ID [KEY]]
+              | reply ID TEXT | close-all | pause|toggle [--for DUR] | resume | mode [NAME] [--for DUR]
+              | bar [--follow] | reload | preset NAME | preview [PRESET] | watch [--json]
     notifyd presets [--pick | --names]
     notifyd import deadd [--yml PATH] [--css PATH] | dunst [--rc PATH]  [-o OUT] [--force]
     notifyd check [-c CONFIG]
@@ -190,14 +190,18 @@ def pick_history(entries):
     return ctl(argparse.Namespace(command='pop', id=int(result.stdout.split('\t', 1)[0])))
 
 
-BAR_EVENTS = {'paused', 'resumed', 'locked', 'unlocked', 'mode', 'queued', 'shown', 'reload', 'expired', 'missed'}
+BAR_EVENTS = {'paused', 'resumed', 'locked', 'unlocked', 'mode', 'queued', 'shown', 'reload', 'expired', 'missed',
+              'dismissed', 'closed'}
+BAR_FIELDS = ('paused', 'mode', 'held', 'shown', 'missed')
 
 
 def bar_line(status, fmt, idle_text):
     """The status bar text: FMT with {mode} {held} {shown} {paused} {missed}, or IDLE_TEXT when nothing is
-    special (missed ones count only when FMT shows them)."""
+    special (missed and shown ones count only when FMT shows them)."""
     missed = status.get('missed') if '{missed}' in fmt else 0
-    if not status.get('paused') and status.get('mode') == 'normal' and not status.get('held_back') and not missed:
+    shown = status.get('displayed') if '{shown}' in fmt else 0
+    if (not status.get('paused') and status.get('mode') == 'normal' and not status.get('held_back')
+            and not missed and not shown):
         return idle_text
     text = fmt.format(mode='' if status.get('mode') == 'normal' else status.get('mode'),
                       held=status.get('held_back') or '', shown=status.get('displayed', 0),
@@ -209,6 +213,12 @@ def bar(args):
     """One line for a status bar; with --follow a new line whenever it changes (polybar tail = true)."""
     Gio, GLib = gio()
     from notifyd.server import CONTROL_IFACE, CONTROL_NAME, OBJECT_PATH
+    try:
+        args.format.format(**dict.fromkeys(BAR_FIELDS, ''))
+    except (KeyError, IndexError, ValueError) as exc:
+        print(f'notifyd ctl bar: --format {args.format!r}: {exc!r} is not one of '
+              f'{" ".join("{" + f + "}" for f in BAR_FIELDS)}', file=sys.stderr)
+        return 2
 
     def current():
         try:
@@ -436,6 +446,15 @@ def import_command(args):
     return 0
 
 
+def sender_timeout(text):
+    """`rules --timeout`: a duration (8s, 1500ms, 8000, never) as the ms a sender would ask for."""
+    from notifyd.config import ConfigError, parse_duration
+    try:
+        return parse_duration(text, '--timeout')
+    except ConfigError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from None
+
+
 def load_or_exit(path):
     """The config at PATH (the default one when None); a config error, or a PATH given that does not exist,
     prints it and exits 2."""
@@ -661,7 +680,8 @@ def build_parser():
     rules.add_argument('--summary', default='', help='summary (title)')
     rules.add_argument('--body', default='', help='body')
     rules.add_argument('--urgency', choices=('low', 'normal', 'critical'), default='normal', help='urgency')
-    rules.add_argument('--timeout', type=int, default=-1, metavar='MS', help='the timeout the sender asks for')
+    rules.add_argument('--timeout', type=sender_timeout, default=-1, metavar='DURATION',
+                       help='the timeout the sender asks for (8s, 1500ms, never; default: none)')
     rules.add_argument('--hint', action='append', default=[], metavar='NAME=VALUE', help='a hint (repeatable)')
 
     completion = add_command(sub, 'completion', 'print a shell completion script',

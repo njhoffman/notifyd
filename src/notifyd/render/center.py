@@ -138,6 +138,7 @@ class Center:
         self.group_override = None     # By app / `a` until the next reload; None: center.group
         self.volume_level = None   # the last level read (reads are async, so the center never waits on pactl)
         self.reply_entries = {}    # id -> the text field of an open card that takes a reply
+        self.card_scopes = set()   # style scopes of the cards on the panel (kept while it is open)
         self.reply_drafts = {}     # id -> what was typed there, kept over rebuilds
         self.reply_focus = None    # the id whose field has the keyboard, kept over rebuilds
         try:
@@ -288,6 +289,8 @@ class Center:
         appeared = (level is None) != (self.volume_level is None)
         self.volume_level = level
         if not self.visible:
+            if appeared:                           # the row comes or goes: build it again when shown
+                self.dirty = True
             return
         if appeared:
             self.on_event({'event': 'shown'})      # the row comes or goes: rebuild
@@ -310,6 +313,12 @@ class Center:
                 self.set_mute_icon(mute)
 
     def rebuild(self, playing=False):
+        """Build the panel again; the cards' new styles go in with one CSS load."""
+        self.card_scopes = set()
+        with self.renderer.batch_styles():
+            self._rebuild(playing)
+
+    def _rebuild(self, playing=False):
         if playing is False:
             playing = self.now_playing()
         scope, style = self.scope()
@@ -656,6 +665,7 @@ class Center:
         if n is None:
             n = self.manager.entry_notification(entry)
         scope, card_style = self.renderer.style_for(n)
+        self.card_scopes.add(scope)
         # a clickable close mark, as tall as the header's text (a GtkButton adds the theme's button height)
         close = Gtk.EventBox()
         close.set_visible_window(False)

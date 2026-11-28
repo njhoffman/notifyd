@@ -242,3 +242,10 @@ def test_bad_rewrite_templates_are_config_errors(template):
     value = template if template.startswith('[') else f'"{template}"'
     with pytest.raises(ConfigError):
         load_config(text=f'rules:\n  - match: {{app: x}}\n    summary: {value}\n')
+
+
+def test_rules_set_only_history_keep():
+    assert load_config(text='rules:\n  - match: {app: x}\n    history: {keep: false}\n').rules
+    for key in ('size: 5', 'persist: false'):
+        with pytest.raises(ConfigError, match=r'only set history\.keep'):
+            load_config(text=f'rules:\n  - match: {{app: x}}\n    history: {{{key}}}\n')

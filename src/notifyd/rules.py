@@ -141,6 +141,11 @@ def compile_rule(raw, index):
         except (ValueError, IndexError, AttributeError, KeyError, TypeError) as exc:
             raise ConfigError(f'{where}: {key}: bad template {template!r}: {exc} '
                               '(write {{ and }} for literal braces)') from exc
+    if isinstance(raw.get('history'), dict):
+        global_only = [k for k in raw['history'] if k != 'keep']
+        if global_only:
+            raise ConfigError(f'{where}: history.{global_only[0]}: set it at the top of the config; a rule '
+                              'can only set history.keep')
     unknown = [k for k in raw if k not in SETTING_KEYS]
     if unknown:
         raise ConfigError(f'{where}: unknown key(s) {", ".join(map(repr, unknown))}')

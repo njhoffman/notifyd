@@ -11,6 +11,7 @@ Layout (deadd's):  [app icon] app name ........ time
                             [action] [action]
 """
 
+import contextlib
 import os
 import sys
 import time
@@ -207,6 +208,8 @@ class GtkRenderer:
         Gtk.StyleContext.add_provider_for_screen(self.screen, self.provider,
                                                  Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1)
         self.styles = {}     # scope class -> css
+        self.batching = 0    # inside batch_styles(): new scopes wait for one load at its end
+        self.styles_pending = False
         self.window_scopes = {}   # notification id -> the scope class its window uses
         self.windows = {}    # id -> Gtk.Window
         self.areas = {}      # stack -> the work area it is on; chosen when its first one opens
@@ -228,8 +231,24 @@ class GtkRenderer:
         scope = style_class(style)
         if scope not in self.styles:
             self.styles[scope] = self.checked_css(build_css(style, scope), n)
-            self.load_css()
+            if self.batching:
+                self.styles_pending = True
+            else:
+                self.load_css()
         return scope, style
+
+    @contextlib.contextmanager
+    def batch_styles(self):
+        """Scopes added inside (the center's cards, built together) are loaded with one provider load at the
+        end instead of one each."""
+        self.batching += 1
+        try:
+            yield
+        finally:
+            self.batching -= 1
+            if not self.batching and self.styles_pending:
+                self.styles_pending = False
+                self.load_css()
 
     def checked_css(self, css, n):
         """CSS when GTK parses it on its own, else '' (N keeps the theme's look) with the error logged: all
@@ -252,6 +271,8 @@ class GtkRenderer:
         built = getattr(self.center, 'built', None)
         if built:
             used.add(built[0])
+        if getattr(self.center, 'visible', False):
+            used |= self.center.card_scopes          # the open center's history cards
         unused = [scope for scope in self.styles if scope not in used]
         if len(unused) > self.STYLE_SLACK:
             for scope in unused:
@@ -402,6 +423,8 @@ class GtkRenderer:
         self.areas.clear()
         self.log.info('monitors changed; placing notifications again')
         self.layout()
+        if self.center.visible:                   # the open center too, on the monitor it belongs on now
+            self.center.place()
 
     def fill(self, window, n):
         self.bodies.pop(n.id, None)

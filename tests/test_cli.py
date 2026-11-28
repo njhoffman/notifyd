@@ -267,3 +267,16 @@ def test_check_exits_2_for_errors_and_a_missing_path(tmp_path, capsys):
             main(['check', '-c', str(path)])
         assert exit_info.value.code == 2
     assert 'no such file' in capsys.readouterr().err
+
+
+def test_bar_shown_counts_only_when_the_format_shows_it():
+    from notifyd.cli import bar_line
+    status = {'paused': False, 'mode': 'normal', 'held_back': 0, 'displayed': 2}
+    assert bar_line(status, '{paused} {held}', 'idle') == 'idle'
+    assert bar_line(status, '{shown} on screen', 'idle') == '2 on screen'
+    assert bar_line({**status, 'displayed': 0}, '{shown} on screen', 'idle') == 'idle'
+
+
+def test_bar_refuses_an_unknown_placeholder(capsys):
+    assert main(['ctl', 'bar', '--format', '{locked}']) == 2
+    assert "'locked'" in capsys.readouterr().err
