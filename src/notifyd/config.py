@@ -20,8 +20,8 @@ DEFAULTS = {
         'anchor': 'top-right',   # top-left, top-center, top-right, bottom-left, bottom-center, bottom-right
         'margin': [30, 5],       # distance from the anchored edges: [vertical, horizontal]
         'gap': 10,               # space between stacked notifications
-        'follow': 'mouse',       # mouse (the monitor under the pointer) or none (position.monitor)
-        'monitor': 0,
+        'follow': 'mouse',       # mouse (the monitor under the pointer), focus (the focused window's) or none
+        'monitor': 0,            # without follow (or when it finds none): an index or an output name (DP-1)
     },
     'width': 350,
     'timeout': 8000,             # ms; 0 never expires
@@ -62,6 +62,7 @@ DEFAULTS = {
 TOP_LEVEL = set(DEFAULTS)
 DURATION_KEYS = ('timeout', 'timeout-critical', 'idle-threshold')
 GROUP_FIELDS = ('app', 'summary', 'category', 'urgency')
+FOLLOW = ('mouse', 'focus', 'none')
 RUN_EVENTS = ('receive', 'action', 'close')
 HIDE_PARTS = {'app-icon', 'app-name', 'time', 'title', 'body', 'image', 'actions', 'progress'}
 
@@ -135,6 +136,8 @@ def _check_numbers(settings, where):
         if not isinstance(parent, dict) or parent.get(path[-1]) is None:
             continue
         value = parent[path[-1]]
+        if path == ('position', 'monitor') and isinstance(value, str) and not value.lstrip('-').isdigit():
+            continue                                         # an output name
         if isinstance(value, str) and value.strip().lstrip('-').isdigit():
             value = int(value)
         if isinstance(value, bool) or not isinstance(value, int) or (value < 0 and not negative):
@@ -143,9 +146,23 @@ def _check_numbers(settings, where):
         parent[path[-1]] = value
 
 
+def _check_position(settings, where):
+    """position.follow is one of FOLLOW; position.monitor an index or an output name (kept as text)."""
+    position = settings.get('position')
+    if not isinstance(position, dict):
+        return
+    if 'follow' in position and position['follow'] not in FOLLOW:
+        raise ConfigError(f'{where}: position.follow: expected one of {", ".join(FOLLOW)}, '
+                          f'got {position["follow"]!r}')
+    monitor = position.get('monitor')
+    if isinstance(monitor, str) and monitor.strip() and not monitor.strip().lstrip('-').isdigit():
+        position['monitor'] = monitor.strip()
+
+
 def normalize(settings, where='config'):
     """Parse durations and check value shapes in place; returns the list of warnings."""
     warnings = []
+    _check_position(settings, where)
     _check_numbers(settings, where)
     for key in DURATION_KEYS:
         if key in settings:

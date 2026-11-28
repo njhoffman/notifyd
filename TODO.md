@@ -204,9 +204,9 @@ Found in a review on 2026-11-26 of the code and of dunst, deadd, mako, swaync an
 - [ ] **Per-rule position or a second stack.** (p3) [feature] Rules cannot set `position`, so a
       volume OSD cannot sit centered while chat stays top-right: one stack per anchor. Needs a
       design note first (`layout`). Upstream: dunst#265, dunst#1561.
-- [ ] **Monitor by name; follow keyboard focus.** (p3) [feature] `position.monitor` is an index
+- [x] **Monitor by name; follow keyboard focus.** (p3) [feature] `position.monitor` is an index
       that moves when displayd changes the layout; match `Gdk.Monitor.get_model()` and add
-      `follow: focus` (the active window's monitor). Upstream: dunst#1398, dunst#1545, deadd#196.
+      `follow: focus` (the active window's monitor). Upstream: dunst#1398, dunst#1545, deadd#196. Done in 0.44.0.
 - [ ] **Script filters that rewrite a notification.** (p3) [feature] A rule key `filter: CMD` run
       synchronously with a short timeout, merging the JSON it prints (summary, body, progress,
       hints). Upstream: deadd#215, dunst#1494.

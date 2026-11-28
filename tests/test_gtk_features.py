@@ -142,3 +142,22 @@ def test_popups_are_announced_to_screen_readers(display):
         manager.notify('mail', summary='replaced', body='', replaces_id=normal)
         assert renderer.windows[normal].get_accessible().get_name() == 'replaced'   # kept current
     """)
+
+
+def test_monitor_by_name_and_follow_focus(display):
+    run_gtk(display, """
+        from gi.repository import Gdk
+        display = Gdk.Display.get_default()
+        name = display.get_monitor(0).get_model()                  # Xvfb's one output ('screen')
+        manager, renderer = setup(f'position: {{follow: none, monitor: {name.upper()}}}')
+        assert renderer.monitor_geometry().width == 1280          # by name, any case
+        assert 'no such monitor' not in stream.getvalue()
+        manager, renderer = setup('position: {follow: none, monitor: HDMI-9}')
+        assert renderer.monitor_geometry().width == 1280          # unknown: the primary one, with a warning
+        assert renderer.monitor_geometry().width == 1280
+        assert stream.getvalue().count("position.monitor 'HDMI-9': no such monitor") == 1   # once
+        manager, renderer = setup('position: {follow: focus}')     # no window manager: no focused window
+        assert renderer.monitor_geometry().width == 1280          # falls back to position.monitor
+        nid = manager.notify('a', summary='placed')
+        assert renderer.windows[nid].get_visible()
+    """)

@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-11-27
+
+### Added
+
+- `position.monitor` takes an output name as `xrandr` lists it (`DP-1`, any case), so the stack stays
+  on that screen when a layout change renumbers the monitors. An unknown name warns once and uses the
+  primary monitor.
+- `position.follow: focus` puts the stack on the focused window's monitor (`position.monitor` when
+  nothing has focus).
+- `notifyd import dunst` maps `follow = keyboard` to `follow: focus` (it used to follow the mouse) and
+  keeps dunst's `monitor`.
+
+### Changed
+
+- An unknown `position.follow` value is a config error; it used to act as `none`.
+
 ## [0.43.0] - 2026-11-27
 
 ### Added

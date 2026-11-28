@@ -26,7 +26,8 @@ that stays until it is fixed, and the old config is kept. `notifyd check` valida
 | `position.anchor` | `top-right` | `top-`/`bottom-` + `left`/`center`/`right` |
 | `position.margin` | `[30, 5]` | `[vertical, horizontal]` from the anchored edges |
 | `position.gap` | `10` | between notifications |
-| `position.follow` | `mouse` | `mouse`: the monitor under the pointer; `none`: `position.monitor` |
+| `position.follow` | `mouse` | `mouse`: the monitor under the pointer; `focus`: the focused window's; `none`: `position.monitor` (also when no window has focus) |
+| `position.monitor` | `0` | an index, or an output name as `xrandr` lists it (`DP-1`, any case), which stays put when the layout changes; an unknown name warns once and uses the primary monitor |
 | `icon.size` / `icon.name` | `25` / - | app icon in the header; `name` replaces the sender's; with neither, the icon of the `desktop-entry` hint's `.desktop` file |
 | `image.size` / `image.path` / `image.margin-right` | `75` / - / `0` | the picture on the left |
 | `title.max-lines` / `body.max-lines` | `0` / `6` | longer summaries and bodies end in … (`0`: no limit), counting both wrapped lines and line breaks; hovering a popup shows its whole body, and `e` does on the selected center card |

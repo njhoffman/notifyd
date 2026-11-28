@@ -198,3 +198,14 @@ def test_center_buttons_are_checked():
     assert buttons.settings['center']['buttons'][0]['label'] == 'Wifi'
     with pytest.raises(ConfigError, match=r'center\.buttons'):
         load_config(text='center: {buttons: [{label: Wifi}]}')
+
+
+def test_position_follow_and_monitor_by_name():
+    config = load_config(text='position: {follow: focus, monitor: DP-1}\n')
+    assert config.settings['position']['follow'] == 'focus'
+    assert config.settings['position']['monitor'] == 'DP-1'
+    assert load_config(text="position: {monitor: '1'}\n").settings['position']['monitor'] == 1
+    with pytest.raises(ConfigError):
+        load_config(text='position: {follow: keyboard}\n')
+    with pytest.raises(ConfigError):
+        load_config(text='position: {monitor: -1}\n')

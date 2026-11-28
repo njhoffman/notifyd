@@ -167,7 +167,8 @@ def test_dunst_rules_and_globals():
     assert rules['regex']['match'] == {'body': '/^[0-9]+%$/'}
     assert 'disabled' not in rules
     text = '\n'.join(report)
-    assert 'follow = keyboard' in text and 'global.shrink' in text and '[urgent_mail] format' in text
+    assert 'global.shrink' in text and '[urgent_mail] format' in text
+    assert 'follow = keyboard' not in text and config['position']['follow'] == 'focus'   # follows focus
     loaded = load_config(text=dump_config(dict(config), 'dunst'))
     assert [rule.name for rule in loaded.rules][:2] == ['low urgency', 'spotify']
 
@@ -204,3 +205,12 @@ def test_dunst_ignore_dbusclose():
     assert {r['name']: r for r in config['rules']}['chat']['ignore-close'] is True
     assert not [line for line in report if 'ignore_dbusclose' in line]
     load_config(text=dump_config(dict(config), 'dunst'))
+
+
+def test_dunst_monitor_by_index_or_name():
+    from notifyd.importer import import_dunst
+    for value, expected in (('1', 1), ('DP-2', 'DP-2')):
+        config, _report = import_dunst(f'[global]\n    monitor = {value}\n')
+        assert config['position']['monitor'] == expected
+    config, _report = import_dunst('[global]\n    monitor = 0\n    follow = none\n')
+    assert config['position'] == {'follow': 'none'}                   # 0 is the default

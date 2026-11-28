@@ -1,4 +1,4 @@
-.TH NOTIFYD 1 2026-11-27 "notifyd 0.43.0" "User Commands"
+.TH NOTIFYD 1 2026-11-27 "notifyd 0.44.0" "User Commands"
 .SH NAME
 notifyd \- desktop notification daemon for X11 with rules, presets and a colorful log
 .SH SYNOPSIS
@@ -504,7 +504,8 @@ YAML; every key is optional and an empty file gives the deadd look. The main key
 .B group\-by
 (a list of app, summary, category, urgency: a new notification with the same values replaces the
 open one and is counted),
-.BR position.anchor / margin / gap / follow / monitor ,
+.BR position.anchor / margin / gap / follow / monitor
+(follow: mouse, focus or none; monitor: an index or an output name such as DP\-1),
 .BR icon.size / name ,
 .BR image.size / path / margin\-right ,
 .BR title.max\-lines ,

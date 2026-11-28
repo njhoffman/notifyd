@@ -230,7 +230,7 @@ DUNST_MATCH = {'appname': 'app', 'summary': 'summary', 'body': 'body', 'category
                'desktop_entry': 'desktop-entry', 'stack_tag': 'stack-tag', 'icon': 'icon', 'msg_urgency': 'urgency'}
 DUNST_CLICK = {'close_current': 'dismiss', 'close_all': 'dismiss-all', 'do_action': 'default-action',
                'open_url': 'default-action', 'none': 'none'}
-DUNST_IGNORED_GLOBAL = {'monitor', 'scale', 'progress_bar', 'progress_bar_frame_width',
+DUNST_IGNORED_GLOBAL = {'scale', 'progress_bar', 'progress_bar_frame_width',
                         'progress_bar_min_width',
                         'progress_bar_max_width', 'separator_height', 'separator_color', 'text_icon_padding',
                         'line_height', 'sort', 'alignment', 'vertical_alignment', 'ellipsize', 'word_wrap',
@@ -321,9 +321,10 @@ def import_dunst(text):
         if found:
             position['margin'] = [int(found.group(2)), int(found.group(1))]
     if 'follow' in g:
-        position['follow'] = 'none' if g['follow'] == 'none' else 'mouse'
-        if g['follow'] == 'keyboard':
-            report.append('follow = keyboard: notifyd follows the mouse instead')
+        position['follow'] = {'none': 'none', 'keyboard': 'focus'}.get(g['follow'], 'mouse')
+    monitor = str(g.get('monitor', '')).strip()             # an index or an output name, as in dunst
+    if monitor and monitor != '0':                           # 0 is notifyd's default too
+        position['monitor'] = int(monitor) if monitor.isdigit() else monitor
     if position:
         out['position'] = position
     if g.get('font'):

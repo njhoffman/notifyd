@@ -682,16 +682,36 @@ class GtkRenderer:
         display = Gdk.Display.get_default()
         position = self.manager.config.settings['position']
         monitor = None
-        if position.get('follow') == 'mouse':
+        follow = position.get('follow')
+        if follow == 'mouse':
             seat = display.get_default_seat()
             if seat and seat.get_pointer():
                 _screen, x, y = seat.get_pointer().get_position()
                 monitor = display.get_monitor_at_point(x, y)
+        elif follow == 'focus':
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', DeprecationWarning)
+                active = self.screen.get_active_window()
+            monitor = display.get_monitor_at_window(active) if active is not None else None
         if monitor is None:
-            monitor = display.get_monitor(int(position.get('monitor') or 0)) or display.get_primary_monitor()
+            monitor = self.configured_monitor(display, position.get('monitor'))
         if monitor is None:
-            monitor = display.get_monitor(0)
+            monitor = display.get_primary_monitor() or display.get_monitor(0)
         return monitor.get_workarea()
+
+    def configured_monitor(self, display, value):
+        """position.monitor: an index, or an output name (DP-1, as xrandr lists it; any case). None when
+        there is no such monitor, with a warning (once per name) for a name."""
+        if isinstance(value, str) and not value.lstrip('-').isdigit():
+            monitors = [display.get_monitor(i) for i in range(display.get_n_monitors())]
+            found = next((m for m in monitors if (m.get_model() or '').lower() == value.lower()), None)
+            if found is None and value not in self.missing_seen:
+                self.missing_seen.add(value)
+                names = ', '.join(m.get_model() or '?' for m in monitors)
+                self.log.warn(f'position.monitor {value!r}: no such monitor (there are: {names}); '
+                              'using the primary one')
+            return found
+        return display.get_monitor(int(value or 0))
 
     def fullscreen(self):
         """Whether the focused window (_NET_ACTIVE_WINDOW) covers the whole monitor the stack is on: a
