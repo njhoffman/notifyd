@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.52.4] - 2026-11-28
+
+### Changed
+
+- `just test` runs the suite through `test-progress` when it is installed (`pytest -v` read per test:
+  progress, kept runs, and with `TEST_PROGRESS_NOTIFY=1` a notification with a progress bar), else pytest
+  alone as before.
+
 ## [0.52.3] - 2026-11-28
 
 ### Fixed

@@ -1,9 +1,15 @@
 default:
     @just --list
 
-# run the test suite (pytest; the daemon tests start a private D-Bus and Xvfb)
+# run the test suite (pytest; the daemon tests start a private D-Bus and Xvfb), through test-progress
+# when it is installed (per-test progress, kept runs; TEST_PROGRESS_NOTIFY=1 adds a notification
+# with a progress bar), else pytest alone
 test *ARGS:
-    python3 -m pytest -q {{ ARGS }}
+    #!/usr/bin/env sh
+    if command -v test-progress >/dev/null 2>&1; then
+        exec test-progress run -- python3 -m pytest -v {{ ARGS }}
+    fi
+    exec python3 -m pytest -q {{ ARGS }}
 
 # lint with ruff
 lint:
