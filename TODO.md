@@ -45,7 +45,7 @@ Reviewed: 2026-11-27
 - [x] **A very long `--for` breaks the state.** (p3) [bug] `GLib.timeout_add` overflows past about
       49 days (`ctl pause --for 1200h`): `pause_until` is set but `paused` stays False. Cap `--for`
       (say 30 days) in `duration_seconds` and set state only after the timer is made.
-- [ ] **README is behind.** (p3) [docs] It lists neither the dunst importer nor 0.40-0.49 (filters,
+- [x] **README is behind.** (p3) [docs] It lists neither the dunst importer nor 0.40-0.49 (filters,
       per-rule stacks, inline reply, timed do not disturb, copy-code); `docs/design.md:33`'s pipeline
       has no filter step.
 - [x] **One-time codes linger on the clipboard.** (p3) [feature] copy-code puts the code in the

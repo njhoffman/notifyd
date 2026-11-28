@@ -4,8 +4,15 @@ A desktop notification daemon (freedesktop `org.freedesktop.Notifications`) for 
 combines the best parts of deadd-notification-center and dunst:
 
 - deadd's look as the default: a black translucent card, no frame, shadow from the compositor
-- a short YAML config, with an importer for an existing deadd config
-- rules that restyle, retime, re-icon, rewrite or hide notifications as they arrive
+- a short YAML config, with importers for an existing deadd or dunst config
+- rules that restyle, retime, re-icon, rewrite or hide notifications as they arrive, move them to a
+  stack of their own (a volume bar at the bottom center, chat at the top right), drop actions, run
+  commands when they arrive, are acted on or close, or pass them through a `filter` script first
+- a notification center with the history, now playing, volume, do not disturb and modes, run from
+  the keyboard, where a chat notification can be answered (inline reply)
+- do not disturb for a while (`notifyd ctl pause --for 1h`), timed modes, closing by app or text,
+  and a status-bar line with what is held back or was missed
+- a Copy button for one-time codes, and popups that screen readers announce
 - 17 preset styles (deadd, dunst, swaync, Catppuccin, Dracula, Gruvbox, Nord, Rosé Pine, Kanagawa,
   Solarized, ...) you can switch between and preview live, or all side by side with `just preview`
 - full Pango markup, plus named styles (`<span class="accent">`) that follow the preset

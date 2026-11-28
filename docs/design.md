@@ -30,7 +30,8 @@ Pipeline for each `Notify` call:
 
 ```
 D-Bus Notify -> normalize (hints, image, urgency) -> rules (match -> modify, in order)
-  -> mode filter (DND, pause level) -> stack/replace (id, tag) -> render (preset + overrides)
+  -> stack/replace (id, tag) -> filter command (async, a timeout) -> one-time code
+  -> mode filter (DND, pause level) -> stack per position, room -> render (preset + overrides)
   -> history -> log line / watch stream -> expire / action / close signals
 ```
 
