@@ -1164,3 +1164,35 @@ def test_the_default_action_of_the_newest_on_screen(make_manager):
     m.pause(True)
     held = m.notify('Claude Code', summary='held back', actions=['default', 'Open'])
     assert m.default_target() is None and held in m.held_back        # only what is on screen
+
+
+def test_the_senders_close_takes_its_filtered_update_too(make_manager):
+    filters = PendingFilters()
+    m, _s, _r, _e, closed, _a = make_manager('rules:\n  - match: {summary: /update/}\n    filter: tidy\n',
+                                             filter_runner=filters)
+    nid = m.notify('app', summary='progress 10', timeout=0)
+    m.notify('app', summary='update 20', replaces_id=nid)
+    m.sender_close(nid)
+    filters.answer(0, {})
+    assert closed == [(nid, CLOSED)] and nid not in m.active          # gone, as the app expects
+
+
+def test_shutdown_signals_each_held_one_once(make_manager):
+    filters = PendingFilters()
+    m, _s, _r, _e, closed, _a = make_manager('rules:\n  - match: {summary: /update/}\n    filter: tidy\n',
+                                             filter_runner=filters)
+    m.pause(True)
+    held = m.notify('app', summary='held')
+    m.notify('app', summary='update', replaces_id=held)
+    pending = m.notify('app', summary='update alone')               # not open yet: closed once by close_all
+    m.shutdown()
+    assert sorted(closed) == sorted([(held, UNDEFINED), (pending, CLOSED)])
+
+
+def test_a_timer_too_far_ahead_in_the_state_ends_at_start(make_manager, tmp_path):
+    state = tmp_path / 'state.json'
+    state.write_text(json.dumps({'mode': 'focus', 'paused': True, 'held': [], 'paused_until': 9e12,
+                                 'mode_until': 9e12, 'mode_after': 'normal'}))
+    m, _s, _r, events, *_ = make_manager(state_path=state)          # make_manager calls start()
+    assert not m.paused and m.mode == 'normal'
+    assert sum('too far ahead' in e.get('message', '') for e in events) == 2

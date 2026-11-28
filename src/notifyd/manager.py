@@ -465,7 +465,7 @@ class Manager:
         if n is not None and n.settings.get('ignore-close'):
             self.log.emit('kept', n, reason='the sender closed it; ignore-close')
             return False
-        return self.close(nid, CLOSED)
+        return self.close(nid, CLOSED, pending_too=True)   # its update in a filter goes too: the app is done
 
     def close_matching(self, criteria, reason=CLOSED):
         """Close every open notification (on screen, waiting, held back) whose fields match CRITERIA, a
@@ -655,6 +655,8 @@ class Manager:
         """The daemon stops: keep the paused state and the held-back queue for the next start (their
         ids end here, so their senders hear UNDEFINED), and close the rest."""
         self._save_state()
+        # updates of open ones still in their filter never showed: they go with them (one signal per id)
+        self.filtering = {nid: pending for nid, pending in self.filtering.items() if nid not in self.active}
         held, self.held_back = self.held_back, []
         for nid in held:
             if not self.paused:                 # held only by the lock: not kept, so into history
@@ -759,12 +761,18 @@ class Manager:
     def _restore_timers(self, state):
         """Pick up a timed pause or mode the state file kept: what ended while notifyd was down ends now."""
         until = state.get('paused_until')
+        if isinstance(until, (int, float)) and until - time.time() > MAX_TIMED:
+            self.log.warn('state: a timed pause ends too far ahead (over 30 days); it ends now')
+            until = 0
         if self.paused and isinstance(until, (int, float)):
             if until <= time.time():
                 self.pause(False)
             else:
                 self._time_pause(until)
         until, after = state.get('mode_until'), state.get('mode_after')
+        if isinstance(until, (int, float)) and until - time.time() > MAX_TIMED:
+            self.log.warn('state: a timed mode ends too far ahead (over 30 days); it ends now')
+            until = 0
         if isinstance(until, (int, float)) and isinstance(after, str):
             if until <= time.time():
                 self.set_mode(after)

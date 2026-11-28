@@ -21,16 +21,16 @@ Reviewed: 2026-11-27
       all styles the same way) into a ConfigError. Done in 0.51.1: hints must be colors (`css_color`),
       no CSS value can end its rule, and each style's CSS is parsed alone first, so a bad config value
       costs only its own notifications their style (logged) instead of a ConfigError.
-- [ ] **The sender's close leaves its filtered update to show.** (p2) [bug] Since 0.49.2 `close()` keeps
+- [x] **The sender's close leaves its filtered update to show.** (p2) [bug] Since 0.49.2 `close()` keeps
       a pending replacement unless `pending_too`; `sender_close` and `ctl close ID` (`server.py:283`) do
       not pass it, so CloseNotification(1) right after an update of 1 with a `filter:` sends
       NotificationClosed(1) and then shows the update as a new popup the app thinks is gone. Pass
       `pending_too=True` there; keep the pending one only on expiry and the user's dismissal.
-- [ ] **Shutdown signals a held notification twice.** (p2) [bug] Paused, id 1 held, its update in its
+- [x] **Shutdown signals a held notification twice.** (p2) [bug] Paused, id 1 held, its update in its
       filter, the daemon stops: `shutdown` pops 1 and sends UNDEFINED, then `close_all` sees
       `filtering[1]` and sends CLOSED too (and the update goes into history while the original is saved
       as held). Drop pending filters first in `shutdown` (or skip ids the held loop handled).
-- [ ] **A bad timer in state.json stops the daemon from starting.** (p2) [bug] `_restore_timers` (via
+- [x] **A bad timer in state.json stops the daemon from starting.** (p2) [bug] `_restore_timers` (via
       `start()`, unguarded at `daemon.py:205`) does not apply `MAX_TIMED`; a `mode_until` far ahead
       (written by 0.49.0 after a failed `--for 100d`) raises OverflowError on every start. Clamp or skip
       out-of-range values there and log a warning.

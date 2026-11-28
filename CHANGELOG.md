@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.51.2] - 2026-11-27
+
+### Fixed
+
+- An app that closes its notification (CloseNotification, or `ctl close ID`) while an update of it waits
+  for its `filter` no longer sees that update pop up afterwards as a new notification (0.49.2).
+- Stopping the daemon sends one NotificationClosed per held notification, also when an update of it was
+  still in its filter (it sent two, and kept the update in the history).
+- A timed pause or mode in the state file that ends more than 30 days ahead (0.49.0 could write one)
+  ends at start with a warning instead of keeping the daemon from starting.
+
 ## [0.51.1] - 2026-11-27
 
 ### Fixed

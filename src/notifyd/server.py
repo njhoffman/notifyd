@@ -281,7 +281,7 @@ class Server:
                 entries = list(m.history)[-limit:] if limit else list(m.history)
                 return GLib.Variant('(s)', (json.dumps(entries, ensure_ascii=False),))
             if method == 'Close':
-                return GLib.Variant('(b)', (m.close(params.unpack()[0], CLOSED),))
+                return GLib.Variant('(b)', (m.close(params.unpack()[0], CLOSED, pending_too=True),))
             if method == 'Invoke':
                 nid, key = params.unpack()
                 n = m.active.get(nid)
