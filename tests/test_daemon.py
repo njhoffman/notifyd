@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from conftest import wait_for_xvfb
 from notifyd import __version__
 from notifyd.config import load_config
 
@@ -651,7 +652,7 @@ def test_renderer_relayout_on_monitor_change_and_duplicate_badge():
     xvfb = subprocess.Popen(['Xvfb', display, '-screen', '0', '1280x720x24'], stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)
     try:
-        time.sleep(0.7)
+        wait_for_xvfb(display)
         result = subprocess.run([sys.executable, '-c', RENDERER_SCRIPT, str(ROOT / 'src'), str(ROOT / 'tests')],
                                 env={**os.environ, 'DISPLAY': display, 'GIO_USE_VFS': 'local'},
                                 capture_output=True, text=True, timeout=30, check=False)
@@ -780,7 +781,7 @@ def test_pictures_are_sharp_at_scale_2():
     xvfb = subprocess.Popen(['Xvfb', display, '-screen', '0', '1280x720x24'], stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)
     try:
-        time.sleep(0.7)
+        wait_for_xvfb(display)
         result = subprocess.run([sys.executable, '-c', HIDPI_SCRIPT, str(ROOT / 'src'), str(ROOT / 'tests')],
                                 env={**os.environ, 'DISPLAY': display, 'GDK_SCALE': '2', 'GIO_USE_VFS': 'local'},
                                 capture_output=True, text=True, timeout=30, check=False)

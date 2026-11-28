@@ -8,6 +8,7 @@ import time
 
 import pytest
 
+from conftest import wait_for_xvfb
 from notifyd.effects import Runner, SoundPlayer, XIdle, notification_env, sound_for
 from notifyd.log import EventLog
 from notifyd.model import Notification
@@ -92,7 +93,7 @@ def test_xidle_under_xvfb():
     display = f':{70 + os.getpid() % 9}'
     xvfb = subprocess.Popen(['Xvfb', display], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
-        time.sleep(0.7)
+        wait_for_xvfb(display)
         code = 'from notifyd.effects import XIdle; import time; i = XIdle(); a = i(); time.sleep(0.3); print(a, i())'
         result = subprocess.run([sys.executable, '-c', code], env={**os.environ, 'DISPLAY': display,
                                 'PYTHONPATH': os.path.join(os.path.dirname(__file__), '..', 'src')},

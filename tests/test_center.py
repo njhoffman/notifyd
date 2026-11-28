@@ -8,11 +8,11 @@ import os
 import shutil
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 import pytest
 
+from conftest import wait_for_xvfb
 from notifyd.config import load_config
 from notifyd.rules import known_modes
 
@@ -276,7 +276,7 @@ def test_center_mode_picker_volume_row_and_grab_leave(pactl):
     xvfb = subprocess.Popen(['Xvfb', display, '-screen', '0', '1280x720x24'], stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)
     try:
-        time.sleep(0.7)
+        wait_for_xvfb(display)
         result = subprocess.run([sys.executable, '-c', CENTER_SCRIPT, str(ROOT / 'src'), str(ROOT / 'tests'),
                                  str(pactl)],
                                 env={**os.environ, 'DISPLAY': display, 'GIO_USE_VFS': 'local',
@@ -619,7 +619,7 @@ def test_center_keyboard(pactl):
     xvfb = subprocess.Popen(['Xvfb', display, '-screen', '0', '1280x720x24'], stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)
     try:
-        time.sleep(0.7)
+        wait_for_xvfb(display)
         result = subprocess.run([sys.executable, '-c', KEYS_SCRIPT, str(ROOT / 'src'), str(ROOT / 'tests')],
                                 env={**os.environ, 'DISPLAY': display, 'GIO_USE_VFS': 'local',
                                      'DBUS_SESSION_BUS_ADDRESS': 'disabled:'},

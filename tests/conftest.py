@@ -1,5 +1,6 @@
 import io
 import os
+import time
 
 import pytest
 
@@ -55,6 +56,17 @@ class RecordingRenderer:
 
     def close(self, nid):
         self.calls.append(('close', nid))
+
+
+def wait_for_xvfb(display, timeout=10):
+    """Wait until the Xvfb on DISPLAY (':71') listens on its socket: a fixed sleep is too short when the
+    machine is busy, and GTK then cannot open the display."""
+    socket = f'/tmp/.X11-unix/X{display.lstrip(":")}'
+    end = time.monotonic() + timeout
+    while not os.path.exists(socket) and time.monotonic() < end:
+        time.sleep(0.05)
+    time.sleep(0.1)                               # listening a moment after the socket appears
+    assert os.path.exists(socket), f'Xvfb {display} did not start'
 
 
 @pytest.fixture

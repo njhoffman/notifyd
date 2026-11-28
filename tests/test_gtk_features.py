@@ -7,10 +7,11 @@ import shutil
 import subprocess
 import sys
 import textwrap
-import time
 from pathlib import Path
 
 import pytest
+
+from conftest import wait_for_xvfb
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -49,7 +50,7 @@ def display():
     name = f':{70 + os.getpid() % 9}'
     xvfb = subprocess.Popen(['Xvfb', name, '-screen', '0', '1280x1024x24'], stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)
-    time.sleep(0.7)
+    wait_for_xvfb(name)
     yield name
     xvfb.terminate()
     xvfb.wait(5)
